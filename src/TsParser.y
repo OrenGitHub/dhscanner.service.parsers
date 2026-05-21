@@ -58,6 +58,25 @@ import Data.Map ( empty, fromList )
 -- ***************************************************
 %error { parseError }
 
+-- ***************************************************************
+-- *                                                             *
+-- * Zero-tolerance conflict guardrail                            *
+-- *                                                             *
+-- * Tell Happy we expect EXACTLY 0 shift/reduce conflicts (and  *
+-- * 0 reduce/reduce conflicts -- those are always errors). If   *
+-- * the actual count differs, Happy aborts with a non-zero exit *
+-- * code, which fails `cabal build` (and therefore the docker   *
+-- * compose build of the `parsers` service used by              *
+-- * agent_loop.py). This guarantees that no grammar edit can    *
+-- * silently introduce ambiguity -- a shift/reduce conflict     *
+-- * means an existing input may now reduce differently than it  *
+-- * did before, which would invalidate the per-iteration        *
+-- * strict-progress gate's assumption that previously-passing   *
+-- * files still parse the same way.                             *
+-- *                                                             *
+-- ***************************************************************
+%expect 0
+
 %token 
 
 -- ***************
@@ -533,7 +552,18 @@ optional(a): { Nothing } | a { Just $1 }
 choice(a, b): a { Left $1 } | b { Right $1 }
 
 -- direct translation to: Ast.Root
-program: optional(',') commalistof(stmt) { Actions.root $2 }
+program:
+optional(',') commalistof(stmt) { Actions.root $2 } |
+'SourceFile' loc
+'('
+    'SyntaxList' loc
+    '('
+        commalistof(stmt)
+    ')'
+')'
+{
+    Actions.root $7
+}
 
 stmt:
 stmtIf { $1 } |
@@ -549,11 +579,13 @@ stmtThrow        { $1 } |
 stmtBreak       { $1 } |
 stmtContinue     { $1 } |
 stmtWhile       { $1 } |
+stmtDo       { $1 } |
 stmtForOf        { $1 } |
 stmtForIn        { $1 } |
 stmtFor        { $1 } |
 stmtSwitch     { $1 } |
 stmtEnum        { $1 } |
+indexSignature   { $1 } |
 stmtDecvar       { $1 }
 
 -- direct translation to dhscanner Ast.StmtIf
@@ -719,6 +751,22 @@ stmtWhile:
     Actions.stmtWhile $2 $6 $8
 }
 
+-- instrumented as dhscanner Ast.StmtWhile
+stmtDo:
+'DoStatement' loc
+'('
+    'DoKeyword' loc '(' ')'
+    stmtOrBlock
+    whileKeyword
+    openParenToken
+    exp
+    closeParenToken
+    optional(semicolonToken)
+')'
+{
+    Actions.stmtWhile $2 $11 $8
+}
+
 -- instrumented as dhscanner Ast.StmtBlock
 stmtSwitch:
 'SwitchStatement' loc
@@ -786,6 +834,7 @@ stmtFunc:
 '('
     functionKeyword
     identifier
+    optional(typeParameters)
     openParenToken
     parameters
     closeParenToken
@@ -793,7 +842,7 @@ stmtFunc:
     optional(block)
 ')'
 {
-    Actions.stmtFunc $2 $5 $7 $10
+    Actions.stmtFunc $2 $5 $8 $11
 }
 
 -- helpers related to stmtFunc
@@ -818,7 +867,8 @@ parameterChunk1 { $1 } |
 parameterChunk2 { $1 } |
 parameterChunk3 { $1 } |
 parameterChunk4 { $1 } |
-parameterChunk5 { $1 }
+parameterChunk5 { $1 } |
+parameterChunk6 { $1 }
 
 parameterChunk1:
 'Parameter' loc
@@ -850,6 +900,7 @@ parameterChunk3:
     '('
         commalistof(property_signature_as_param)
     ')'
+    optional(default_value)
 ')'
 {
     $9
@@ -874,6 +925,17 @@ parameterChunk5:
 ')'
 {
     []
+}
+
+parameterChunk6:
+'Parameter' loc
+'('
+    dotDotDotToken
+    identifier
+    optional(type_hint)
+')'
+{
+    Actions.parameterChunk1 $5 $6
 }
 
 property_signature_as_param:
@@ -906,9 +968,12 @@ type_operator { Nothing } |
 array_type { Nothing } |
 function_type { $1 } |
 typeQuery { Nothing } |
-firstNode { $1 } |
+firstNode optional(generics) { $1 } |
 firstTypeNode { $1 } |
 typeParameter { Nothing } |
+mapped_type { Nothing } |
+conditional_type { Nothing } |
+infer_type { Nothing } |
 internal_type optional(generics) { $1 }
 
 -- helpers related to type
@@ -969,6 +1034,50 @@ unionTypeTailRest: ',' 'BarToken' loc '(' ')' ',' type unionTypeTailRest { 0 } |
 intersection_type: 'IntersectionType' loc '(' ampersandlistof(type) ')' { Nothing }
 parenthesized_type: 'ParenthesizedType' loc '(' openParenToken type closeParenToken ')' { $5 }
 type_operator: 'TypeOperator' loc '(' type ')' { $4 }
+
+conditional_type:
+'ConditionalType' loc
+'('
+    type
+    extendsKeyword
+    type
+    questionToken
+    type
+    colonToken
+    type
+')'
+{
+    Nothing
+}
+
+-- helpers related to type
+infer_type:
+'InferType' loc
+'('
+    inferKeyword
+    typeParameter
+')'
+{
+    Nothing
+}
+
+mapped_type:
+'MappedType' loc
+'('
+    openBracketToken
+    'TypeParameter' loc
+    '('
+        identifier
+        inKeyword
+        type_operator
+    ')'
+    closeBracketToken
+    colonToken
+    type
+')'
+{
+    Nothing
+}
 
 internal_type:
 booleanKeyword { Nothing } |
@@ -1063,10 +1172,12 @@ booleanKeyword:      'BooleanKeyword'      loc '(' ')' { Nothing }
 newKeyword:          'NewKeyword'          loc '(' ')' { Nothing }
 unknownKeyword:      'UnknownKeyword'      loc '(' ')' { Nothing }
 neverKeyword:       'NeverKeyword'       loc '(' ')' { Nothing }
+inferKeyword:        'InferKeyword'        loc '(' ')' { Nothing }
 deleteKeyword:       'DeleteKeyword'       loc '(' ')' { Nothing }
 typeOfKeyword:       'TypeOfKeyword'       loc '(' ')' { Nothing }
 returnKeyword:       'ReturnKeyword'       loc '(' ')' { Nothing }
 slashToken:          'SlashToken'          loc '(' ')' { Nothing }
+percentToken:        'PercentToken'        loc '(' ')' { Nothing }
 exclamationToken:    'ExclamationToken'    loc '(' ')' { Nothing }
 undefinedKeyword:    'UndefinedKeyword'    loc '(' ')' { Nothing }
 templateHead:        'TemplateHead'        loc '(' ')' { Nothing }
@@ -1080,6 +1191,7 @@ numberKeyword:       'NumberKeyword'       loc '(' ')' { Nothing }
 voidKeyword:         'VoidKeyword'         loc '(' ')' { Nothing }
 awaitKeyword:        'AwaitKeyword'        loc '(' ')' { Nothing }
 fromKeyword:         'FromKeyword'         loc '(' ')' { Nothing }
+typeKeyword:          'TypeKeyword'          loc '(' ')' { Nothing }
 extendsKeyword:      'ExtendsKeyword'      loc '(' ')' { Nothing }
 questionToken:       'QuestionToken'       loc '(' ')' { Nothing }
 openParenToken:      'OpenParenToken'      loc '(' ')' { Nothing }
@@ -1104,6 +1216,7 @@ firstCompoundAssignment: 'FirstCompoundAssignment' loc '(' ')' { Nothing }
 greaterThanToken:    'GreaterThanToken'    loc '(' ')' { Nothing }
 greaterThanEqualsToken: 'GreaterThanEqualsToken' loc '(' ')' { Nothing }
 lessThanEqualsToken: 'LessThanEqualsToken' loc '(' ')' { Nothing }
+lessThanLessThanToken: 'LessThanLessThanToken' loc '(' ')' { Nothing }
 questionQuestionToken: 'QuestionQuestionToken' loc '(' ')' { Nothing }
 equalsGreaterThanToken: 'EqualsGreaterThanToken' loc '(' ')' { Nothing }
 ampAmpToken:         'AmpersandAmpersandToken' loc '(' ')' { Nothing }
@@ -1183,16 +1296,58 @@ stringLiteral:
     }
 }
 
+importAttributes:
+'ImportAttributes' loc
+'('
+    possibly_empty_commalistof(importAttribute)
+')'
+{
+    Nothing
+}
+
+importAttribute:
+'ImportAttribute' loc
+'('
+    identifier
+    colonToken
+    stringLiteral
+')'
+{
+    Nothing
+}
+
+assertClause:
+'AssertClause' loc
+'('
+    possibly_empty_commalistof(assertEntry)
+')'
+{
+    Nothing
+}
+
+assertEntry:
+'AssertEntry' loc
+'('
+    identifier
+    colonToken
+    stringLiteral
+')'
+{
+    Nothing
+}
+
 stmtImport:
 'ImportDeclaration' loc
 '('
     importKeyword
+    optional(typeKeyword)
     optional(importClause)
     optional(fromKeyword)
     stringLiteral
+    optional(choice(importAttributes, assertClause))
 ')'
 {
-    Actions.stmtImport (getAdditionalRepoInfo $1) $2 $5 $7
+    Actions.stmtImport (getAdditionalRepoInfo $1) $2 $6 $8
 }
 
 -- instrumented as dhscanner Ast.StmtBlock
@@ -1288,7 +1443,8 @@ arrayBindingPattern:
 arrayBindingElement:
 arrayBindingElement_1 { $1 } |
 arrayBindingElement_2 { $1 } |
-arrayBindingElement_3 { $1 }
+arrayBindingElement_3 { $1 } |
+arrayBindingElement_omitted { $1 }
 
 arrayBindingElement_1:
 'BindingElement' loc
@@ -1317,6 +1473,14 @@ arrayBindingElement_3:
     $4
 }
 
+arrayBindingElement_omitted:
+'OmittedExpression' loc
+'('
+')'
+{
+    []
+}
+
 decvarLhs:
 identifier optional(type_hint) { [Actions.varify $1] } |
 objectBindingPattern           { $1 } |
@@ -1326,13 +1490,23 @@ arrayBindingPattern            { $1 }
 -- literal `=` token (its value is discarded); only the initializer flows on.
 decvarInit: firstAssignment exp { $2 }
 
+variableDeclarationUnit:
+'VariableDeclaration' loc
+'('
+    decvarLhs
+    optional(decvarInit)
+')'
+{
+    ($4, $5)
+}
+
 stmtDecvar:
 'VariableDeclarationList' loc
 '('
-    'VariableDeclaration' loc '(' decvarLhs optional(decvarInit) ')'
+    commalistof(variableDeclarationUnit)
 ')'
 {
-    Actions.stmtDecvar $2 $7 $8
+    Actions.stmtDecvarList $2 $4
 }
 
 extends:
@@ -1549,9 +1723,11 @@ asteriskToken        { Nothing } |
 plusToken            { Nothing } |
 minusToken           { Nothing } |
 slashToken           { Nothing } |
+percentToken         { Nothing } |
 greaterThanToken     { Nothing } |
 greaterThanEqualsToken { Nothing } |
 lessThanEqualsToken  { Nothing } |
+lessThanLessThanToken { Nothing } |
 questionQuestionToken { Nothing } |
 exclamationEqEqToken { Nothing }
 
@@ -1731,6 +1907,21 @@ exp_paren:
 ')'
 {
     $5
+}
+|
+'ParenthesizedExpression' loc
+'('
+    openParenToken
+    'BinaryExpression' loc
+    '('
+        var
+        firstAssignment
+        exp
+    ')'
+    closeParenToken
+')'
+{
+    $10
 }
 
 -- instrumented as dhscanner Ast.ExpCall
@@ -1919,21 +2110,39 @@ exp_jsx:
         identifier
         greaterThanToken
     ')'
-    'JsxExpression' loc
-    '('
-        exp
-    ')'
+    possibly_empty_commalistof(jsx_maybe_text_or_expr)
     'JsxClosingElement' loc
     '('
-        firstBinaryOperator
-        slashToken
-        identifier
-        greaterThanToken
+        choice(jsxClosingRich, jsxClosingSimple)
     ')'
 ')'
 {
-    $14
+    Actions.jsxChoose $2 $11
 }
+
+jsx_maybe_text_or_expr:
+'JsxText' loc '(' ')' { Nothing } |
+'JsxExpression' loc '(' exp ')' { Just $4 } |
+'JsxExpression' loc
+'('
+    'BinaryExpression' loc
+    '('
+        var
+        firstAssignment
+        exp
+    ')'
+')'
+{ Just $9 } |
+'JsxExpression' loc '(' 'Identifier' loc '(' ')' ')' { Nothing } |
+'JsxExpression' loc '(' ')' { Nothing } |
+exp_jsx { Just $1 }
+
+jsxClosingRich:
+firstBinaryOperator slashToken identifier greaterThanToken { Nothing }
+
+jsxClosingSimple:
+identifier { Nothing } |
+'Identifier' loc '(' ')' { Nothing }
 
 -- *************
 -- *           *

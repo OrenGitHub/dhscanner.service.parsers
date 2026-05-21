@@ -171,6 +171,33 @@ stmtDecvar loc _                                        Nothing        = Ast.Stm
         Ast.stmtBlockLocation = loc
     }
 
+-- Aggregate lowering for comma-separated VariableDeclaration items inside a
+-- single VariableDeclarationList. Preserves prior single-declaration shape
+-- and produces an Ast.StmtBlock for multiple declarations.
+stmtDecvarList :: Location -> [([Ast.Var], Maybe Ast.Exp)] -> Ast.Stmt
+stmtDecvarList loc us = case us of
+    [u] -> buildStmtFromUnit loc u
+    _   -> Ast.StmtBlock $ Ast.StmtBlockContent
+        {
+            Ast.stmtBlockContent = flattenStmts (mapUnits loc us),
+            Ast.stmtBlockLocation = loc
+        }
+
+buildStmtFromUnit :: Location -> ([Ast.Var], Maybe Ast.Exp) -> Ast.Stmt
+buildStmtFromUnit loc unit = case unit of
+    (vars, maybeInit) -> stmtDecvar loc vars maybeInit
+
+mapUnits :: Location -> [([Ast.Var], Maybe Ast.Exp)] -> [Ast.Stmt]
+mapUnits loc us = Data.List.map (buildStmtFromUnit loc) us
+
+toListFromStmt :: Ast.Stmt -> [Ast.Stmt]
+toListFromStmt s = case s of
+    Ast.StmtBlock b -> Ast.stmtBlockContent b
+    _               -> [s]
+
+flattenStmts :: [Ast.Stmt] -> [Ast.Stmt]
+flattenStmts stmtsTag = concat (Data.List.map toListFromStmt stmtsTag)
+
 -- *************
 -- *           *
 -- * exp binop *
@@ -443,6 +470,23 @@ expTernary loc _cond _thenExp _elseExp = instrumentationCall "ternary" loc []
 -- instrumented Ast.ExpCall in this module (see `instrumentationCall`).
 property :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
 property loc keyExp valueExp = instrumentationCall "kv" loc [keyExp, valueExp]
+
+-- *****************
+-- *               *
+-- * jsx selection *
+-- *               *
+-- *****************
+chooseFirstJust :: [Maybe Ast.Exp] -> Maybe Ast.Exp
+chooseFirstJust xs = case xs of
+    [] -> Nothing
+    (y:ys) -> case y of
+        Just e  -> Just e
+        Nothing -> chooseFirstJust ys
+
+jsxChoose :: Location -> [Maybe Ast.Exp] -> Ast.Exp
+jsxChoose loc maybes = case chooseFirstJust maybes of
+    Just e  -> e
+    Nothing -> instrumentationCall "jsx" loc []
 
 -- ***************
 -- *             *
