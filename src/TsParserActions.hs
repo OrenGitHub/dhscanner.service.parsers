@@ -5,7 +5,15 @@ module TsParserActions where
 -- * project imports *
 -- *                 *
 -- *******************
-import Ast
+-- NOTE: `Ast` is imported qualified on purpose. With `-Wall -Werror` (see
+-- dhscanner.cabal), `-Wname-shadowing` is fatal, so an unqualified
+-- `import Ast` would leak every record-field accessor from dhscanner.ast
+-- (`callee`, `args`, `filename`, `location`, `stmtBlockContent`, ...) into
+-- scope as a bare identifier. A helper parameter or `let`/`where` binding
+-- that happens to share one of those names would then fail the build. By
+-- importing qualified, the only way to name an Ast field is `Ast.<field>`,
+-- which means local bindings can use any short names freely.
+import qualified Ast
 import Location
 import qualified Token
 import qualified Common
@@ -517,11 +525,11 @@ resolveImportSource repoInfo imported = let
 resolveImportSource' :: [ String ] -> String -> String -> Ast.ImportSource
 resolveImportSource' knownFilenames importedNorm resolved = case Data.List.isPrefixOf "@" importedNorm of
     False -> if isKnownFilename knownFilenames importedNorm
-        then ImportLocal (ImportLocalFile (importedNorm ++ ".ts"))
-        else ImportThirdParty (ImportThirdPartyContent importedNorm)
+        then Ast.ImportLocal (Ast.ImportLocalFile (importedNorm ++ ".ts"))
+        else Ast.ImportThirdParty (Ast.ImportThirdPartyContent importedNorm)
     True -> if (resolved /= importedNorm) && (isKnownFilename knownFilenames resolved)
-        then ImportLocal (ImportLocalFile (resolved ++ ".ts"))
-        else ImportThirdParty (ImportThirdPartyContent importedNorm)
+        then Ast.ImportLocal (Ast.ImportLocalFile (resolved ++ ".ts"))
+        else Ast.ImportThirdParty (Ast.ImportThirdPartyContent importedNorm)
 
 importify' :: Common.AdditionalRepoInfo -> Token.ConstStr -> Token.Named -> Ast.Stmt
 importify' repoInfo importSource importFromSource = Ast.StmtImport $ Ast.StmtImportContent {
@@ -548,6 +556,18 @@ stmtImport repoInfo loc maybeImports importSource = Ast.StmtBlock $ Ast.StmtBloc
 -- **************
 stmtExport :: Location -> Ast.Stmt
 stmtExport loc = Ast.StmtBlock $ Ast.StmtBlockContent
+    {
+        Ast.stmtBlockContent = [],
+        Ast.stmtBlockLocation = loc
+    }
+
+-- **************
+-- *            *
+-- * stmt type alias *
+-- *            *
+-- **************
+stmtTypeAlias :: Location -> Ast.Stmt
+stmtTypeAlias loc = Ast.StmtBlock $ Ast.StmtBlockContent
     {
         Ast.stmtBlockContent = [],
         Ast.stmtBlockLocation = loc

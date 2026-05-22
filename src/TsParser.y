@@ -8,7 +8,12 @@ module TsParser( parseProgram ) where
 -- * project imports *
 -- *                 *
 -- *******************
-import Ast
+-- See the matching NOTE in TsParserActions.hs: `Ast` is imported qualified
+-- so that record-field accessors from dhscanner.ast can never accidentally
+-- shadow a local binding in an inline action and trip `-Wname-shadowing`
+-- (fatal under `-Werror`). Inline actions must spell every Ast reference
+-- as `Ast.<thing>`.
+import qualified Ast
 import TsLexer
 import Location
 import qualified TsParserActions as Actions
@@ -564,6 +569,16 @@ optional(',') commalistof(stmt) { Actions.root $2 } |
 {
     Actions.root $7
 }
+|
+'ModuleDeclaration' loc
+'('
+    optional(declareKeyword)
+    identifier
+    moduleBlock
+')'
+{
+    Actions.root $6
+}
 
 stmt:
 stmtIf { $1 } |
@@ -585,6 +600,7 @@ stmtForIn        { $1 } |
 stmtFor        { $1 } |
 stmtSwitch     { $1 } |
 stmtEnum        { $1 } |
+stmtTypeAlias    { $1 } |
 indexSignature   { $1 } |
 stmtDecvar       { $1 }
 
@@ -828,6 +844,106 @@ stmtClass:
 {
     Actions.stmtClass $5
 }
+|
+'ClassDeclaration' loc
+'('
+    'ClassKeyword' loc '(' ')'
+    identifier
+    optional(generics)
+    optional(extends)
+    possibly_empty_commalistof(classElement)
+')'
+{
+    Actions.stmtClass $8
+}
+
+classElement:
+'PropertyDeclaration' loc
+'('
+    identifier optional(questionToken) optional(type_hint) optional(default_value) optional(semicolonToken)
+')'
+{
+    0
+}
+|
+'PropertyDeclaration' loc
+'('
+    'StaticKeyword' loc '(' ')'
+    identifier optional(questionToken) optional(type_hint) optional(default_value) optional(semicolonToken)
+')'
+{
+    0
+}
+|
+'MethodDeclaration' loc
+'('
+    'PublicKeyword' loc '(' ')'
+    'StaticKeyword' loc '(' ')'
+    identifier
+    openParenToken
+    parameters
+    closeParenToken
+    optional(type_hint)
+    optional(block)
+')'
+{
+    0
+}
+|
+'MethodDeclaration' loc
+'('
+    'PublicKeyword' loc '(' ')'
+    identifier
+    openParenToken
+    parameters
+    closeParenToken
+    optional(type_hint)
+    optional(block)
+')'
+{
+    0
+}
+|
+'MethodDeclaration' loc
+'('
+    'StaticKeyword' loc '(' ')'
+    identifier
+    openParenToken
+    parameters
+    closeParenToken
+    optional(type_hint)
+    optional(block)
+')'
+{
+    0
+}
+|
+'MethodDeclaration' loc
+'('
+    identifier
+    openParenToken
+    parameters
+    closeParenToken
+    optional(type_hint)
+    optional(block)
+')'
+{
+    0
+}
+|
+'Constructor' loc
+'('
+    optional(constructorKeyword)
+    openParenToken
+    parameters
+    closeParenToken
+    optional(block)
+')'
+{
+    0
+}
+|
+'SemicolonClassElement' loc '(' ')' { 0 }
 
 stmtFunc:
 'FunctionDeclaration' loc
@@ -868,7 +984,10 @@ parameterChunk2 { $1 } |
 parameterChunk3 { $1 } |
 parameterChunk4 { $1 } |
 parameterChunk5 { $1 } |
-parameterChunk6 { $1 }
+parameterChunk6 { $1 } |
+parameterChunk7 { $1 } |
+parameterChunk8 { $1 } |
+parameterChunk9 { $1 }
 
 parameterChunk1:
 'Parameter' loc
@@ -936,6 +1055,43 @@ parameterChunk6:
 ')'
 {
     Actions.parameterChunk1 $5 $6
+}
+
+parameterChunk7:
+'Parameter' loc
+'('
+    objectBindingPattern
+    colonToken
+    intersection_type
+')'
+{
+    []
+}
+
+parameterChunk8:
+'Parameter' loc
+'('
+    objectBindingPattern
+    colonToken
+    union_type
+    optional(default_value)
+')'
+{
+    []
+}
+
+-- Allow parameter properties with 'public' modifier in constructors
+parameterChunk9:
+'Parameter' loc
+'('
+    'PublicKeyword' loc '(' ')'
+    identifier
+    optional(questionToken)
+    optional(type_hint)
+    optional(default_value)
+')'
+{
+    Actions.parameterChunk1 $8 $10
 }
 
 property_signature_as_param:
@@ -1086,6 +1242,7 @@ unknownKeyword { Nothing } |
 undefinedKeyword { Nothing } |
 stringKeyword { Nothing } |
 numberKeyword { Nothing } |
+objectKeyword { Nothing } |
 voidKeyword { Nothing } |
 neverKeyword { Nothing } |
 identifier { Just $1 } |
@@ -1096,7 +1253,9 @@ typeLiteral { Nothing }
 -- helpers related to type
 generics: firstBinaryOperator commalistof(type) greaterThanToken { Nothing }
 typeReference: 'TypeReference' loc '(' type ')' { $4 }
-firstNode: 'FirstNode' loc '(' identifier dotToken identifier ')' { Nothing }
+firstNode:
+'FirstNode' loc '(' identifier dotToken identifier ')' { Nothing } |
+'FirstNode' loc '(' firstNode dotToken identifier ')' { Nothing }
 firstTypeNode: 'FirstTypeNode' loc '(' identifier isKeyword internal_type ')' { Nothing }
 
 typeParameter:
@@ -1155,6 +1314,7 @@ literalType:
 
 throwKeyword:        'ThrowKeyword'        loc '(' ')' { Nothing }
 importKeyword:       'ImportKeyword'       loc '(' ')' { Nothing }
+declareKeyword:      'DeclareKeyword'      loc '(' ')' { Nothing }
 interfaceKeyword:    'InterfaceKeyword'    loc '(' ')' { Nothing }
 instanceOfKeyword:   'InstanceOfKeyword'   loc '(' ')' { Nothing }
 isKeyword:           'IsKeyword'           loc '(' ')' { Nothing }
@@ -1164,6 +1324,7 @@ falseKeyword:        'FalseKeyword'        loc '(' ')' { $2 }
 ifKeyword:           'IfKeyword'           loc '(' ')' { Nothing }
 whileKeyword:        'WhileKeyword'        loc '(' ')' { Nothing }
 functionKeyword:     'FunctionKeyword'     loc '(' ')' { Nothing }
+constructorKeyword:  'ConstructorKeyword'  loc '(' ')' { Nothing }
 inKeyword:           'InKeyword'           loc '(' ')' { Nothing }
 anyKeyword:          'AnyKeyword'          loc '(' ')' { Nothing }
 commaToken:          'CommaToken'          loc '(' ')' { Nothing }
@@ -1188,6 +1349,7 @@ questionDotToken:    'QuestionDotToken'    loc '(' ')' { Nothing }
 barBarToken:         'BarBarToken'         loc '(' ')' { Nothing }
 stringKeyword:       'StringKeyword'       loc '(' ')' { Nothing }
 numberKeyword:       'NumberKeyword'       loc '(' ')' { Nothing }
+objectKeyword:       'ObjectKeyword'       loc '(' ')' { Nothing }
 voidKeyword:         'VoidKeyword'         loc '(' ')' { Nothing }
 awaitKeyword:        'AwaitKeyword'        loc '(' ')' { Nothing }
 fromKeyword:         'FromKeyword'         loc '(' ')' { Nothing }
@@ -1201,6 +1363,7 @@ closeParenToken:     'CloseParenToken'     loc '(' ')' { Nothing }
 asKeyword:           'AsKeyword'           loc '(' ')' { Nothing }
 satisfiesKeyword:    'SatisfiesKeyword'    loc '(' ')' { Nothing }
 asteriskToken:       'AsteriskToken'       loc '(' ')' { Nothing }
+asteriskAsteriskToken: 'AsteriskAsteriskToken' loc '(' ')' { Nothing }
 plusToken:           'PlusToken'           loc '(' ')' { Nothing }
 colonToken:          'ColonToken'          loc '(' ')' { Nothing }
 tryKeyword:          'TryKeyword'          loc '(' ')' { Nothing }
@@ -1222,6 +1385,7 @@ equalsGreaterThanToken: 'EqualsGreaterThanToken' loc '(' ')' { Nothing }
 ampAmpToken:         'AmpersandAmpersandToken' loc '(' ')' { Nothing }
 eqEqToken:         'EqualsEqualsToken' loc '(' ')' { Nothing }
 eqEqEqToken:         'EqualsEqualsEqualsToken' loc '(' ')' { Nothing }
+exclamationEqToken: 'ExclamationEqualsToken' loc '(' ')' { Nothing }
 exclamationEqEqToken: 'ExclamationEqualsEqualsToken' loc '(' ')' { Nothing }
 dotDotDotToken: 'DotDotDotToken' loc '(' ')' { Nothing }
 caseKeyword:        'CaseKeyword'        loc '(' ')' { Nothing }
@@ -1242,7 +1406,7 @@ importSpecifier:
 namedImports:
 'NamedImports' loc
 '('
-    commalistof(importSpecifier)
+    possibly_empty_commalistof(importSpecifier)
 ')'
 {
     $4
@@ -1339,6 +1503,14 @@ assertEntry:
 stmtImport:
 'ImportDeclaration' loc
 '('
+    stringLiteral
+')'
+{
+    Actions.stmtImport (getAdditionalRepoInfo $1) $2 Nothing $4
+}
+|
+'ImportDeclaration' loc
+'('
     importKeyword
     optional(typeKeyword)
     optional(importClause)
@@ -1348,6 +1520,19 @@ stmtImport:
 ')'
 {
     Actions.stmtImport (getAdditionalRepoInfo $1) $2 $6 $8
+}
+|
+'ImportDeclaration' loc
+'('
+    importKeyword
+    optional(typeKeyword)
+    optional(importClause)
+')'
+optional(fromKeyword)
+stringLiteral
+optional(choice(importAttributes, assertClause))
+{
+    Actions.stmtImport (getAdditionalRepoInfo $1) $2 $6 $9
 }
 
 -- instrumented as dhscanner Ast.StmtBlock
@@ -1359,6 +1544,16 @@ stmtExport:
         commalistof(exportSpecifier)
     ')'
     optional(exportFrom)
+')'
+{
+    Actions.stmtExport $2
+}
+|
+'ExportDeclaration' loc
+'('
+    asteriskToken
+    fromKeyword
+    stringLiteral
 ')'
 {
     Actions.stmtExport $2
@@ -1398,10 +1593,32 @@ identifier colonToken identifier { $3 }
 bindingElement:
 'BindingElement' loc
 '('
+    identifier
+    colonToken
+    objectBindingPattern
+    optional(default_value)
+')'
+{
+    $6
+}
+|
+'BindingElement' loc
+'('
+    identifier
+    colonToken
+    arrayBindingPattern
+    optional(default_value)
+')'
+{
+    $6
+}
+|
+'BindingElement' loc
+'('
     destructBinding optional(default_value)
 ')'
 {
-    Actions.varify $4
+    [Actions.varify $4]
 }
 |
 'BindingElement' loc
@@ -1410,7 +1627,7 @@ bindingElement:
     identifier
 ')'
 {
-    Actions.varify $5
+    [Actions.varify $5]
 }
 
 objectBindingPattern:
@@ -1419,7 +1636,7 @@ objectBindingPattern:
     commalistof(bindingElement)
 ')'
 {
-    $4
+    concat $4
 }
 
 arrayBindingPattern:
@@ -1444,6 +1661,7 @@ arrayBindingElement:
 arrayBindingElement_1 { $1 } |
 arrayBindingElement_2 { $1 } |
 arrayBindingElement_3 { $1 } |
+arrayBindingElement_4 { $1 } |
 arrayBindingElement_omitted { $1 }
 
 arrayBindingElement_1:
@@ -1471,6 +1689,16 @@ arrayBindingElement_3:
 ')'
 {
     $4
+}
+
+arrayBindingElement_4:
+'BindingElement' loc
+'('
+    dotDotDotToken
+    identifier
+')'
+{
+    [Actions.varify $5]
 }
 
 arrayBindingElement_omitted:
@@ -1531,6 +1759,20 @@ stmtEnum:
     Actions.stmtEnum $8 $9
 }
 
+-- instrumented as dhscanner Ast.StmtBlock
+stmtTypeAlias:
+'TypeAliasDeclaration' loc
+'('
+    typeKeyword
+    identifier
+    optional(typeParameters)
+    firstAssignment
+    type
+')'
+{
+    Actions.stmtTypeAlias $2
+}
+
 enumMember:
 'EnumMember' loc
 '('
@@ -1582,6 +1824,15 @@ stmt_property:
 
 block:
 'Block' loc
+'('
+    possibly_empty_commalistof(stmt)
+')'
+{
+    $4
+}
+
+moduleBlock:
+'ModuleBlock' loc
 '('
     commalistof(stmt)
 ')'
@@ -1660,17 +1911,22 @@ expFunctionExpression:
     Actions.expFunctionExpression $2 $7 $10
 }
 
+callArg:
+exp { $1 } |
+identifier colonToken exp { Actions.expvarify $1 }
+
 expCall:
 'CallExpression' loc
 '('
     exp
     optional(generics)
+    optional(questionDotToken)
     openParenToken
-    possibly_empty_commalistof(exp)
+    possibly_empty_commalistof(callArg)
     closeParenToken
 ')'
 {
-    Actions.expCall $2 $4 $7
+    Actions.expCall $2 $4 $8
 }
 |
 'CallExpression' loc
@@ -1682,6 +1938,17 @@ expCall:
 ')'
 {
     Actions.instrumentationCall "import" $2 $6
+}
+|
+'CallExpression' loc
+'('
+    'SuperKeyword' loc '(' ')'
+    openParenToken
+    possibly_empty_commalistof(exp)
+    closeParenToken
+')'
+{
+    Actions.instrumentationCall "super" $2 $9
 }
 
 -- ***********
@@ -1718,8 +1985,10 @@ instanceOfKeyword    { Nothing } |
 barBarToken          { Nothing } |
 eqEqToken            { Nothing } |
 eqEqEqToken          { Nothing } |
+exclamationEqToken   { Nothing } |
 ampAmpToken          { Nothing } |
 asteriskToken        { Nothing } |
+asteriskAsteriskToken { Nothing } |
 plusToken            { Nothing } |
 minusToken           { Nothing } |
 slashToken           { Nothing } |
@@ -1745,6 +2014,15 @@ expBinop:
 ')'
 {
     Actions.expBinop $2 $4 $6
+}
+|
+'BinaryExpression' loc
+'('
+    exp
+    exp
+')'
+{
+    Actions.expBinop $2 $4 $5
 }
 
 -- ***************
@@ -1923,6 +2201,24 @@ exp_paren:
 {
     $10
 }
+|
+'ParenthesizedExpression' loc
+'('
+    openParenToken
+    'BinaryExpression' loc
+    '('
+        'ObjectLiteralExpression' loc
+        '('
+            possibly_empty_commalistof(property_assignment)
+        ')'
+        firstAssignment
+        exp
+    ')'
+    closeParenToken
+')'
+{
+    $14
+}
 
 -- instrumented as dhscanner Ast.ExpCall
 expTypeof:
@@ -1933,6 +2229,16 @@ expTypeof:
 ')'
 {
     Actions.expTypeof $2 $5
+}
+
+exp_void:
+'VoidExpression' loc
+'('
+    voidKeyword
+    exp
+')'
+{
+    $5
 }
 
 -- instrumented as dhscanner Ast.ExpCall
@@ -2048,6 +2354,19 @@ exp_satisfies:
 satisfiesTail:
 satisfiesKeyword type { Nothing }
 
+-- ***********
+-- *         *
+-- * exp this *
+-- *         *
+-- ***********
+exp_this:
+'ThisKeyword' loc
+'('
+    ')'
+{
+    Actions.expvarify (Token.Named "this" $2)
+}
+
 expTrue: trueKeyword { Actions.expBool True $1 }
 expFalse: falseKeyword { Actions.expBool False $1 }
 expBool: expTrue  { $1 } | expFalse { $1 }
@@ -2135,6 +2454,12 @@ jsx_maybe_text_or_expr:
 { Just $9 } |
 'JsxExpression' loc '(' 'Identifier' loc '(' ')' ')' { Nothing } |
 'JsxExpression' loc '(' ')' { Nothing } |
+'JsxSelfClosingElement' loc
+'('
+    firstBinaryOperator
+    identifier
+')'
+{ Nothing } |
 exp_jsx { Just $1 }
 
 jsxClosingRich:
@@ -2231,11 +2556,25 @@ exp_dict:
 -- * exp array *
 -- *           *
 -- *************
+
+-- Accept assignment expressions as array elements.
+expOrAssign:
+exp { $1 } |
+'BinaryExpression' loc
+'('
+    var
+    firstAssignment
+    exp
+')'
+{
+    $6
+}
+
 exp_array:
 'ArrayLiteralExpression' loc
 '('
     openBracketToken
-    possibly_empty_commalistof_with_optional_trailing_comma(exp)
+    possibly_empty_commalistof_with_optional_trailing_comma(expOrAssign)
     closeBracketToken
 ')'
 {
@@ -2267,9 +2606,26 @@ exp_spread_element:
     $5
 }
 
+-- instrumented as dhscanner Ast.ExpCall
+exp_tagged_template:
+'TaggedTemplateExpression' loc
+'('
+    varField
+    'FirstTemplateToken' loc '(' ')'
+')'
+{
+    Ast.ExpCall $ Ast.ExpCallContent
+    {
+        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $4,
+        Ast.args = [],
+        Ast.expCallLocation = $2
+    }
+}
+
 exp:
 exp_str        { $1 } |
 exp_template_token { $1 } |
+exp_this       { $1 } |
 exp_int        { $1 } |
 expNew         { $1 } |
 exp_dict       { $1 } |
@@ -2278,6 +2634,7 @@ expBool        { $1 } |
 expNull        { $1 } |
 fstring        { $1 } |
 expCall        { $1 } |
+exp_tagged_template { $1 } |
 exp_meta       { $1 } |
 exp_array      { $1 } |
 expTernary     { $1 } |
@@ -2289,6 +2646,7 @@ exp_unop       { $1 } |
 exp_post_unop  { $1 } |
 expDelete      { $1 } |
 expTypeof      { $1 } |
+exp_void       { $1 } |
 expBinop       { $1 } |
 exp_regex      { $1 } |
 exp_non_null   { $1 } |

@@ -377,6 +377,20 @@ def baseline_is_fresh(baseline: dict[str, Any], corpus_dir: Path) -> bool:
 # --------------------------------------------------------------------------- #
 
 
+def is_trivial_failure_location(info: dict[str, Any]) -> bool:
+    """A `(line=1, col=1)` failure means the parser bailed at the very first
+    token of the native AST. Empirically these iterations rarely produce
+    useful progress: the agent's context window around col=1 shows the first
+    ~250 chars of the AST (which usually look normal), so the model can't
+    reason about the actual cause and tends to propose widenings unrelated
+    to the real failure -- which then frequently regress other files.
+    Until we understand why these top-of-AST failures happen (frontts error
+    envelope? top-level shape the grammar can't even start matching?) we
+    skip them in the picker so iteration budget goes to files where the
+    failure column actually points at parser-grammar work."""
+    return info.get("line_start") == 1 and info.get("col_start") == 1
+
+
 def pick_failure(
     files_map: dict[str, dict[str, Any]],
     strategy: str,
@@ -385,7 +399,9 @@ def pick_failure(
     failures = [
         rel
         for rel, info in files_map.items()
-        if info.get("status") == "fail" and isinstance(info.get("col_start"), int)
+        if info.get("status") == "fail"
+        and isinstance(info.get("col_start"), int)
+        and not is_trivial_failure_location(info)
     ]
     if not failures:
         return None
@@ -500,6 +516,38 @@ Rules of the road:
      a list of `Ast.Var` are the single most common cause of
      build_failed iterations -- the named-function rule above
      eliminates them by construction.
+
+  7. The project builds with `-Werror` (see dhscanner.cabal), which makes
+     `-Wname-shadowing` fatal. Both `TsParser.y` and `TsParserActions.hs`
+     now `import qualified Ast` -- so every reference to a dhscanner.ast
+     name MUST be spelled `Ast.<thing>` (e.g. `Ast.ExpCall`,
+     `Ast.callee`, `Ast.stmtBlockContent`). Never insert `import Ast`
+     (unqualified) into a patch; never spell `Ast` names without the
+     `Ast.` prefix. Conversely, because Ast names are now only reachable
+     as `Ast.<thing>`, you ARE free to use short local names for helper
+     parameters / `let`-bindings / `where`-clauses (`callee`, `args`,
+     `loc`, `filename`, ...) without shadowing anything. The other
+     unqualified imports in `TsParserActions.hs` are deliberately
+     narrow (`Location` exports only the `Location` type;
+     `Data.List` is imported with an explicit `( map, stripPrefix,
+     isPrefixOf )` list); do not widen them in a patch.
+
+  8. The grammar enforces `%expect 0` -- Happy aborts `cabal build`
+     (exit code 1) on any shift/reduce or reduce/reduce conflict, and
+     `agent_loop.py` auto-reverts that iteration via `build_failed`.
+     The single most common conflict trap is adding `optional(X)` next
+     to an `optional(Y)` (or before a symbol) where `X` itself derives
+     a rule that *already* ends in `optional(X)` somewhere reachable.
+     The textbook instance is `optional(generics)` inside a rule whose
+     neighbouring symbol's `type` already carries a trailing
+     `optional(generics)` (via `firstNode optional(generics)` /
+     `internal_type optional(generics)`) -- Happy can't tell whether to
+     shift the `<` into the inner `optional(generics)` or reduce out
+     and start the outer one. Before introducing a new `optional(X)`
+     in your patch, check that `FIRST(X)` is disjoint from `FIRST` of
+     the *following* symbol AND from the FOLLOW set if your optional
+     sits at the tail of a rule whose parent uses the same `optional(X)`
+     suffix.
 """
 
 
@@ -957,7 +1005,24 @@ def main(argv: list[str] | None = None) -> int:
     pick_strategy = "random" if args.reshuffle else args.pick
     chosen = pick_failure(files_map, pick_strategy, rng)
     if chosen is None:
-        print("no failures in baseline -- nothing to do.")
+        total_failures = sum(
+            1 for v in files_map.values() if v.get("status") == "fail"
+        )
+        trivial_failures = sum(
+            1
+            for v in files_map.values()
+            if v.get("status") == "fail" and is_trivial_failure_location(v)
+        )
+        actionable = total_failures - trivial_failures
+        if total_failures == 0:
+            print("no failures in baseline -- nothing to do.")
+        else:
+            print(
+                f"no actionable failures in baseline -- "
+                f"{trivial_failures} remaining failure(s) are at "
+                f"(line=1,col=1) and currently skipped by the picker; "
+                f"{actionable} other failure(s) qualified."
+            )
         return 0
 
     chosen_abs = args.corpus / chosen
