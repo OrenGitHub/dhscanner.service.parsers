@@ -23,7 +23,7 @@ import qualified Common
 -- * general imports *
 -- *                 *
 -- *******************
-import Data.Maybe ( fromMaybe )
+import Data.Maybe ( fromMaybe, catMaybes, mapMaybe )
 import Data.List ( map, stripPrefix, isPrefixOf )
 import qualified Data.Map
 
@@ -286,14 +286,61 @@ stmtWhile loc cond body = Ast.StmtWhile $ Ast.StmtWhileContent
 -- * stmt class *
 -- *            *
 -- **************
-stmtClass :: Token.Named -> Ast.Stmt
-stmtClass name = Ast.StmtClass $ Ast.StmtClassContent
+stmtClass :: Token.Named -> Maybe [Maybe Token.Named] -> [Maybe Ast.Stmt] -> Ast.Stmt
+stmtClass name maybeSupers bodyStmts = Ast.StmtClass $ Ast.StmtClassContent
     {
         Ast.stmtClassName = Token.ClassName name,
-        Ast.stmtClassSupers = [],
+        Ast.stmtClassSupers = collectSupers maybeSupers,
         Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-        Ast.stmtClassMethods = Ast.Methods Data.Map.empty
+        Ast.stmtClassMethods = stmtsToMethods bodyStmts
     }
+
+stmtsToMethods :: [Maybe Ast.Stmt] -> Ast.Methods
+stmtsToMethods maybeStmts = Ast.Methods $ Data.Map.fromList
+    (Data.List.map methodKV (mapMaybe extractMethod (catMaybes maybeStmts)))
+
+extractMethod :: Ast.Stmt -> Maybe Ast.StmtMethodContent
+extractMethod stmt = case stmt of
+    Ast.StmtMethod m -> Just m
+    _                -> Nothing
+
+methodKV :: Ast.StmtMethodContent -> (Token.MethodName, Ast.StmtMethodContent)
+methodKV m = (Ast.stmtMethodName m, m)
+
+collectSupers :: Maybe [Maybe Token.Named] -> [Token.SuperName]
+collectSupers maybeTs = case maybeTs of
+    Nothing -> []
+    Just ts -> Data.List.map Token.SuperName (catMaybes ts)
+
+-- ***************
+-- *             *
+-- * stmt method *
+-- *             *
+-- ***************
+-- `hostingClassName` is a placeholder here -- methods are parsed bottom-up
+-- so the enclosing class's name isn't known at this point. The natural
+-- follow-up is for `Actions.stmtClass` to walk its body list and inject the
+-- real class name into each `Ast.StmtMethod`.
+stmtMethod :: Location -> Token.Named -> [Ast.Param] -> Maybe (Maybe Token.Named) -> Maybe [Ast.Stmt] -> Maybe Ast.Stmt
+stmtMethod loc name params maybeReturnType maybeBody = Just $ Ast.StmtMethod $ Ast.StmtMethodContent
+    {
+        Ast.stmtMethodReturnType = methodReturnType loc maybeReturnType,
+        Ast.stmtMethodName = Token.MethodName name,
+        Ast.stmtMethodParams = params,
+        Ast.stmtMethodBody = fromMaybe [] maybeBody,
+        Ast.stmtMethodLocation = loc,
+        Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
+        Ast.hostingClassSupers = []
+    }
+
+methodReturnType :: Location -> Maybe (Maybe Token.Named) -> Maybe Ast.Var
+methodReturnType loc maybeReturnType = case maybeReturnType of
+    Nothing       -> Just (varify (Token.Named "any" loc))
+    Just Nothing  -> Just (varify (Token.Named "any" loc))
+    Just (Just t) -> Just (varify t)
+
+stmtConstructor :: Location -> [Ast.Param] -> Maybe [Ast.Stmt] -> Maybe Ast.Stmt
+stmtConstructor loc params maybeBody = stmtMethod loc (Token.Named "constructor" loc) params Nothing maybeBody
 
 -- *************
 -- *           *

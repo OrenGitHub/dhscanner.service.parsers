@@ -35,7 +35,7 @@ import Data.Map ( empty, fromList )
 -- * API function: parse *
 -- *                     *
 -- ***********************
-%name parse
+%name parse program
 
 -- *************
 -- *           *
@@ -558,27 +558,13 @@ choice(a, b): a { Left $1 } | b { Right $1 }
 
 -- direct translation to: Ast.Root
 program:
-optional(',') commalistof(stmt) { Actions.root $2 } |
-'SourceFile' loc
-'('
-    'SyntaxList' loc
-    '('
-        commalistof(stmt)
-    ')'
-')'
-{
-    Actions.root $7
-}
-|
-'ModuleDeclaration' loc
-'('
-    optional(declareKeyword)
-    identifier
-    moduleBlock
-')'
-{
-    Actions.root $6
-}
+program_1 { $1 } |
+program_2 { $1 } |
+program_3 { $1 }
+
+program_1: optional(',') commalistof(stmt) { Actions.root $2 }
+program_2: 'SourceFile' loc '(' 'SyntaxList' loc '(' commalistof(stmt) ')' ')' { Actions.root $7 }
+program_3: 'ModuleDeclaration' loc '(' optional(declareKeyword) identifier moduleBlock ')' { Actions.root $6 }
 
 stmt:
 stmtIf { $1 } |
@@ -643,27 +629,8 @@ stmtTry:
 }
 
 -- helpers related to stmtTry
-catchPart:
-'CatchClause' loc
-'('
-    catchKeyword
-    block
-')'
-{
-    $5
-}
-|
-'CatchClause' loc
-'('
-    catchKeyword
-    openParenToken
-    'VariableDeclaration' loc '(' identifier optional(type_hint) ')'
-    closeParenToken
-    block
-')'
-{
-    $13
-}
+catchClauseVariable: openParenToken 'VariableDeclaration' loc '(' identifier optional(type_hint) ')' closeParenToken { Nothing }
+catchPart: 'CatchClause' loc '(' catchKeyword optional(catchClauseVariable) block ')' { $6 }
 
 finallyPart:
 finallyKeyword block { $2 }
@@ -671,7 +638,7 @@ finallyKeyword block { $2 }
 -- instrumented as dhscanner Ast.StmtExp
 stmtThrow: 'ThrowStatement' loc '(' throwKeyword exp ')' { Actions.stmtThrow $2 $5 }
 
--- instrumented as dhscanner Ast.StmtBlock
+-- instrumented as dhscanner Ast.StmtWhile
 stmtForOf:
 'ForOfStatement' loc
 '('
@@ -690,14 +657,10 @@ stmtForOf:
     stmtOrBlock
 ')'
 {
-    Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = $18,
-        Ast.stmtBlockLocation = $2
-    }
+    Actions.stmtWhile $2 $16 $18
 }
 
--- instrumented as dhscanner Ast.StmtBlock
+-- instrumented as dhscanner Ast.StmtWhile
 stmtForIn:
 'ForInStatement' loc
 '('
@@ -716,14 +679,10 @@ stmtForIn:
     stmtOrBlock
 ')'
 {
-    Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = $18,
-        Ast.stmtBlockLocation = $2
-    }
+    Actions.stmtWhile $2 $16 $18
 }
 
--- instrumented as dhscanner Ast.StmtBlock
+-- instrumented as dhscanner Ast.StmtWhile
 stmtFor:
 'ForStatement' loc
 '('
@@ -746,11 +705,7 @@ stmtFor:
     stmtOrBlock
 ')'
 {
-    Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = $22,
-        Ast.stmtBlockLocation = $2
-    }
+    Actions.stmtWhile $2 $18 $22
 }
 
 -- direct dhscanner subtree creation: Ast.StmtWhile
@@ -771,7 +726,7 @@ stmtWhile:
 stmtDo:
 'DoStatement' loc
 '('
-    'DoKeyword' loc '(' ')'
+    doKeyword
     stmtOrBlock
     whileKeyword
     openParenToken
@@ -780,14 +735,14 @@ stmtDo:
     optional(semicolonToken)
 ')'
 {
-    Actions.stmtWhile $2 $11 $8
+    Actions.stmtWhile $2 $8 $5
 }
 
 -- instrumented as dhscanner Ast.StmtBlock
 stmtSwitch:
 'SwitchStatement' loc
 '('
-    'SwitchKeyword' loc '(' ')'
+    switchKeyword
     openParenToken
     exp
     closeParenToken
@@ -799,7 +754,7 @@ stmtSwitch:
 {
     Ast.StmtBlock $ Ast.StmtBlockContent
     {
-        Ast.stmtBlockContent = concat $14,
+        Ast.stmtBlockContent = concat $11,
         Ast.stmtBlockLocation = $2
     }
 }
@@ -833,6 +788,10 @@ switchDefault:
 
 -- direct translation to dhscanner Ast.StmtClass
 stmtClass:
+stmtClass_1 { $1 } |
+stmtClass_2 { $1 }
+
+stmtClass_1:
 'InterfaceDeclaration' loc
 '('
     interfaceKeyword
@@ -842,43 +801,46 @@ stmtClass:
     commalistof(stmt)
 ')'
 {
-    Actions.stmtClass $5
+    Actions.stmtClass $5 $7 []
 }
-|
+
+stmtClass_2:
 'ClassDeclaration' loc
 '('
-    'ClassKeyword' loc '(' ')'
+    classKeyword
     identifier
     optional(generics)
     optional(extends)
-    possibly_empty_commalistof(classElement)
+    possibly_empty_commalistof(stmtPropertyOrMethod)
 ')'
 {
-    Actions.stmtClass $8
+    Actions.stmtClass $5 $7 $8
 }
 
-classElement:
+stmtPropertyOrMethod:
+stmtProperty { $1 } |
+stmtMethod { $1 } |
+stmtRedundantExtraSemicolon { $1 }
+
+stmtProperty:
 'PropertyDeclaration' loc
 '('
+    optional(staticKeyword)
     identifier optional(questionToken) optional(type_hint) optional(default_value) optional(semicolonToken)
 ')'
 {
-    0
+    Nothing
 }
-|
-'PropertyDeclaration' loc
-'('
-    'StaticKeyword' loc '(' ')'
-    identifier optional(questionToken) optional(type_hint) optional(default_value) optional(semicolonToken)
-')'
-{
-    0
-}
-|
+
+stmtMethod:
+stmtMethod_1 { $1 } |
+stmtMethod_2 { $1 }
+
+stmtMethod_1:
 'MethodDeclaration' loc
 '('
-    'PublicKeyword' loc '(' ')'
-    'StaticKeyword' loc '(' ')'
+    optional(publicKeyword)
+    optional(staticKeyword)
     identifier
     openParenToken
     parameters
@@ -887,50 +849,10 @@ classElement:
     optional(block)
 ')'
 {
-    0
+    Actions.stmtMethod $2 $6 $8 $10 $11
 }
-|
-'MethodDeclaration' loc
-'('
-    'PublicKeyword' loc '(' ')'
-    identifier
-    openParenToken
-    parameters
-    closeParenToken
-    optional(type_hint)
-    optional(block)
-')'
-{
-    0
-}
-|
-'MethodDeclaration' loc
-'('
-    'StaticKeyword' loc '(' ')'
-    identifier
-    openParenToken
-    parameters
-    closeParenToken
-    optional(type_hint)
-    optional(block)
-')'
-{
-    0
-}
-|
-'MethodDeclaration' loc
-'('
-    identifier
-    openParenToken
-    parameters
-    closeParenToken
-    optional(type_hint)
-    optional(block)
-')'
-{
-    0
-}
-|
+
+stmtMethod_2:
 'Constructor' loc
 '('
     optional(constructorKeyword)
@@ -940,10 +862,10 @@ classElement:
     optional(block)
 ')'
 {
-    0
+    Actions.stmtConstructor $2 $6 $8
 }
-|
-'SemicolonClassElement' loc '(' ')' { 0 }
+
+stmtRedundantExtraSemicolon: 'SemicolonClassElement' loc '(' ')' { Nothing }
 
 stmtFunc:
 'FunctionDeclaration' loc
@@ -1084,14 +1006,14 @@ parameterChunk8:
 parameterChunk9:
 'Parameter' loc
 '('
-    'PublicKeyword' loc '(' ')'
+    publicKeyword
     identifier
     optional(questionToken)
     optional(type_hint)
     optional(default_value)
 ')'
 {
-    Actions.parameterChunk1 $8 $10
+    Actions.parameterChunk1 $5 $7
 }
 
 property_signature_as_param:
@@ -1115,7 +1037,7 @@ type_hint: colonToken type { $2 }
 
 -- helpers related to stmtFunc
 type:
-expressionWithTypeArguments { Nothing } |
+expressionWithTypeArguments { $1 } |
 indexedAccessType { Nothing } |
 union_type { Nothing } |
 intersection_type { Nothing } |
@@ -1390,6 +1312,14 @@ exclamationEqEqToken: 'ExclamationEqualsEqualsToken' loc '(' ')' { Nothing }
 dotDotDotToken: 'DotDotDotToken' loc '(' ')' { Nothing }
 caseKeyword:        'CaseKeyword'        loc '(' ')' { Nothing }
 defaultKeyword:     'DefaultKeyword'     loc '(' ')' { Nothing }
+classKeyword:       'ClassKeyword'       loc '(' ')' { Nothing }
+continueKeyword:    'ContinueKeyword'    loc '(' ')' { Nothing }
+doKeyword:          'DoKeyword'          loc '(' ')' { Nothing }
+enumKeyword:        'EnumKeyword'        loc '(' ')' { Nothing }
+publicKeyword:      'PublicKeyword'      loc '(' ')' { Nothing }
+staticKeyword:      'StaticKeyword'      loc '(' ')' { Nothing }
+superKeyword:       'SuperKeyword'       loc '(' ')' { Nothing }
+switchKeyword:      'SwitchKeyword'      loc '(' ')' { Nothing }
 
 importee: asteriskToken { Nothing }
 
@@ -1744,19 +1674,19 @@ extends:
     commalistof(type)
 ')'
 {
-    Nothing
+    $5
 }
 
 -- instrumented as dhscanner Ast.StmtClass (enum modeled as class of data members, no methods)
 stmtEnum:
 'EnumDeclaration' loc
 '('
-    'EnumKeyword' loc '(' ')'
+    enumKeyword
     identifier
     commalistof(enumMember)
 ')'
 {
-    Actions.stmtEnum $8 $9
+    Actions.stmtEnum $5 $6
 }
 
 -- instrumented as dhscanner Ast.StmtBlock
@@ -1874,7 +1804,7 @@ stmtBreak:
 stmtContinue:
 'ContinueStatement' loc
 '('
-    'ContinueKeyword' loc '(' ')'
+    continueKeyword
 ')'
 {
     Actions.stmtContinue $2
@@ -1942,13 +1872,13 @@ expCall:
 |
 'CallExpression' loc
 '('
-    'SuperKeyword' loc '(' ')'
+    superKeyword
     openParenToken
     possibly_empty_commalistof(exp)
     closeParenToken
 ')'
 {
-    Actions.instrumentationCall "super" $2 $9
+    Actions.instrumentationCall "super" $2 $6
 }
 
 -- ***********

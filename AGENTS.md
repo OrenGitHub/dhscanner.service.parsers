@@ -13,6 +13,10 @@
    1. `cabal build` succeeds.
    2. Happy reports **no new shift/reduce or reduce/reduce conflicts** vs the previous baseline. This guarantees that every input the previous grammar accepted is still accepted with the same reductions, i.e. existing rules keep their meaning.
 
+### Start symbol and file layout
+
+The grammar's start symbol is declared explicitly via `%name parse <rule>` at the top of each `.y` file — for `TsParser.y` that rule is `program`. Even though the explicit `%name` form makes Happy independent of in-file ordering, **new rules MUST be added below `program`, never above it**, so each iteration's diff sits visually below the entry rule and stays trivially reviewable.
+
 ### Example adjustments
 
 Each example below makes the grammar strictly more permissive. If Happy reports no new conflicts, the change is a strict superset — every previous input still parses with the same reductions, and at least one new shape now also parses.
