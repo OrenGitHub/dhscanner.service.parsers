@@ -50,6 +50,7 @@ executable parser
         RbParser,
         PhpLexer,
         PhpParser,
+        YamlParser,
         Common
 
     build-tool-depends:
@@ -74,7 +75,8 @@ executable parser
         warp,
         time,
         wai,
-        text
+        text,
+        HsYAML
 
     hs-source-dirs:
         src

@@ -1,16 +1,21 @@
 name: dhscanner-parsers-dev
 
-# Independent dev stack for iterating on TsParser.y / TsParserActions.hs.
-# It is intentionally separate from dhscanner.vps/compose/compose.*.yaml --
-# those use the prebuilt parsers image, this one builds from source.
+# Independent dev stack for iterating on the per-language grammars
+# (TsParser.y / TsParserActions.hs, PhpParser.y, ...). It is intentionally
+# separate from dhscanner.vps/compose/compose.*.yaml -- those use the
+# prebuilt parsers image, this one builds from source.
 #
 # Usage from this directory:
 #     docker compose up -d --build              # initial bring-up
 #     docker compose stop parsers               # before applying a grammar edit
 #     docker compose up -d --build parsers      # rebuild + restart only the parsers service
 #
-# Host ports are deliberately non-standard (4000 / 4001) so this stack can
-# coexist with the dhscanner.vps prebuilt stack on the same machine.
+# Host ports are deliberately non-standard (4000 / 4001 / 4002) so this
+# stack can coexist with the dhscanner.vps prebuilt stack on the same
+# machine. Per-language agent loops (`agent_loop.py` for TS,
+# `php_agent_loop.py` for PHP, ...) all talk to the same `parsers` service
+# and rebuild only that service per iteration; only the `front*` service
+# differs.
 
 services:
 
@@ -23,6 +28,15 @@ services:
     networks:
       - dev
 
+  frontphp:
+    build:
+      context: ../dhscanner.0.fronts/php
+      dockerfile: Dockerfile
+    ports:
+      - "4002:5000"
+    networks:
+      - dev
+
   parsers:
     build:
       context: .
@@ -31,6 +45,7 @@ services:
       - "4001:3000"
     depends_on:
       - frontts
+      - frontphp
     networks:
       - dev
 

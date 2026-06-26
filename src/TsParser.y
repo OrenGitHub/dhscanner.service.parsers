@@ -1052,6 +1052,7 @@ typeParameter { Nothing } |
 mapped_type { Nothing } |
 conditional_type { Nothing } |
 infer_type { Nothing } |
+tuple_type { Nothing } |
 internal_type optional(generics) { $1 }
 
 -- helpers related to type
@@ -1105,6 +1106,32 @@ function_type:
 }
 
 -- helpers related to type
+-- support for TypeScript tuple types (e.g., [A, ...B[]])
+tuple_type:
+'TupleType' loc
+'('
+    openBracketToken
+    possibly_empty_commalistof(tuple_element)
+    closeBracketToken
+')'
+{
+    Nothing
+}
+
+tuple_element:
+ type { 0 } |
+ rest_type { 0 }
+
+rest_type:
+'RestType' loc
+'('
+    dotDotDotToken
+    type
+')'
+{
+    0
+}
+
 union_type: 'UnionType' loc '(' barlistof(type) ')' { Nothing } |
 'UnionType' loc '(' unionTypeTail ')' { Nothing }
 unionTypeTail: 'BarToken' loc '(' ')' ',' type unionTypeTailRest { 0 }
@@ -1303,6 +1330,7 @@ greaterThanEqualsToken: 'GreaterThanEqualsToken' loc '(' ')' { Nothing }
 lessThanEqualsToken: 'LessThanEqualsToken' loc '(' ')' { Nothing }
 lessThanLessThanToken: 'LessThanLessThanToken' loc '(' ')' { Nothing }
 questionQuestionToken: 'QuestionQuestionToken' loc '(' ')' { Nothing }
+questionQuestionEqualsToken: 'QuestionQuestionEqualsToken' loc '(' ')' { Nothing }
 equalsGreaterThanToken: 'EqualsGreaterThanToken' loc '(' ')' { Nothing }
 ampAmpToken:         'AmpersandAmpersandToken' loc '(' ')' { Nothing }
 eqEqToken:         'EqualsEqualsToken' loc '(' ')' { Nothing }
@@ -1928,6 +1956,7 @@ greaterThanEqualsToken { Nothing } |
 lessThanEqualsToken  { Nothing } |
 lessThanLessThanToken { Nothing } |
 questionQuestionToken { Nothing } |
+questionQuestionEqualsToken { Nothing } |
 exclamationEqEqToken { Nothing }
 
 -- *************

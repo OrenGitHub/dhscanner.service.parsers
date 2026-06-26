@@ -260,6 +260,9 @@ import Data.Map ( empty, fromList )
 'Expr_Eval' { AlexTokenTag AlexRawToken_Expr_Eval _ }
 'items' { AlexTokenTag AlexRawToken_items _ }
 'dim' { AlexTokenTag AlexRawToken_dim _ }
+'Stmt_Declare' { AlexTokenTag AlexRawToken_Stmt_Declare _ }
+'DeclareItem' { AlexTokenTag AlexRawToken_DeclareItem _ }
+'declares' { AlexTokenTag AlexRawToken_declares _ }
 -- last keywords first part
 
 -- ****************************
@@ -397,6 +400,31 @@ case:
 
 numbered_case: INT ':' case { Nothing }
 cases: 'array' '(' listof(numbered_case) ')' { Nothing }
+
+declare_item:
+'DeclareItem' loc
+'('
+    'key' ':' identifier
+    'value' ':' exp
+')'
+{
+    Nothing
+}
+
+numbered_declare_item: INT ':' declare_item { Nothing }
+
+declare_items: 'array' '(' listof(numbered_declare_item) ')' { Nothing }
+
+stmt_declare:
+'Stmt_Declare' loc
+'('
+    'declares' ':' declare_items
+    'stmts' ':' ornull(stmts)
+')'
+{
+    Ast.StmtContinue $ Ast.StmtContinueContent $2
+}
+
 
 -- ***************
 -- *             *
@@ -717,6 +745,7 @@ stmt_method    { $1 } |
 stmt_data_member { $1 } |
 stmt_interface { $1 } |
 stmt_namespace { $1 } |
+stmt_declare  { $1 } |
 stmt_cont      { $1 } |
 stmt_dec_const { $1 } |
 stmt_class_const { $1 } |
@@ -1911,7 +1940,7 @@ exp_array:
 var_list:
 'Expr_List' loc
 '('
-    ID ':' possibly_empty_arrayof(numbered(array_item))
+    'items' ':' possibly_empty_arrayof(numbered(array_item))
 ')'
 {
     Ast.VarField $ Ast.VarFieldContent
