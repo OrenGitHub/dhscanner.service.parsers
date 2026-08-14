@@ -33,11 +33,10 @@ import qualified Data.Map
 -- *      *
 -- ********
 root :: [Ast.Stmt] -> Ast.Root
-root rootStmts = Ast.Root
-    {
-        Ast.filename = "",
-        Ast.stmts = rootStmts
-    }
+root rootStmts = Ast.Root {
+    Ast.filename = "",
+    Ast.stmts = instrumentedNativeTypes ++ rootStmts
+}
 
 -- ***********
 -- *         *
@@ -45,13 +44,12 @@ root rootStmts = Ast.Root
 -- *         *
 -- ***********
 stmtIf :: Location -> Ast.Exp -> [Ast.Stmt] -> Maybe [Ast.Stmt] -> Ast.Stmt
-stmtIf loc cond body elsePart = Ast.StmtIf $ Ast.StmtIfContent
-    {
-        Ast.stmtIfCond = cond,
-        Ast.stmtIfBody = body,
-        Ast.stmtElseBody = fromMaybe [] elsePart,
-        Ast.stmtIfLocation = loc
-    }
+stmtIf loc cond body elsePart = Ast.StmtIf $ Ast.StmtIfContent {
+    Ast.stmtIfCond = cond,
+    Ast.stmtIfBody = body,
+    Ast.stmtElseBody = fromMaybe [] elsePart,
+    Ast.stmtIfLocation = loc
+}
 
 -- ************
 -- *          *
@@ -59,12 +57,11 @@ stmtIf loc cond body elsePart = Ast.StmtIf $ Ast.StmtIfContent
 -- *          *
 -- ************
 stmtTry :: Location -> [Ast.Stmt] -> [Ast.Stmt] -> Ast.Stmt
-stmtTry loc tryBody catchBody = Ast.StmtTry $ Ast.StmtTryContent
-    {
-        Ast.stmtTryPart = tryBody,
-        Ast.stmtCatchPart = catchBody,
-        Ast.stmtTryLocation = loc
-    }
+stmtTry loc tryBody catchBody = Ast.StmtTry $ Ast.StmtTryContent {
+    Ast.stmtTryPart = tryBody,
+    Ast.stmtCatchPart = catchBody,
+    Ast.stmtTryLocation = loc
+}
 
 -- ************
 -- *          *
@@ -72,12 +69,11 @@ stmtTry loc tryBody catchBody = Ast.StmtTry $ Ast.StmtTryContent
 -- *          *
 -- ************
 expCall :: Location -> Ast.Exp -> [Ast.Exp] -> Ast.Exp
-expCall loc funcExp callArgs = Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = funcExp,
-        Ast.args = callArgs,
-        Ast.expCallLocation = loc
-    }
+expCall loc funcExp callArgs = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = funcExp,
+    Ast.args = callArgs,
+    Ast.expCallLocation = loc
+}
 
 -- *****************
 -- *               *
@@ -85,15 +81,14 @@ expCall loc funcExp callArgs = Ast.ExpCall $ Ast.ExpCallContent
 -- *               *
 -- *****************
 stmtFunc :: Location -> Token.Named -> [Ast.Param] -> Maybe [Ast.Stmt] -> Ast.Stmt
-stmtFunc loc fname params body = Ast.StmtFunc $ Ast.StmtFuncContent
-    {
-        Ast.stmtFuncReturnType = Just (varify (Token.Named "any" loc)),
-        Ast.stmtFuncName = Token.FuncName fname,
-        Ast.stmtFuncParams = params,
-        Ast.stmtFuncBody = fromMaybe [] body,
-        Ast.stmtFuncAnnotations = [],
-        Ast.stmtFuncLocation = loc
-    }
+stmtFunc loc fname params body = Ast.StmtFunc $ Ast.StmtFuncContent {
+    Ast.stmtFuncReturnType = Just (varify (Token.Named "any" loc)),
+    Ast.stmtFuncName = Token.FuncName fname,
+    Ast.stmtFuncParams = params,
+    Ast.stmtFuncBody = fromMaybe [] body,
+    Ast.stmtFuncAnnotations = [],
+    Ast.stmtFuncLocation = loc
+}
 
 -- ********************
 -- *                  *
@@ -110,12 +105,11 @@ stmtFunc loc fname params body = Ast.StmtFunc $ Ast.StmtFuncContent
 -- `type`'s own `Maybe Token.Named` (most type alternatives carry no name
 -- and return `Nothing`). Only `Just (Just t)` has a usable nominal type.
 parameterChunk1 :: Token.Named -> Maybe (Maybe Token.Named) -> [Ast.Param]
-parameterChunk1 name maybeTypeHint = [Ast.Param
-    {
-        Ast.paramName = Token.ParamName name,
-        Ast.paramNominalType = case maybeTypeHint of { Just (Just t) -> Just (varify t); _ -> Nothing },
-        Ast.paramSerialIdx = 156
-    }]
+parameterChunk1 name maybeTypeHint = [Ast.Param {
+    Ast.paramName = Token.ParamName name,
+    Ast.paramNominalType = case maybeTypeHint of { Just (Just t) -> Just (varify t); _ -> Nothing },
+    Ast.paramSerialIdx = 156
+}]
 
 -- ***************
 -- *             *
@@ -136,22 +130,20 @@ assignify :: [Ast.Var] -> Ast.Exp -> [Ast.Stmt]
 assignify vars e = Data.List.map (\v -> Ast.StmtAssign (Ast.StmtAssignContent v e)) vars
 
 normalizeVardec :: Token.VarName -> Ast.Exp -> Ast.Stmt
-normalizeVardec v (Ast.ExpLambda lambda) = Ast.StmtFunc $ Ast.StmtFuncContent
-    {
-        Ast.stmtFuncReturnType = Just (varify (Token.Named "any" (Token.getVarNameLocation v))),
-        Ast.stmtFuncName = Token.FuncName (Token.getVarNameToken v),
-        Ast.stmtFuncParams = Ast.expLambdaParams lambda,
-        Ast.stmtFuncBody = Ast.expLambdaBody lambda,
-        Ast.stmtFuncAnnotations = [],
-        Ast.stmtFuncLocation = Ast.expLambdaLocation lambda
-    }
-normalizeVardec v initValue = Ast.StmtVardec $ Ast.StmtVardecContent
-    {
-        Ast.stmtVardecName = v,
-        Ast.stmtVardecNominalType = Just (varify (Token.Named "any" (Token.getVarNameLocation v))),
-        Ast.stmtVardecInitValue = Just initValue,
-        Ast.stmtVardecLocation = Token.getVarNameLocation v
-    }
+normalizeVardec v (Ast.ExpLambda lambda) = Ast.StmtFunc $ Ast.StmtFuncContent {
+    Ast.stmtFuncReturnType = Just (varify (Token.Named "any" (Token.getVarNameLocation v))),
+    Ast.stmtFuncName = Token.FuncName (Token.getVarNameToken v),
+    Ast.stmtFuncParams = Ast.expLambdaParams lambda,
+    Ast.stmtFuncBody = Ast.expLambdaBody lambda,
+    Ast.stmtFuncAnnotations = [],
+    Ast.stmtFuncLocation = Ast.expLambdaLocation lambda
+}
+normalizeVardec v initValue = Ast.StmtVardec $ Ast.StmtVardecContent {
+    Ast.stmtVardecName = v,
+    Ast.stmtVardecNominalType = Just (varify (Token.Named "any" (Token.getVarNameLocation v))),
+    Ast.stmtVardecInitValue = Just initValue,
+    Ast.stmtVardecLocation = Token.getVarNameLocation v
+}
 
 -- Consolidated `stmtDecvar` — the init expression is now optional
 -- (`optional(decvarInit)` in the grammar), so the grammar's two old
@@ -166,18 +158,16 @@ normalizeVardec v initValue = Ast.StmtVardec $ Ast.StmtVardecContent
 stmtDecvar :: Location -> [Ast.Var] -> Maybe Ast.Exp -> Ast.Stmt
 stmtDecvar _   [Ast.VarSimple (Ast.VarSimpleContent v)] (Just initExp) = normalizeVardec v initExp
 stmtDecvar loc vars                                     (Just initExp) = Ast.StmtBlock $ Ast.StmtBlockContent (assignify vars initExp) loc
-stmtDecvar _   [Ast.VarSimple (Ast.VarSimpleContent v)] Nothing        = Ast.StmtVardec $ Ast.StmtVardecContent
-    {
-        Ast.stmtVardecName = v,
-        Ast.stmtVardecNominalType = Just (varify (Token.Named "any" (Token.getVarNameLocation v))),
-        Ast.stmtVardecInitValue = Nothing,
-        Ast.stmtVardecLocation = Token.getVarNameLocation v
-    }
-stmtDecvar loc _                                        Nothing        = Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = [],
-        Ast.stmtBlockLocation = loc
-    }
+stmtDecvar _   [Ast.VarSimple (Ast.VarSimpleContent v)] Nothing        = Ast.StmtVardec $ Ast.StmtVardecContent {
+    Ast.stmtVardecName = v,
+    Ast.stmtVardecNominalType = Just (varify (Token.Named "any" (Token.getVarNameLocation v))),
+    Ast.stmtVardecInitValue = Nothing,
+    Ast.stmtVardecLocation = Token.getVarNameLocation v
+}
+stmtDecvar loc _                                        Nothing        = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [],
+    Ast.stmtBlockLocation = loc
+}
 
 -- Aggregate lowering for comma-separated VariableDeclaration items inside a
 -- single VariableDeclarationList. Preserves prior single-declaration shape
@@ -185,11 +175,10 @@ stmtDecvar loc _                                        Nothing        = Ast.Stm
 stmtDecvarList :: Location -> [([Ast.Var], Maybe Ast.Exp)] -> Ast.Stmt
 stmtDecvarList loc us = case us of
     [u] -> buildStmtFromUnit loc u
-    _   -> Ast.StmtBlock $ Ast.StmtBlockContent
-        {
-            Ast.stmtBlockContent = flattenStmts (mapUnits loc us),
-            Ast.stmtBlockLocation = loc
-        }
+    _   -> Ast.StmtBlock $ Ast.StmtBlockContent {
+        Ast.stmtBlockContent = flattenStmts (mapUnits loc us),
+        Ast.stmtBlockLocation = loc
+    }
 
 buildStmtFromUnit :: Location -> ([Ast.Var], Maybe Ast.Exp) -> Ast.Stmt
 buildStmtFromUnit loc unit = case unit of
@@ -212,13 +201,12 @@ flattenStmts stmtsTag = concat (Data.List.map toListFromStmt stmtsTag)
 -- *           *
 -- *************
 expBinop :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
-expBinop loc left right = Ast.ExpBinop $ Ast.ExpBinopContent
-    {
-        Ast.expBinopLeft = left,
-        Ast.expBinopRight = right,
-        Ast.expBinopOperator = Ast.PLUS,
-        Ast.expBinopLocation = loc
-    }
+expBinop loc left right = Ast.ExpBinop $ Ast.ExpBinopContent {
+    Ast.expBinopLeft = left,
+    Ast.expBinopRight = right,
+    Ast.expBinopOperator = Ast.PLUS,
+    Ast.expBinopLocation = loc
+}
 
 -- ************
 -- *          *
@@ -226,11 +214,10 @@ expBinop loc left right = Ast.ExpBinop $ Ast.ExpBinopContent
 -- *          *
 -- ************
 expBool :: Bool -> Location -> Ast.Exp
-expBool value loc = Ast.ExpBool $ Ast.ExpBoolContent $ Token.ConstBool
-    {
-        Token.constBoolValue = value,
-        Token.constBoolLocation = loc
-    }
+expBool value loc = Ast.ExpBool $ Ast.ExpBoolContent $ Token.ConstBool {
+    Token.constBoolValue = value,
+    Token.constBoolLocation = loc
+}
 
 -- ***************
 -- *             *
@@ -238,11 +225,10 @@ expBool value loc = Ast.ExpBool $ Ast.ExpBoolContent $ Token.ConstBool
 -- *             *
 -- ***************
 stmtReturn :: Location -> Maybe Ast.Exp -> Ast.Stmt
-stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent
-    {
-        Ast.stmtReturnValue = value,
-        Ast.stmtReturnLocation = loc
-    }
+stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent {
+    Ast.stmtReturnValue = value,
+    Ast.stmtReturnLocation = loc
+}
 
 -- **************
 -- *            *
@@ -274,12 +260,11 @@ stmtContinue loc = Ast.StmtContinue $ Ast.StmtContinueContent { Ast.stmtContinue
 -- *            *
 -- **************
 stmtWhile :: Location -> Ast.Exp -> [Ast.Stmt] -> Ast.Stmt
-stmtWhile loc cond body = Ast.StmtWhile $ Ast.StmtWhileContent
-    {
-        Ast.stmtWhileCond = cond,
-        Ast.stmtWhileBody = body,
-        Ast.stmtWhileLocation = loc
-    }
+stmtWhile loc cond body = Ast.StmtWhile $ Ast.StmtWhileContent {
+    Ast.stmtWhileCond = cond,
+    Ast.stmtWhileBody = body,
+    Ast.stmtWhileLocation = loc
+}
 
 -- **************
 -- *            *
@@ -287,13 +272,12 @@ stmtWhile loc cond body = Ast.StmtWhile $ Ast.StmtWhileContent
 -- *            *
 -- **************
 stmtClass :: Token.Named -> Maybe [Maybe Token.Named] -> [Maybe Ast.Stmt] -> Ast.Stmt
-stmtClass name maybeSupers bodyStmts = Ast.StmtClass $ Ast.StmtClassContent
-    {
-        Ast.stmtClassName = Token.ClassName name,
-        Ast.stmtClassSupers = collectSupers maybeSupers,
-        Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-        Ast.stmtClassMethods = stmtsToMethods bodyStmts
-    }
+stmtClass name maybeSupers bodyStmts = Ast.StmtClass $ Ast.StmtClassContent {
+    Ast.stmtClassName = Token.ClassName name,
+    Ast.stmtClassSupers = collectSupers maybeSupers,
+    Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
+    Ast.stmtClassMethods = stmtsToMethods bodyStmts
+}
 
 stmtsToMethods :: [Maybe Ast.Stmt] -> Ast.Methods
 stmtsToMethods maybeStmts = Ast.Methods $ Data.Map.fromList
@@ -322,16 +306,15 @@ collectSupers maybeTs = case maybeTs of
 -- follow-up is for `Actions.stmtClass` to walk its body list and inject the
 -- real class name into each `Ast.StmtMethod`.
 stmtMethod :: Location -> Token.Named -> [Ast.Param] -> Maybe (Maybe Token.Named) -> Maybe [Ast.Stmt] -> Maybe Ast.Stmt
-stmtMethod loc name params maybeReturnType maybeBody = Just $ Ast.StmtMethod $ Ast.StmtMethodContent
-    {
-        Ast.stmtMethodReturnType = methodReturnType loc maybeReturnType,
-        Ast.stmtMethodName = Token.MethodName name,
-        Ast.stmtMethodParams = params,
-        Ast.stmtMethodBody = fromMaybe [] maybeBody,
-        Ast.stmtMethodLocation = loc,
-        Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
-        Ast.hostingClassSupers = []
-    }
+stmtMethod loc name params maybeReturnType maybeBody = Just $ Ast.StmtMethod $ Ast.StmtMethodContent {
+    Ast.stmtMethodReturnType = methodReturnType loc maybeReturnType,
+    Ast.stmtMethodName = Token.MethodName name,
+    Ast.stmtMethodParams = params,
+    Ast.stmtMethodBody = fromMaybe [] maybeBody,
+    Ast.stmtMethodLocation = loc,
+    Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
+    Ast.hostingClassSupers = []
+}
 
 methodReturnType :: Location -> Maybe (Maybe Token.Named) -> Maybe Ast.Var
 methodReturnType loc maybeReturnType = case maybeReturnType of
@@ -352,22 +335,20 @@ stmtConstructor loc params maybeBody = stmtMethod loc (Token.Named "constructor"
 -- whose methods set is empty. Init values are dropped for now; can be wired
 -- through `enumInitializer` later.
 enumDataMember :: Token.Named -> Ast.DataMember
-enumDataMember name = Ast.DataMember
-    {
-        Ast.dataMemberName = Token.MemberName name,
-        Ast.dataMemberNominalType = Nothing,
-        Ast.dataMemberInitValue = Nothing
-    }
+enumDataMember name = Ast.DataMember {
+    Ast.dataMemberName = Token.MemberName name,
+    Ast.dataMemberNominalType = Nothing,
+    Ast.dataMemberInitValue = Nothing
+}
 
 stmtEnum :: Token.Named -> [Ast.DataMember] -> Ast.Stmt
-stmtEnum name members = Ast.StmtClass $ Ast.StmtClassContent
-    {
-        Ast.stmtClassName = Token.ClassName name,
-        Ast.stmtClassSupers = [],
-        Ast.stmtClassDataMembers = Ast.DataMembers $ Data.Map.fromList
-            [ (Ast.dataMemberName m, m) | m <- members ],
-        Ast.stmtClassMethods = Ast.Methods Data.Map.empty
-    }
+stmtEnum name members = Ast.StmtClass $ Ast.StmtClassContent {
+    Ast.stmtClassName = Token.ClassName name,
+    Ast.stmtClassSupers = [],
+    Ast.stmtClassDataMembers = Ast.DataMembers $ Data.Map.fromList
+        [ (Ast.dataMemberName m, m) | m <- members ],
+    Ast.stmtClassMethods = Ast.Methods Data.Map.empty
+}
 
 -- ******************
 -- *                *
@@ -375,12 +356,11 @@ stmtEnum name members = Ast.StmtClass $ Ast.StmtClassContent
 -- *                *
 -- ******************
 expArrowFunction :: Location -> [Ast.Param] -> [Ast.Stmt] -> Ast.Exp
-expArrowFunction loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent
-    {
-        Ast.expLambdaParams = params,
-        Ast.expLambdaBody = body,
-        Ast.expLambdaLocation = loc
-    }
+expArrowFunction loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent {
+    Ast.expLambdaParams = params,
+    Ast.expLambdaBody = body,
+    Ast.expLambdaLocation = loc
+}
 
 -- ******************
 -- *                *
@@ -388,12 +368,11 @@ expArrowFunction loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent
 -- *                *
 -- ******************
 expFunctionExpression :: Location -> [Ast.Param] -> [Ast.Stmt] -> Ast.Exp
-expFunctionExpression loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent
-    {
-        Ast.expLambdaParams = params,
-        Ast.expLambdaBody = body,
-        Ast.expLambdaLocation = loc
-    }
+expFunctionExpression loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent {
+    Ast.expLambdaParams = params,
+    Ast.expLambdaBody = body,
+    Ast.expLambdaLocation = loc
+}
 
 -- ***************
 -- *             *
@@ -401,11 +380,10 @@ expFunctionExpression loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent
 -- *             *
 -- ***************
 stmtAssign :: Ast.Var -> Ast.Exp -> Ast.Stmt
-stmtAssign lhs rhs = Ast.StmtAssign $ Ast.StmtAssignContent
-    {
-        Ast.stmtAssignLhs = lhs,
-        Ast.stmtAssignRhs = rhs
-    }
+stmtAssign lhs rhs = Ast.StmtAssign $ Ast.StmtAssignContent {
+    Ast.stmtAssignLhs = lhs,
+    Ast.stmtAssignRhs = rhs
+}
 
 -- ************
 -- *          *
@@ -413,13 +391,11 @@ stmtAssign lhs rhs = Ast.StmtAssign $ Ast.StmtAssignContent
 -- *          *
 -- ************
 expNull :: Location -> Ast.Exp
-expNull loc = Ast.ExpNull $ Ast.ExpNullContent
-    {
-        Ast.expNullValue = Token.ConstNull
-            {
-                Token.constNullLocation = loc
-            }
+expNull loc = Ast.ExpNull $ Ast.ExpNullContent {
+    Ast.expNullValue = Token.ConstNull {
+        Token.constNullLocation = loc
     }
+}
 
 -- *************
 -- *           *
@@ -427,12 +403,11 @@ expNull loc = Ast.ExpNull $ Ast.ExpNullContent
 -- *           *
 -- *************
 varField :: Location -> Ast.Exp -> Token.Named -> Ast.Var
-varField loc lhs name = Ast.VarField $ Ast.VarFieldContent
-    {
-        Ast.varFieldLhs = lhs,
-        Ast.varFieldName = Token.FieldName name,
-        Ast.varFieldLocation = loc
-    }
+varField loc lhs name = Ast.VarField $ Ast.VarFieldContent {
+    Ast.varFieldLhs = lhs,
+    Ast.varFieldName = Token.FieldName name,
+    Ast.varFieldLocation = loc
+}
 
 -- *****************
 -- *               *
@@ -440,12 +415,11 @@ varField loc lhs name = Ast.VarField $ Ast.VarFieldContent
 -- *               *
 -- *****************
 varSubscript :: Location -> Ast.Exp -> Ast.Exp -> Ast.Var
-varSubscript loc lhs idx = Ast.VarSubscript $ Ast.VarSubscriptContent
-    {
-        Ast.varSubscriptLhs = lhs,
-        Ast.varSubscriptIdx = idx,
-        Ast.varSubscriptLocation = loc
-    }
+varSubscript loc lhs idx = Ast.VarSubscript $ Ast.VarSubscriptContent {
+    Ast.varSubscriptLhs = lhs,
+    Ast.varSubscriptIdx = idx,
+    Ast.varSubscriptLocation = loc
+}
 
 -- **********************
 -- *                    *
@@ -457,12 +431,11 @@ varSubscript loc lhs idx = Ast.VarSubscript $ Ast.VarSubscriptContent
 -- *                    *
 -- **********************
 instrumentationCall :: String -> Location -> [Ast.Exp] -> Ast.Exp
-instrumentationCall tag loc callArgs = Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = expvarify (Token.Named ("<dhscanner-instrumentation>[" ++ tag ++ "]") loc),
-        Ast.args = callArgs,
-        Ast.expCallLocation = loc
-    }
+instrumentationCall tag loc callArgs = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = expvarify (Token.Named ("<dhscanner-instrumentation>[" ++ tag ++ "]") loc),
+    Ast.args = callArgs,
+    Ast.expCallLocation = loc
+}
 
 -- **************
 -- *            *
@@ -478,25 +451,22 @@ expDelete loc _operand = instrumentationCall "delete" loc []
 -- *         *
 -- ***********
 expNew :: Location -> Maybe Token.Named -> Maybe [Ast.Exp] -> Ast.Exp
-expNew loc maybeType maybeArgs = Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named
-            {
-                Token.content = case maybeType of { Just t -> Token.content t; _ -> "nondet" },
-                Token.location = loc
-            },
-        Ast.args = fromMaybe [] maybeArgs,
-        Ast.expCallLocation = loc
-    }
+expNew loc maybeType maybeArgs = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named {
+        Token.content = case maybeType of { Just t -> Token.content t; _ -> "nondet" },
+        Token.location = loc
+    },
+    Ast.args = fromMaybe [] maybeArgs,
+    Ast.expCallLocation = loc
+}
 
 -- NewExpression with an expression/var callee (e.g., new google.auth.OAuth2(...))
 expNewCalleeVar :: Location -> Ast.Var -> Maybe [Ast.Exp] -> Ast.Exp
-expNewCalleeVar loc v maybeArgs = Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent v,
-        Ast.args = fromMaybe [] maybeArgs,
-        Ast.expCallLocation = loc
-    }
+expNewCalleeVar loc v maybeArgs = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = Ast.ExpVar $ Ast.ExpVarContent v,
+    Ast.args = fromMaybe [] maybeArgs,
+    Ast.expCallLocation = loc
+}
 
 -- **************
 -- *            *
@@ -590,11 +560,10 @@ importify :: Common.AdditionalRepoInfo -> Token.ConstStr -> [ Token.Named ] -> [
 importify repoInfo = Data.List.map . (importify' repoInfo)
 
 stmtImport :: Common.AdditionalRepoInfo -> Location -> Maybe [Token.Named] -> Token.ConstStr -> Ast.Stmt
-stmtImport repoInfo loc maybeImports importSource = Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = importify repoInfo importSource (fromMaybe [] maybeImports),
-        Ast.stmtBlockLocation = loc
-    }
+stmtImport repoInfo loc maybeImports importSource = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = importify repoInfo importSource (fromMaybe [] maybeImports),
+    Ast.stmtBlockLocation = loc
+}
 
 -- **************
 -- *            *
@@ -602,11 +571,10 @@ stmtImport repoInfo loc maybeImports importSource = Ast.StmtBlock $ Ast.StmtBloc
 -- *            *
 -- **************
 stmtExport :: Location -> Ast.Stmt
-stmtExport loc = Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = [],
-        Ast.stmtBlockLocation = loc
-    }
+stmtExport loc = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [],
+    Ast.stmtBlockLocation = loc
+}
 
 -- **************
 -- *            *
@@ -614,8 +582,62 @@ stmtExport loc = Ast.StmtBlock $ Ast.StmtBlockContent
 -- *            *
 -- **************
 stmtTypeAlias :: Location -> Ast.Stmt
-stmtTypeAlias loc = Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = [],
-        Ast.stmtBlockLocation = loc
-    }
+stmtTypeAlias loc = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [],
+    Ast.stmtBlockLocation = loc
+}
+
+-- **********************
+-- *                    *
+-- * instrument nodejs  *
+-- * types              *
+-- *                    *
+-- **********************
+-- Several JS/TS built-ins (Request, Response, URL, ...) are globals in
+-- Node.js and modern browsers, so user code uses them (as types or as
+-- constructors) with no explicit `import` statement. Downstream analysis
+-- needs a stable FQN for those references, so at parse time we prepend
+-- synthetic imports to every file -- the effect is as if the source began
+-- with
+--
+--     import { Request, Response } from 'nodejs'
+--
+-- The origin marker for these injected nodes is `syntheticLocation` (below).
+instrumentNodejsRequestType :: Ast.Stmt
+instrumentNodejsRequestType = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent "nodejs"),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific "Request"),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = syntheticLocation
+}
+
+instrumentNodejsResponseType :: Ast.Stmt
+instrumentNodejsResponseType = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent "nodejs"),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific "Response"),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = syntheticLocation
+}
+
+instrumentedNativeTypes :: [Ast.Stmt]
+instrumentedNativeTypes = [
+    instrumentNodejsRequestType,
+    instrumentNodejsResponseType
+  ]
+
+-- **********************
+-- *                    *
+-- * synthetic location *
+-- *                    *
+-- **********************
+-- Real lexer-emitted locations are 1-based (see Location.hs), so line/col 0
+-- is a clean "not from source" marker for parser-injected nodes -- keeps
+-- them distinguishable in the KB from any real, source-anchored node.
+syntheticLocation :: Location
+syntheticLocation = Location {
+    filename  = "",
+    lineStart = 0,
+    lineEnd   = 0,
+    colStart  = 0,
+    colEnd    = 0
+}
