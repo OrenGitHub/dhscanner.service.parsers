@@ -2374,9 +2374,9 @@ exp_regex:
 }
 
 exp_int:
-'FirstLiteralToken' loc '(' ')'
+'FirstLiteralToken' loc '(' INT ')'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 888 $2
+    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt (fromIntegral (tokIntValue $4)) $2
 }
 
 exp_jsx:
