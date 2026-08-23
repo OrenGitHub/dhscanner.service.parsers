@@ -24,7 +24,7 @@ import qualified Common
 -- *                 *
 -- *******************
 import Data.Maybe ( fromMaybe, catMaybes, mapMaybe )
-import Data.List ( map, stripPrefix, isPrefixOf )
+import Data.List ( map, stripPrefix, isPrefixOf, foldl' )
 import qualified Data.Map
 
 -- ********
@@ -85,7 +85,7 @@ stmtFunc loc fname params body = Ast.StmtFunc $ Ast.StmtFuncContent {
     Ast.stmtFuncReturnType = Just (varify (Token.Named "any" loc)),
     Ast.stmtFuncName = Token.FuncName fname,
     Ast.stmtFuncParams = params,
-    Ast.stmtFuncBody = fromMaybe [] body,
+    Ast.stmtFuncBody = ensureCallableBodyEndsWithReturn loc (fromMaybe [] body),
     Ast.stmtFuncAnnotations = [],
     Ast.stmtFuncLocation = loc
 }
@@ -230,6 +230,24 @@ stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent {
     Ast.stmtReturnLocation = loc
 }
 
+-- *****************************************
+-- *                                       *
+-- * ensure callable body ends with return *
+-- *                                       *
+-- *****************************************
+ensureCallableBodyEndsWithReturn :: Location -> [Ast.Stmt] -> [Ast.Stmt]
+ensureCallableBodyEndsWithReturn loc body = ensureCallableBodyEndsWithReturn' loc body (lastStmt body)
+
+ensureCallableBodyEndsWithReturn' :: Location -> [Ast.Stmt] -> Maybe Ast.Stmt -> [Ast.Stmt]
+ensureCallableBodyEndsWithReturn' _   body (Just (Ast.StmtReturn _)) = body
+ensureCallableBodyEndsWithReturn' loc body _ = body ++ [returnNull loc]
+
+returnNull :: Location -> Ast.Stmt
+returnNull loc = stmtReturn loc (Just (expNull loc))
+
+lastStmt :: [Ast.Stmt] -> Maybe Ast.Stmt
+lastStmt = foldl' (const Just) Nothing
+
 -- **************
 -- *            *
 -- * stmt throw *
@@ -310,7 +328,7 @@ stmtMethod loc name params maybeReturnType maybeBody = Just $ Ast.StmtMethod $ A
     Ast.stmtMethodReturnType = methodReturnType loc maybeReturnType,
     Ast.stmtMethodName = Token.MethodName name,
     Ast.stmtMethodParams = params,
-    Ast.stmtMethodBody = fromMaybe [] maybeBody,
+    Ast.stmtMethodBody = ensureCallableBodyEndsWithReturn loc (fromMaybe [] maybeBody),
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
     Ast.hostingClassSupers = []
@@ -370,7 +388,7 @@ expArrowFunction loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent {
 expFunctionExpression :: Location -> [Ast.Param] -> [Ast.Stmt] -> Ast.Exp
 expFunctionExpression loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent {
     Ast.expLambdaParams = params,
-    Ast.expLambdaBody = body,
+    Ast.expLambdaBody = ensureCallableBodyEndsWithReturn loc body,
     Ast.expLambdaLocation = loc
 }
 
