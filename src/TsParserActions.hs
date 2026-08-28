@@ -373,10 +373,34 @@ stmtEnum name members = Ast.StmtClass $ Ast.StmtClassContent {
 -- * exp arrow func *
 -- *                *
 -- ******************
+-- Arrow function bodies get the same fall-through normalization as
+-- `stmtFunc`, `stmtMethod`, and `expFunctionExpression` : if the last
+-- top-level stmt is not already an Ast.StmtReturn, append a synthetic
+-- `return null` whose location coincides with the callable's header --
+-- see `ensureCallableBodyEndsWithReturn`.
+--
+-- Note about arrow expression bodies :
+--   TypeScript arrow forms come in two shapes -- block body `() => { ... }`
+--   and expression body `x => x + 1`. In the current grammar
+--   ( `TsParser.y::lambdaBody` ) the expression form lowers to
+--   `[ Ast.StmtExp e ]` -- an unreturned side-effect statement. This
+--   pre-dates the fall-through instrumentation and is a separate concern
+--   ( `x => x + 1` is not semantically a side-effect ; its value IS the
+--   arrow's return ). Wiring fall-through here is safe for both shapes :
+--     - block body : the normal case ; guard-shaped callables now emit
+--                    `kb_callable_returns_value( F, F )` for downstream
+--                    shape recognisers ( see queryengine `utils.pl` ).
+--     - expression body : gets an extra `return null` appended after the
+--                    unreturned expression stmt. This has no effect on
+--                    shape recognisers ( a single-return callable never
+--                    matches any N-vs-1 shape ) but is technically
+--                    semantic noise. A follow-up rewriting `lambdaBody`'s
+--                    exp production to `[ Ast.StmtReturn (Just e) ]` will
+--                    close that gap without touching this smart constructor.
 expArrowFunction :: Location -> [Ast.Param] -> [Ast.Stmt] -> Ast.Exp
 expArrowFunction loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent {
     Ast.expLambdaParams = params,
-    Ast.expLambdaBody = body,
+    Ast.expLambdaBody = ensureCallableBodyEndsWithReturn loc body,
     Ast.expLambdaLocation = loc
 }
 
