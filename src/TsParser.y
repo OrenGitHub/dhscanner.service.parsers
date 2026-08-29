@@ -2448,10 +2448,58 @@ property:
 property_1 { $1 } |
 property_2 { $1 }
 
+-- Object-literal property KEY.
+--
+-- The frontts native AST captures the source-level distinction between a
+-- string-literal-form key ( `{ "status": 401 }` -> `StringLiteral( ... )` )
+-- and an identifier-form key ( `{ status: 401 }` -> `Identifier( status )` ).
+-- Both are semantically *property names* -- a PropertyName in ECMAScript --
+-- not variable reads, so lowering both into the same `Ast.ExpStr` shape
+-- preserves the intent of the source :
+--
+--   { status: 401 }         == { "status": 401 }
+--
+-- Downstream this makes kbgen emit `kb_const_string( KeyLoc, 'status' )`
+-- for BOTH forms ( previously only the quoted form emitted it, because
+-- the identifier form was lowered as `Ast.ExpVar` and never reached
+-- `Kbgen.ConstStringCtor` in `Factify.hs::getConstStringsFromValue` ).
+-- That is what lets structural predicates in `queryengine/utils.pl` --
+-- eg `utils_ts_response_json_at_with_status/2`, which pins the outer
+-- `Response.json` call and then requires
+-- `kb_const_string( KeyLoc, 'status' )` on the init-dict's kv-pair --
+-- fire on real-world `Response.json({ status: 401, headers })` sites
+-- without needing to loosen the key-side gate.
+--
+-- Numeric keys ( `{ 42: "answer" }` ) are intentionally NOT handled here
+-- yet -- they are rare in TS ; leaf-add a `FirstLiteralToken` branch
+-- when a real-world case demands it.
+--
+-- Computed keys ( `{ [expr]: value }` ) are handled separately by
+-- `property_2` via `ComputedPropertyName` and stay on the general `exp`
+-- path -- they legitimately ARE expressions and lifting them to
+-- `Ast.ExpStr` would erase real dataflow information.
+property_key:
+stringLiteral
+{
+    Ast.ExpStr $ Ast.ExpStrContent $1
+}
+|
+'Identifier' loc
+'('
+    ID
+')'
+{
+    Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr
+    {
+        Token.constStrValue = tokIDValue $4,
+        Token.constStrLocation = $2
+    }
+}
+
 property_1:
 'PropertyAssignment' loc
 '('
-    exp
+    property_key
     colonToken
     exp
 ')'
