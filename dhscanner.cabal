@@ -60,7 +60,7 @@ executable parser
     build-depends:
         base,
         containers,
-        dhscanner-ast >= 1.1.5,
+        dhscanner-ast >= 1.2.0,
         aeson,
         array,
         split,

@@ -200,11 +200,34 @@ flattenStmts stmtsTag = concat (Data.List.map toListFromStmt stmtsTag)
 -- * exp binop *
 -- *           *
 -- *************
+--
+-- Three smart-constructor variants delegate to a shared record-build
+-- helper ( `mkExpBinop` ) so the operator field is the only difference
+-- between them. `expBinop` keeps the legacy `Ast.PLUS` hardcode as the
+-- catch-all for every non-equality binary operator ; the two new
+-- variants ( `expBinopEq` / `expBinopNeq` ) are dispatched from
+-- `TsParser.y::expBinop`'s dedicated equality-token alternatives and
+-- preserve the equality / inequality distinction in the AST.
+--
+-- Strict-vs-loose polarity ( `==` vs `===` , `!=` vs `!==` ) is
+-- deliberately NOT preserved -- `dhscanner.ast` only carries `Ast.EQ`
+-- / `Ast.NEQ`. Downstream consumers that ever need the distinction
+-- can leaf-add strict-flavoured constructors to `Ast.Operator` and
+-- route them here without disturbing existing callers.
 expBinop :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
-expBinop loc left right = Ast.ExpBinop $ Ast.ExpBinopContent {
+expBinop = mkExpBinop Ast.PLUS
+
+expBinopEq :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+expBinopEq = mkExpBinop Ast.EQ
+
+expBinopNeq :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+expBinopNeq = mkExpBinop Ast.NEQ
+
+mkExpBinop :: Ast.Operator -> Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+mkExpBinop op loc left right = Ast.ExpBinop $ Ast.ExpBinopContent {
     Ast.expBinopLeft = left,
     Ast.expBinopRight = right,
-    Ast.expBinopOperator = Ast.PLUS,
+    Ast.expBinopOperator = op,
     Ast.expBinopLocation = loc
 }
 

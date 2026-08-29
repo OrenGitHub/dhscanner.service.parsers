@@ -1935,15 +1935,19 @@ exp_template_token:
     }
 }
 
+-- The four equality tokens ( `==` , `===` , `!=` , `!==` ) are handled
+-- by dedicated alternatives on `expBinop` below ( they route into
+-- `Actions.expBinopEq` / `Actions.expBinopNeq` so the AST preserves
+-- `Ast.EQ` / `Ast.NEQ` instead of collapsing to `Ast.PLUS` ). They are
+-- intentionally NOT listed here -- keeping them out prevents a shift /
+-- reduce ambiguity between the dedicated `expBinop` alternatives and
+-- the generic `operator`-driven alternative below.
 operator:
 inKeyword            { Nothing } |
 firstBinaryOperator  { Nothing } |
 firstCompoundAssignment  { Nothing } |
 instanceOfKeyword    { Nothing } |
 barBarToken          { Nothing } |
-eqEqToken            { Nothing } |
-eqEqEqToken          { Nothing } |
-exclamationEqToken   { Nothing } |
 ampAmpToken          { Nothing } |
 asteriskToken        { Nothing } |
 asteriskAsteriskToken { Nothing } |
@@ -1956,8 +1960,19 @@ greaterThanEqualsToken { Nothing } |
 lessThanEqualsToken  { Nothing } |
 lessThanLessThanToken { Nothing } |
 questionQuestionToken { Nothing } |
-questionQuestionEqualsToken { Nothing } |
-exclamationEqEqToken { Nothing }
+questionQuestionEqualsToken { Nothing }
+
+-- Equality-token helpers -- collapse strict-vs-loose to a single non-terminal
+-- each ( `==` and `===` -> `eqOp` ; `!=` and `!==` -> `neqOp` ). Return
+-- `Nothing` because the polarity itself is carried by which non-terminal
+-- matched, not by the token's own value ; the surrounding `expBinop`
+-- alternative dispatches to the right smart constructor
+-- ( `Actions.expBinopEq` / `Actions.expBinopNeq` ) which bakes the
+-- corresponding `Ast.EQ` / `Ast.NEQ` into the AST. These helpers are
+-- intentionally used only by `expBinop` -- no other production reaches
+-- them.
+eqOp:  eqEqToken            { Nothing } | eqEqEqToken           { Nothing }
+neqOp: exclamationEqToken   { Nothing } | exclamationEqEqToken  { Nothing }
 
 -- *************
 -- *           *
@@ -1965,6 +1980,26 @@ exclamationEqEqToken { Nothing }
 -- *           *
 -- *************
 expBinop:
+'BinaryExpression' loc
+'('
+    exp
+    eqOp
+    exp
+')'
+{
+    Actions.expBinopEq $2 $4 $6
+}
+|
+'BinaryExpression' loc
+'('
+    exp
+    neqOp
+    exp
+')'
+{
+    Actions.expBinopNeq $2 $4 $6
+}
+|
 'BinaryExpression' loc
 '('
     exp
