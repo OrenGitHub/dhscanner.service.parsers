@@ -543,11 +543,70 @@ expTypeof loc _operand = instrumentationCall "typeof" loc []
 
 -- ***************
 -- *             *
+-- * const str   *
+-- *             *
+-- ***************
+-- Wrap a raw string payload (already unquoted) as an `Ast.ExpStr`. Used
+-- by the template-literal productions (`templateHead` / `templateMiddle`
+-- / `lastTemplateToken` / `FirstTemplateToken`) so the constant string
+-- fragments of an fstring flow through the AST as first-class ExpStr
+-- expressions -- the same shape as any other string literal. Consumers
+-- can then discriminate constant fstring segments from dynamic ones by
+-- the Exp constructor itself (ExpStr = const, everything else = dynamic)
+-- without needing a side-channel tag.
+constStrExp :: Location -> String -> Ast.Exp
+constStrExp loc s = Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr
+    {
+        Token.constStrValue = s,
+        Token.constStrLocation = loc
+    }
+
+-- ***********
+-- *         *
+-- * fstring *
+-- *         *
+-- ***********
+-- Lower a TypeScript template literal to a
+-- `<dhscanner-instrumentation>[fstring]` call (routed through the
+-- shared `instrumentationCall` helper, same convention as every other
+-- instrumented Ast.ExpCall in this module) whose args interleave the
+-- constant string segments (as `ExpStr`) with the interpolated
+-- expressions, in source order:
+--
+--     `${a}foo${b}bar`
+--         =>  <dhscanner-instrumentation>[fstring](
+--                 ExpStr(""), a, ExpStr("foo"), b, ExpStr("bar"))
+--
+-- The invariant is straightforward: args at even indices (0, 2, 4, ...)
+-- are the constant segments; args at odd indices (1, 3, 5, ...) are the
+-- interpolated expressions. Constant segments -- including the very
+-- first one, which may be `ExpStr("")` when the template starts with
+-- `${...}` -- are always present so the interleaving is regular.
+--
+-- The list-of-lists shape for `spans` is dictated by the grammar: each
+-- `template_span` returns [interpolatedExp, literalSuffixExpStr], and
+-- `commalistof(template_span)` produces the outer list. `concat` flattens.
+fstring :: Location -> Ast.Exp -> [[Ast.Exp]] -> Ast.Exp
+fstring loc headExp spans = instrumentationCall "fstring" loc (headExp : concat spans)
+
+-- ***************
+-- *             *
 -- * exp ternary *
 -- *             *
 -- ***************
+-- Lowered as a `<dhscanner-instrumentation>[ternary]` call whose three
+-- args are themselves `<dhscanner-instrumentation>[ternary_cond]` /
+-- `[ternary_then]` / `[ternary_else]` wrappers, one per operand. The
+-- explicit per-branch tag lets a downstream consumer pattern-match
+-- branches by callee name instead of by positional index -- important
+-- because nested ternaries would otherwise flatten into an ambiguous
+-- three-args-at-each-level tree.
 expTernary :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp -> Ast.Exp
-expTernary loc _cond _thenExp _elseExp = instrumentationCall "ternary" loc []
+expTernary loc cond thenExp elseExp = instrumentationCall "ternary" loc [
+        instrumentationCall "ternary_cond" loc [cond],
+        instrumentationCall "ternary_then" loc [thenExp],
+        instrumentationCall "ternary_else" loc [elseExp]
+    ]
 
 -- ************
 -- *          *
@@ -665,7 +724,7 @@ stmtTypeAlias loc = Ast.StmtBlock $ Ast.StmtBlockContent {
 -- synthetic imports to every file -- the effect is as if the source began
 -- with
 --
---     import { Request, Response } from 'nodejs'
+--     import { Request, Response, URL } from 'nodejs'
 --
 -- The origin marker for these injected nodes is `syntheticLocation` (below).
 instrumentNodejsRequestType :: Ast.Stmt
@@ -684,10 +743,26 @@ instrumentNodejsResponseType = Ast.StmtImport $ Ast.StmtImportContent {
     Ast.stmtImportLocation = syntheticLocation
 }
 
+-- The WHATWG `URL` constructor (`new URL(input, base?)`) is a global in
+-- Node.js 10+ and in every modern browser, so TS/JS code uses it with
+-- no explicit `import`. Injecting a synthetic import here pins the FQN
+-- `nodejs.URL` for downstream analysis, which lets `kb_call_resolved`
+-- ground every `new URL(...)` call site under a single stable name
+-- (mirrors the existing Request / Response treatment). The Prolog-side
+-- consumer is `utils_url_flows_to_return_value/3` in `utils.pl`.
+instrumentNodejsURLType :: Ast.Stmt
+instrumentNodejsURLType = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent "nodejs"),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific "URL"),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = syntheticLocation
+}
+
 instrumentedNativeTypes :: [Ast.Stmt]
 instrumentedNativeTypes = [
     instrumentNodejsRequestType,
-    instrumentNodejsResponseType
+    instrumentNodejsResponseType,
+    instrumentNodejsURLType
   ]
 
 -- **********************

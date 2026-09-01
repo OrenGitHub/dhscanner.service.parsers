@@ -1290,9 +1290,15 @@ slashToken:          'SlashToken'          loc '(' ')' { Nothing }
 percentToken:        'PercentToken'        loc '(' ')' { Nothing }
 exclamationToken:    'ExclamationToken'    loc '(' ')' { Nothing }
 undefinedKeyword:    'UndefinedKeyword'    loc '(' ')' { Nothing }
-templateHead:        'TemplateHead'        loc '(' ')' { Nothing }
-templateMiddle:      'TemplateMiddle'      loc '(' ')' { Nothing }
-lastTemplateToken:   'LastTemplateToken'   loc '(' ')' { Nothing }
+-- Constant string fragments of a template literal. Each returns an
+-- `Ast.Exp` (specifically an `ExpStr`) carrying the literal content
+-- between backtick / dollar-brace / brace boundaries -- the frontts's
+-- special-case emitter (see the TemplateHead / TemplateMiddle /
+-- TemplateTail / NoSubstitutionTemplateLiteral branch in `parser.ts`)
+-- puts the cooked text as a STR-token payload here.
+templateHead:        'TemplateHead'        loc '(' STR ')' { Actions.constStrExp $2 (unquote (tokSTRValue $4)) }
+templateMiddle:      'TemplateMiddle'      loc '(' STR ')' { Actions.constStrExp $2 (unquote (tokSTRValue $4)) }
+lastTemplateToken:   'LastTemplateToken'   loc '(' STR ')' { Actions.constStrExp $2 (unquote (tokSTRValue $4)) }
 dotToken:            'DotToken'            loc '(' ')' { Nothing }
 questionDotToken:    'QuestionDotToken'    loc '(' ')' { Nothing }
 barBarToken:         'BarBarToken'         loc '(' ')' { Nothing }
@@ -1925,14 +1931,15 @@ stringLiteral
 -- * exp template token *
 -- *             *
 -- ***************
+-- A `NoSubstitutionTemplateLiteral` -- a backtick-delimited string with
+-- no `${...}` interpolations. The frontts serializes it under the
+-- `FirstTemplateToken` alias (SyntaxKind's reverse-lookup for the
+-- shared NoSubstitutionTemplateLiteral / FirstTemplateToken value);
+-- the STR payload carries the cooked content between the backticks.
 exp_template_token:
-'FirstTemplateToken' loc '(' ')'
+'FirstTemplateToken' loc '(' STR ')'
 {
-    Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr
-    {
-        Token.constStrValue = "",
-        Token.constStrLocation = $2
-    }
+    Actions.constStrExp $2 (unquote (tokSTRValue $4))
 }
 
 -- The four equality tokens ( `==` , `===` , `!=` , `!==` ) are handled
@@ -2099,9 +2106,14 @@ exp_meta:
     }
 }
 
+-- Each `template_span` carries one interpolated expression followed by
+-- its trailing constant string fragment (either a mid-template literal
+-- or the tail literal). Returning a two-element `[Ast.Exp]` keeps the
+-- interleaving regular so `fstring` can `concat` the whole outer list
+-- and get an [exp, str, exp, str, ...] sequence without special-casing.
 template_span:
-'TemplateSpan' loc '(' exp templateMiddle    ')' { $4 } |
-'TemplateSpan' loc '(' exp lastTemplateToken ')' { $4 }
+'TemplateSpan' loc '(' exp templateMiddle    ')' { [$4, $5] } |
+'TemplateSpan' loc '(' exp lastTemplateToken ')' { [$4, $5] }
 
 -- ***********
 -- *         *
@@ -2115,16 +2127,7 @@ fstring:
     commalistof(template_span)
 ')'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named
-        {
-            Token.content = "fstring",
-            Token.location = $2
-        },
-        Ast.args = $5,
-        Ast.expCallLocation = $2
-    }
+    Actions.fstring $2 $4 $5
 }
 
 unary_operator:
@@ -2649,11 +2652,17 @@ exp_spread_element:
 }
 
 -- instrumented as dhscanner Ast.ExpCall
+-- The embedded `FirstTemplateToken` here is the whole template literal
+-- attached to the tag (e.g. `sql` in `` sql`SELECT * FROM users` ``);
+-- its STR payload is the cooked template body. We drop the body for now
+-- (the callee-side tag is what matters for dataflow), but the STR
+-- payload MUST still be consumed here so the shape aligns with the new
+-- frontts emitter -- otherwise tagged-template files would stop parsing.
 exp_tagged_template:
 'TaggedTemplateExpression' loc
 '('
     varField
-    'FirstTemplateToken' loc '(' ')'
+    'FirstTemplateToken' loc '(' STR ')'
 ')'
 {
     Ast.ExpCall $ Ast.ExpCallContent
