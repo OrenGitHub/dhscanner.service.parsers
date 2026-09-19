@@ -24,7 +24,12 @@ import qualified Common
 -- *                 *
 -- *******************
 import Data.Maybe ( fromMaybe, catMaybes, mapMaybe )
-import Data.List ( map, stripPrefix, isPrefixOf, foldl' )
+-- `foldl'` was moved from Data.List into Prelude in base-4.20 (GHC 9.10+),
+-- so under GHC 9.14.1 the explicit import is flagged by -Wunused-imports
+-- and, since the parsers service also runs with -Werror, it fails the
+-- build. Dropped from the import list here; the reference elsewhere in
+-- this module resolves to the Prelude re-export with identical semantics.
+import Data.List ( map, stripPrefix, isPrefixOf )
 import qualified Data.Map
 
 -- ********
@@ -258,15 +263,49 @@ stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent {
 -- * ensure callable body ends with return *
 -- *                                       *
 -- *****************************************
+-- Callable bodies that don't already end with an explicit `StmtReturn`
+-- get a synthetic `return null` appended so downstream analyses can
+-- rely on the "body ends with StmtReturn" postcondition uniformly.
+--
+-- Because this insertion is invisible in the source, it can inflate
+-- source-level stmt counters ( in particular the
+-- `kb_callable_source_body_length/2` fact emitted by kbgen ) by one.
+-- To keep FULL PROVENANCE we prepend a sentinel marker call --
+-- `<dhscanner-instrumentation>[fallthrough_return_null]()` -- right
+-- before the synthetic return, so downstream consumers can detect
+-- ( and subtract ) parser-inserted trailers when they need source
+-- fidelity, without losing the "body ends with StmtReturn" invariant
+-- that shape recognizers already depend on.
+--
+-- Concretely, every callable that would previously have received one
+-- extra stmt now receives two ( marker + return ), and the marker is
+-- discoverable via the same `<dhscanner-instrumentation>[<tag>]`
+-- convention as `dictify` / `kv` / `throw` / `ternary_*` / `fstring`
+-- / `typeof` / `jsx`.
 ensureCallableBodyEndsWithReturn :: Location -> [Ast.Stmt] -> [Ast.Stmt]
 ensureCallableBodyEndsWithReturn loc body = ensureCallableBodyEndsWithReturn' loc body (lastStmt body)
 
 ensureCallableBodyEndsWithReturn' :: Location -> [Ast.Stmt] -> Maybe Ast.Stmt -> [Ast.Stmt]
 ensureCallableBodyEndsWithReturn' _   body (Just (Ast.StmtReturn _)) = body
-ensureCallableBodyEndsWithReturn' loc body _ = body ++ [returnNull loc]
+ensureCallableBodyEndsWithReturn' loc body _ = body ++ [fallthroughReturnNullMarker loc, returnNull loc]
 
 returnNull :: Location -> Ast.Stmt
 returnNull loc = stmtReturn loc (Just (expNull loc))
+
+-- Sentinel emitted immediately before every synthetic `return null` that
+-- `ensureCallableBodyEndsWithReturn'` inserts. Rendered as a call whose
+-- callee is `<dhscanner-instrumentation>[fallthrough_return_null]` -- the
+-- same convention every other parser-inserted marker uses ( `dictify`,
+-- `kv`, `throw`, `ternary_*`, `fstring`, `typeof`, `jsx`, ...), so the
+-- marker is discoverable from any layer that already understands the
+-- `<dhscanner-instrumentation>[<tag>]` naming scheme ( codegen, kbgen,
+-- queryengine's utils.pl , SARIF post-processing, ... ).
+--
+-- Zero args on purpose : the marker's meaning is entirely carried by its
+-- callee name -- no operand information is needed to identify the
+-- following stmt as a parser-inserted trailer.
+fallthroughReturnNullMarker :: Location -> Ast.Stmt
+fallthroughReturnNullMarker loc = Ast.StmtExp (instrumentationCall "fallthrough_return_null" loc [])
 
 lastStmt :: [Ast.Stmt] -> Maybe Ast.Stmt
 lastStmt = foldl' (const Just) Nothing
@@ -413,13 +452,17 @@ stmtEnum name members = Ast.StmtClass $ Ast.StmtClassContent {
 --     - block body : the normal case ; guard-shaped callables now emit
 --                    `kb_callable_returns_value( F, F )` for downstream
 --                    shape recognisers ( see queryengine `utils.pl` ).
---     - expression body : gets an extra `return null` appended after the
---                    unreturned expression stmt. This has no effect on
---                    shape recognisers ( a single-return callable never
---                    matches any N-vs-1 shape ) but is technically
---                    semantic noise. A follow-up rewriting `lambdaBody`'s
---                    exp production to `[ Ast.StmtReturn (Just e) ]` will
---                    close that gap without touching this smart constructor.
+--     - expression body : gets a two-stmt trailer appended after the
+--                    unreturned expression stmt -- first a marker
+--                    `<dhscanner-instrumentation>[fallthrough_return_null]()`
+--                    call ( see `fallthroughReturnNullMarker` ), then the
+--                    synthetic `return null`. The marker preserves full
+--                    provenance : any consumer that needs source-level
+--                    stmt counts ( eg. the `kb_callable_source_body_length/2`
+--                    fact backing `utils_hoc_dict_handler_unwrap` in
+--                    queryengine's utils.pl ) can subtract the trailer by
+--                    detecting the marker, without the parser having to
+--                    special-case expression-body arrows here.
 expArrowFunction :: Location -> [Ast.Param] -> [Ast.Stmt] -> Ast.Exp
 expArrowFunction loc params body = Ast.ExpLambda $ Ast.ExpLambdaContent {
     Ast.expLambdaParams = params,

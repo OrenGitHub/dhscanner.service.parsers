@@ -64,7 +64,6 @@ executable parser
         aeson,
         array,
         split,
-        yesod,
         filepath,
         yesod-core,
         http-types,
