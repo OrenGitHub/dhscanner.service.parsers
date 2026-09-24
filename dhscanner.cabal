@@ -1,4 +1,4 @@
-cabal-version: 3.0
+cabal-version: 3.12
 name: dhscanner
 version: 1.0.0
 
@@ -60,7 +60,7 @@ executable parser
     build-depends:
         base,
         containers,
-        dhscanner-ast >= 1.2.0,
+        dhscanner-ast >= 1.3,
         aeson,
         array,
         split,
@@ -83,4 +83,4 @@ executable parser
     ghc-options: -Wall -threaded -Werror=missing-fields -Werror
     
     default-language:
-        Haskell2010
+        GHC2024

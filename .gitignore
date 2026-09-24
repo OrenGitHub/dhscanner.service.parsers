@@ -3,3 +3,5 @@ dist-newstyle/
 .env
 __pycache__/
 *.pyc
+cabal.project.local
+cabal.project.local~
