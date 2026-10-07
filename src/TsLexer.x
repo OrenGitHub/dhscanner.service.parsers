@@ -232,6 +232,15 @@ import Common
 @KW_BigIntKeyword = BigIntKeyword
 @KW_OverrideKeyword = OverrideKeyword
 @KW_OfKeyword = OfKeyword
+-- Alias for OfKeyword. TypeScript's SyntaxKind enum assigns the same
+-- numeric value to `OfKeyword` and `LastContextualKeyword` (OfKeyword is
+-- the last entry in the contextual-keyword range), so the reverse-lookup
+-- `SyntaxKind[kind]` in frontts can emit either string depending on the
+-- enum iteration order baked into the TypeScript version in use. Both
+-- strings are kept as DISTINCT lexer tokens (mirrors how
+-- `FirstTemplateToken` is lexed separately from `NoSubstitutionTemplateLiteral`
+-- for the same reason) and the grammar collapses them in `ofKeyword`.
+@KW_LastContextualKeyword = LastContextualKeyword
 @KW_QualifiedName = QualifiedName
 @KW_ComputedPropertyName = ComputedPropertyName
 @KW_TypeParameter = TypeParameter
@@ -472,7 +481,19 @@ import Common
 -- * identifiers *
 -- *             *
 -- ***************
-@LETTER = [A-Za-z_]
+-- `$` is a valid JS / TS identifier character (both as the first char and
+-- inside the identifier -- see the TC39 spec, IdentifierStart /
+-- IdentifierPart). Widely used in real-world APIs: Prisma's reserved
+-- methods `$queryRaw` / `$queryRawUnsafe` / `$executeRaw` /
+-- `$executeRawUnsafe` / `$transaction`, jQuery's `$`, nullable-propagation
+-- synthetic names (`$ref`), etc. Without `$` here, frontts-emitted
+-- `Identifier(...($queryRaw))` tokens hit a lexical error, which turns
+-- into a `(1,1,1,1)` sentinel downstream (because `postFailed` can only
+-- parse structured `Location`-shaped error messages, so the lexical-error
+-- message string collapses to a defaultLoc). Adding `$` is a strict
+-- superset: no previously-tokenizable input lexes differently now, and a
+-- new class of identifiers now tokenizes.
+@LETTER = [A-Za-z_\$]
 @LETTER_OR_DIGIT = @LETTER | @DIGIT
 @ID = (@LETTER)(@LETTER_OR_DIGIT*)
 @QUOTE = [\'\"]
@@ -685,6 +706,7 @@ tokens :-
 @KW_BigIntKeyword { lex' AlexRawToken_BigIntKeyword }
 @KW_OverrideKeyword { lex' AlexRawToken_OverrideKeyword }
 @KW_OfKeyword { lex' AlexRawToken_OfKeyword }
+@KW_LastContextualKeyword { lex' AlexRawToken_LastContextualKeyword }
 @KW_QualifiedName { lex' AlexRawToken_QualifiedName }
 @KW_ComputedPropertyName { lex' AlexRawToken_ComputedPropertyName }
 @KW_TypeParameter { lex' AlexRawToken_TypeParameter }
@@ -1183,6 +1205,7 @@ data AlexRawToken
      | AlexRawToken_BigIntKeyword -- ^ Reserved Keyword
      | AlexRawToken_OverrideKeyword -- ^ Reserved Keyword
      | AlexRawToken_OfKeyword -- ^ Reserved Keyword
+     | AlexRawToken_LastContextualKeyword -- ^ Reserved Keyword (alias for OfKeyword)
      | AlexRawToken_QualifiedName -- ^ Reserved Keyword
      | AlexRawToken_ComputedPropertyName -- ^ Reserved Keyword
      | AlexRawToken_TypeParameter -- ^ Reserved Keyword

@@ -632,6 +632,31 @@ constStrExp loc s = Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr
 fstring :: Location -> Ast.Exp -> [[Ast.Exp]] -> Ast.Exp
 fstring loc headExp spans = instrumentationCall "fstring" loc (headExp : concat spans)
 
+-- ************************
+-- *                      *
+-- * exp tagged template  *
+-- *                      *
+-- ************************
+-- Tagged template literals (`tag`...`` / ``tag<T>`...${x}...` ``) lower to
+-- a direct `Ast.ExpCall` whose callee is the tag expression and whose
+-- args are the (optional) interpolated template body. Treating the tag
+-- as a real call target is deliberate: it lets downstream analyses track
+-- `prisma.$queryRaw`, `` sql`...` ``, etc. as first-class call sites for
+-- data-flow (and e.g. SQL-sink recognition). The template body itself
+-- already arrives through the `fstring` production as a single
+-- `<dhscanner-instrumentation>[fstring]` Ast.Exp when interpolation is
+-- present, so passing it as a positional arg composes cleanly with the
+-- existing fstring plumbing; the pre-cooked plain-string body (the
+-- `FirstTemplateToken(STR)` variant with no interpolation) and the
+-- tag-side type-argument list are intentionally dropped because they
+-- add no new data-flow edges a downstream pass could consume.
+expTaggedTemplate :: Location -> Ast.Var -> [Ast.Exp] -> Ast.Exp
+expTaggedTemplate loc tag callArgs = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = Ast.ExpVar $ Ast.ExpVarContent tag,
+    Ast.args = callArgs,
+    Ast.expCallLocation = loc
+}
+
 -- ***************
 -- *             *
 -- * exp ternary *

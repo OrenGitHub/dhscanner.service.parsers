@@ -271,6 +271,7 @@ import Data.Map ( empty, fromList )
 'BigIntKeyword' { AlexTokenTag AlexRawToken_BigIntKeyword _ _ }
 'OverrideKeyword' { AlexTokenTag AlexRawToken_OverrideKeyword _ _ }
 'OfKeyword' { AlexTokenTag AlexRawToken_OfKeyword _ _ }
+'LastContextualKeyword' { AlexTokenTag AlexRawToken_LastContextualKeyword _ _ }
 'QualifiedName' { AlexTokenTag AlexRawToken_QualifiedName _ _ }
 'ComputedPropertyName' { AlexTokenTag AlexRawToken_ComputedPropertyName _ _ }
 'TypeParameter' { AlexTokenTag AlexRawToken_TypeParameter _ _ }
@@ -1324,7 +1325,12 @@ colonToken:          'ColonToken'          loc '(' ')' { Nothing }
 tryKeyword:          'TryKeyword'          loc '(' ')' { Nothing }
 elseKeyword:         'ElseKeyword'         loc '(' ')' { Nothing }
 forKeyword:          'ForKeyword'          loc '(' ')' { Nothing }
-ofKeyword:           'OfKeyword'           loc '(' ')' { Nothing }
+-- `LastContextualKeyword` is a TypeScript SyntaxKind alias for OfKeyword
+-- (same enum value; reverse-lookup emits one or the other depending on
+-- the frontts TypeScript version). Both lex to distinct raw tokens
+-- (see the matching note in TsLexer.x) and the grammar accepts either.
+ofKeyword:           'OfKeyword'                loc '(' ')' { Nothing }
+                   | 'LastContextualKeyword'    loc '(' ')' { Nothing }
 minusToken:          'MinusToken'          loc '(' ')' { Nothing }
 catchKeyword:        'CatchKeyword'        loc '(' ')' { Nothing }
 finallyKeyword:      'FinallyKeyword'      loc '(' ')' { Nothing }
@@ -2652,25 +2658,43 @@ exp_spread_element:
 }
 
 -- instrumented as dhscanner Ast.ExpCall
--- The embedded `FirstTemplateToken` here is the whole template literal
--- attached to the tag (e.g. `sql` in `` sql`SELECT * FROM users` ``);
--- its STR payload is the cooked template body. We drop the body for now
--- (the callee-side tag is what matters for dataflow), but the STR
--- payload MUST still be consumed here so the shape aligns with the new
--- frontts emitter -- otherwise tagged-template files would stop parsing.
-exp_tagged_template:
+expTaggedTemplate:
 'TaggedTemplateExpression' loc
 '('
     varField
     'FirstTemplateToken' loc '(' STR ')'
 ')'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $4,
-        Ast.args = [],
-        Ast.expCallLocation = $2
-    }
+    Actions.expTaggedTemplate $2 $4 []
+}
+|
+'TaggedTemplateExpression' loc
+'('
+    varField
+    fstring
+')'
+{
+    Actions.expTaggedTemplate $2 $4 [$5]
+}
+|
+'TaggedTemplateExpression' loc
+'('
+    varField
+    generics
+    'FirstTemplateToken' loc '(' STR ')'
+')'
+{
+    Actions.expTaggedTemplate $2 $4 []
+}
+|
+'TaggedTemplateExpression' loc
+'('
+    varField
+    generics
+    fstring
+')'
+{
+    Actions.expTaggedTemplate $2 $4 [$6]
 }
 
 exp:
@@ -2685,7 +2709,7 @@ expBool        { $1 } |
 expNull        { $1 } |
 fstring        { $1 } |
 expCall        { $1 } |
-exp_tagged_template { $1 } |
+expTaggedTemplate { $1 } |
 exp_meta       { $1 } |
 exp_array      { $1 } |
 expTernary     { $1 } |
