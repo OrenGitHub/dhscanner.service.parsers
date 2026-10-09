@@ -826,11 +826,36 @@ instrumentNodejsURLType = Ast.StmtImport $ Ast.StmtImportContent {
     Ast.stmtImportLocation = syntheticLocation
 }
 
+-- The WHATWG `fetch` function is a global in Node.js 18+ and in every
+-- modern browser, so TS/JS code uses it with no explicit `import`.
+-- Injecting a synthetic import here pins the FQN `nodejs.fetch` for
+-- downstream analysis, which lets `kb_call_resolved` ground every bare
+-- `fetch(url, ...)` call site under a single stable name (mirrors the
+-- existing Request / Response / URL treatment). The Prolog-side
+-- consumer is `sinks_ssrf_nodejs_fetch/1` in
+-- `predicates/sinks/ssrf/nodejs/native.pl` (the first SSRF sink wired
+-- up for the OWASP-IL 2026 Slack-callback demo endpoint ; see the CI
+-- step `assert GET /slack/callback reaches the SSRF fetch sink` in
+-- `.github/workflows/tests.yaml` for the end-to-end regression).
+--
+-- Note : an explicit `import fetch from "node-fetch"` resolves to the
+-- distinct FQN `node-fetch.fetch` (handled by the regular 3rd-party
+-- import pipeline, no instrumentation needed). The synthetic import
+-- here covers ONLY the bare-global case.
+instrumentNodejsFetchFn :: Ast.Stmt
+instrumentNodejsFetchFn = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent "nodejs"),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific "fetch"),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = syntheticLocation
+}
+
 instrumentedNativeTypes :: [Ast.Stmt]
 instrumentedNativeTypes = [
     instrumentNodejsRequestType,
     instrumentNodejsResponseType,
-    instrumentNodejsURLType
+    instrumentNodejsURLType,
+    instrumentNodejsFetchFn
   ]
 
 -- **********************
