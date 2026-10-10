@@ -50,6 +50,9 @@ executable parser
         RbParser,
         PhpLexer,
         PhpParser,
+        JavaLexer,
+        JavaParser,
+        JavaParserActions,
         YamlParser,
         Common
 

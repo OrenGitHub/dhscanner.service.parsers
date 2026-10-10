@@ -40,6 +40,7 @@ import qualified TsParser
 import qualified PyParser
 import qualified RbParser
 import qualified PhpParser
+import qualified JavaParser
 import qualified YamlParser
 
 data PathMappingInput
@@ -85,6 +86,7 @@ mkYesod "App" [parseRoutes|
 /from/cs/to/dhscanner/ast FromCsR POST
 /from/go/to/dhscanner/ast FromGoR POST
 /from/ts/to/dhscanner/ast FromTsR POST
+/from/java/to/dhscanner/ast FromJavaR POST
 /from/yaml/to/dhscanner/ast FromYamlR POST
 /healthcheck HealthcheckR GET
 |]
@@ -117,6 +119,9 @@ postFromGoR = post GoParser.parseProgram
 
 postFromTsR :: Handler Value
 postFromTsR = post TsParser.parseProgram
+
+postFromJavaR :: Handler Value
+postFromJavaR = post JavaParser.parseProgram
 
 postFromYamlR :: Handler Value
 postFromYamlR = post YamlParser.parseProgram
