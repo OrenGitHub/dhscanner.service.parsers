@@ -13,6 +13,7 @@ import JavaLexer
 import Location
 import qualified Token
 import qualified Common
+import qualified JavaParserActions
 
 -- *******************
 -- *                 *
@@ -145,7 +146,7 @@ import System.FilePath
 'callee'                { AlexTokenTag AlexRawToken_CALLEE          _ }
 'sourceType'            { AlexTokenTag AlexRawToken_SRC_TYPE        _ }
 'Scalar_Int'            { AlexTokenTag AlexRawToken_SCALAR_INT      _ }
-'Identifier'            { AlexTokenTag AlexRawToken_IDENTIFIER      _ }
+'IDENTIFIER'            { AlexTokenTag AlexRawToken_IDENTIFIER      _ }
 'returnType'            { AlexTokenTag AlexRawToken_RETURN_TYPE     _ }
 'FunctionDeclaration'   { AlexTokenTag AlexRawToken_FUNCTION_DEC    _ }
 'VariableDeclaration'   { AlexTokenTag AlexRawToken_VAR_DECLARATION _ }
@@ -180,6 +181,35 @@ import System.FilePath
 'declaration' { AlexTokenTag AlexRawToken_declaration _ }
 'ExportDefaultDeclaration' { AlexTokenTag AlexRawToken_ExportDefaultDeclaration _ }
 -- last keywords first part
+
+-- ****************************
+-- *                          *
+-- * native ast location keys *
+-- *                          *
+-- ****************************
+
+'startLine' { AlexTokenTag AlexRawToken_START_LINE _ }
+'startCol'  { AlexTokenTag AlexRawToken_START_COL  _ }
+'endLine'   { AlexTokenTag AlexRawToken_END_LINE   _ }
+'endCol'    { AlexTokenTag AlexRawToken_END_COL    _ }
+'children'  { AlexTokenTag AlexRawToken_CHILDREN   _ }
+'text'      { AlexTokenTag AlexRawToken_TEXT       _ }
+'COMPILATION_UNIT' { AlexTokenTag AlexRawToken_COMPILATION_UNIT _ }
+'PACKAGE'          { AlexTokenTag AlexRawToken_PACKAGE          _ }
+'IMPORT'           { AlexTokenTag AlexRawToken_IMPORT           _ }
+'MEMBER_SELECT'    { AlexTokenTag AlexRawToken_MEMBER_SELECT    _ }
+'CLASS'            { AlexTokenTag AlexRawToken_CLASS            _ }
+'MODIFIERS'        { AlexTokenTag AlexRawToken_MODIFIERS        _ }
+'ANNOTATION'       { AlexTokenTag AlexRawToken_ANNOTATION       _ }
+'ASSIGNMENT'       { AlexTokenTag AlexRawToken_ASSIGNMENT       _ }
+'STRING_LITERAL'   { AlexTokenTag AlexRawToken_STRING_LITERAL   _ }
+'VARIABLE'         { AlexTokenTag AlexRawToken_VARIABLE         _ }
+'METHOD'           { AlexTokenTag AlexRawToken_METHOD           _ }
+'PARAMETERIZED_TYPE' { AlexTokenTag AlexRawToken_PARAMETERIZED_TYPE _ }
+'PRIMITIVE_TYPE'   { AlexTokenTag AlexRawToken_PRIMITIVE_TYPE   _ }
+'INT_LITERAL'      { AlexTokenTag AlexRawToken_INT_LITERAL      _ }
+'annotations'      { AlexTokenTag AlexRawToken_annotations      _ }
+'supers'           { AlexTokenTag AlexRawToken_supers           _ }
 
 -- *********
 -- *       *
@@ -284,6 +314,7 @@ ID     { AlexTokenTag (AlexRawToken_ID  id) _ }
 -- **********************
 listof(a):      a { [$1] } | a          listof(a) { $1:$2 }
 commalistof(a): a { [$1] } | a ',' commalistof(a) { $1:$3 }
+possibly_empty_commalistof(a): '[' ']' { [] } | '[' commalistof(a) ']' { $2 }
 
 -- ***********************
 -- *                     *
@@ -292,23 +323,6 @@ commalistof(a): a { [$1] } | a ',' commalistof(a) { $1:$3 }
 -- ***********************
 ornull(a): 'null' { Nothing } | a { Just $1 }
 
--- ****************
--- *              *
--- * stmt (stub)  *
--- *              *
--- ****************
--- The `program` rule below is a verbatim copy from JsParser.y and
--- references `stmt` + `location` grammar rules we didn't carry over.
--- The two tiny stubs below only exist so Happy / GHC are happy; the
--- parser is intentionally not expected to actually succeed on any
--- frontjava input yet (different token shape). Replace these with
--- real productions during the coverage iterations.
-stmt :: { Ast.Stmt }
-stmt : ID { undefined }
-
-location :: { () }
-location : '{' '}' { () }
-
 -- *********************
 -- *                   *
 -- * Ast root: program *
@@ -316,18 +330,314 @@ location : '{' '}' { () }
 -- *********************
 program:
 '{'
-    'type' ':' 'Program' ','
-    'body' ':' '[' commalistof(stmt) ']' ','
-    'sourceType' ':' ID ','
-    'loc' ':' location
+    'kind' ':' 'COMPILATION_UNIT' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(stmt) ']'
 '}'
 {
     Ast.Root
     {
         Ast.filename = getFilename $1,
-        Ast.stmts = $9
+        Ast.stmts = $13
     }
 }
+
+stmt:
+stmt_package { $1 } |
+stmt_import  { $1 } |
+stmt_class   { $1 }
+
+-- **************
+-- *            *
+-- * stmt_class *
+-- *            *
+-- **************
+stmt_class:
+'{'
+    'kind' ':' 'CLASS' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'supers' ':' possibly_empty_commalistof(type) ','
+    'children' ':' possibly_empty_commalistof(attribute)
+'}'
+{
+    JavaParserActions.stmtClass $8 (tokIDValue $12) $16 $20 $24
+}
+
+-- *************
+-- *           *
+-- * attribute *
+-- *           *
+-- *************
+attribute:
+stmt_vardec { $1 } |
+stmt_method { $1 }
+
+stmt_vardec:
+stmt_vardec_init    { $1 } |
+stmt_vardec_no_init { $1 }
+
+-- *******************
+-- *                 *
+-- * stmt_vardec_init *
+-- *                 *
+-- *******************
+stmt_vardec_init:
+'{'
+    'kind' ':' 'VARIABLE' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'type' ':' type ','
+    'init' ':' exp
+'}'
+{
+    JavaParserActions.stmtVardec $8 (tokIDValue $12) $20 (Just $24)
+}
+
+-- **********************
+-- *                    *
+-- * stmt_vardec_no_init *
+-- *                    *
+-- **********************
+stmt_vardec_no_init:
+'{'
+    'kind' ':' 'VARIABLE' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'type' ':' type
+'}'
+{
+    JavaParserActions.stmtVardec $8 (tokIDValue $12) $20 Nothing
+}
+
+-- ********
+-- *      *
+-- * type *
+-- *      *
+-- ********
+type:
+simple_var         { $1 } |
+parameterized_type { $1 } |
+primitive_type     { $1 }
+
+-- **********************
+-- *                    *
+-- * parameterized_type *
+-- *                    *
+-- **********************
+parameterized_type:
+'{'
+    'kind' ':' 'PARAMETERIZED_TYPE' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(type) ']'
+'}'
+{
+    JavaParserActions.parameterizedType $8 $13
+}
+
+-- ******************
+-- *                *
+-- * primitive_type *
+-- *                *
+-- ******************
+primitive_type:
+'{'
+    'kind' ':' 'PRIMITIVE_TYPE' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.primitiveType $8 (tokIDValue $12)
+}
+
+-- ***************
+-- *             *
+-- * stmt_method *
+-- *             *
+-- ***************
+-- Placeholder: accepts a METHOD envelope with ANY children (consumed and
+-- discarded for now). Enriching METHOD in the printer -- the same way we
+-- enriched CLASS and VARIABLE -- is the next natural step and will let
+-- this rule gain real returnType / params / body sub-rules.
+stmt_method:
+'{'
+    'kind' ':' 'METHOD' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.stmtMethod $8 (tokIDValue $12)
+}
+
+-- **************
+-- *            *
+-- * annotation *
+-- *            *
+-- **************
+annotation:
+'{'
+    'kind' ':' 'ANNOTATION' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(exp) ']'
+'}'
+{
+    JavaParserActions.annotation $8 $13
+}
+
+exp:
+exp_var { $1 } |
+exp_str { $1 } |
+exp_int { $1 } |
+exp_assign { $1 }
+
+-- ***********
+-- *         *
+-- * exp_var *
+-- *         *
+-- ***********
+exp_var: var { Ast.ExpVar (Ast.ExpVarContent $1) }
+
+-- ***********
+-- *         *
+-- * exp_str *
+-- *         *
+-- ***********
+exp_str:
+'{'
+    'kind' ':' 'STRING_LITERAL' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.expStr $8 (tokIDValue $12)
+}
+
+-- ***********
+-- *         *
+-- * exp_int *
+-- *         *
+-- ***********
+exp_int:
+'{'
+    'kind' ':' 'INT_LITERAL' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.expInt $8 (tokIDValue $12)
+}
+
+-- **************
+-- *            *
+-- * exp_assign *
+-- *            *
+-- **************
+exp_assign:
+'{'
+    'kind' ':' 'ASSIGNMENT' ','
+    'loc' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    JavaParserActions.expAssign $8 $13 $15
+}
+
+-- ****************
+-- *              *
+-- * stmt_package *
+-- *              *
+-- ****************
+stmt_package:
+'{'
+    'kind' ':' 'PACKAGE' ','
+    'loc' ':' location ','
+    'children' ':' '[' var ']'
+'}'
+{
+    JavaParserActions.stmtPackage $8 $13
+}
+
+-- ***************
+-- *             *
+-- * stmt_import *
+-- *             *
+-- ***************
+stmt_import:
+'{'
+    'kind' ':' 'IMPORT' ','
+    'loc' ':' location ','
+    'children' ':' '[' var ']'
+'}'
+{
+    JavaParserActions.stmtImport $13 $8
+}
+
+var:
+simple_var { $1} |
+field_var { $1}
+
+-- **************
+-- *            *
+-- * simple_var *
+-- *            *
+-- **************
+simple_var:
+'{'
+    'kind' ':' 'IDENTIFIER' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.simpleVar $8 (tokIDValue $12)
+}
+
+-- *************
+-- *           *
+-- * field_var *
+-- *           *
+-- *************
+field_var:
+'{'
+    'kind' ':' 'MEMBER_SELECT' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' var ']'
+'}'
+{
+    JavaParserActions.fieldVar $8 (tokIDValue $12) $17
+}
+
+-- ************
+-- *          *
+-- * location *
+-- *          *
+-- ************
+location:
+'{'
+    'startLine' ':' INT ','
+    'startCol' ':' INT ','
+    'endLine' ':' INT ','
+    'endCol' ':' INT
+'}'
+{
+    Location
+    {
+        Location.filename = getFilename $1,
+        lineStart = fromIntegral (tokIntValue $4),
+        colStart  = fromIntegral (tokIntValue $8),
+        lineEnd   = fromIntegral (tokIntValue $12),
+        colEnd    = fromIntegral (tokIntValue $16)
+    }
+}
+
 {
 
 unquote :: String -> String

@@ -68,151 +68,53 @@ import Common
 -- * keywords *
 -- *          *
 -- ************
-@KW_ID              = \"id\"
-@KW_END             = \"end\"
-@KW_RAW             = \"raw\"
-@KW_LOC             = \"loc\"
-@KW_ARG             = "Arg"
-@KW_VAR             = "var"
-@KW_NULL            = null
-@KW_KIND            = \"kind\"
-@KW_TAIL            = \"tail\"
-@KW_TEST            = \"test\"
-@KW_LINE            = \"line\"
-@KW_TRUE            = true
-@KW_ARGS            = "args"
-@KW_NAME            = \"name\"
-@KW_EXPR            =  expr
-@KW_MAME            =  Name
-@KW_TYPE            = \"type\"
-@KW_LEFT            = \"left\"
-@KW_LOOP            = "loop"
-@KW_INIT            = \"init\"
-@KW_COND            = "cond"
-@KW_BODY            = \"body\"
-@KW_COOKED          = \"cooked\"
-@KW_UPDATE          = \"update\"
-@KW_QUASIS          = \"quasis\"
-@KW_FALSE           = false
-@KW_START           = \"start\"
-@KW_EXPRS           = "exprs"
-@KW_VALUE           = \"value\"
-@KW_RIGHT           = \"right\"
-@KW_STMTS           = "stmts"
-@KW_ARRAY           = array
-@KW_PARAM           = Param
-@KW_PARAMS          = \"params\"
-@KW_OBJECT          = \"object\"
-@KW_PREFIX          = \"prefix\"
-@KW_COLUMN          = \"column\"
-@KW_LITERAL         = \"Literal\"
-@KW_PROGRAM         = \"Program\"
-@KW_COMPUTED        = \"computed\"
-@KW_PROPERTY        = \"property\"
-@KW_OPERATOR        = \"operator\"
-@KW_ARGUMENT        = \"argument\"
-@KW_ARGUMENTS       = \"arguments\"
-@KW_CALLEE          = \"callee\"
-@KW_ASYNC           = \"async\"
-@KW_GENERATOR       = \"generator\"
-@KW_SRC_TYPE        = \"sourceType\"
-@KW_EXPRESSION      = \"expression\"
-@KW_EXPRESSIONS     = \"expressions\"
-@KW_DECLARATIONS    = \"declarations\"
-@KW_ALTERNATE       = \"alternate\"
-@KW_CONSEQUENT      = \"consequent\"
-@KW_STMT_ECHO       = "Stmt_Echo"
-@KW_STMT_EXPR       = "Stmt_Expression"
-@KW_EXPR_VAR        = "Expr_Variable"
-@KW_SCALAR_INT      = "Scalar_Int"
-@KW_IDENTIFIER      = \"Identifier\"
-@KW_RETURN_TYPE     = "returnType"
-@KW_TEMPLATE_LI     = \"TemplateLiteral\"
-@KW_TEMPLATE_EL     = \"TemplateElement\"
-@KW_STMT_FUNCTION   = "Stmt_Function"
-@KW_FUNCTION_DEC    = \"FunctionDeclaration\"
-@KW_EXPR_CONST_GET  = "Expr_ConstFetch"
-@KW_EXPR_BINOP_LT   = "Expr_BinaryOp_Smaller"
-@KW_EXPR_BINOP_PLUS = "Expr_BinaryOp_Plus"
-@KW_VAR_DECLARATION = \"VariableDeclaration\"
-@KW_VAR_DECLARATOR  = \"VariableDeclarator\"
-@local = \"local\"
-@source = \"source\"
-@specifiers = \"specifiers\"
-@imported = \"imported\"
-@ImportDeclaration = \"ImportDeclaration\"
-@ImportSpecifier = \"ImportSpecifier\"
-@ImportDefaultSpecifier = \"ImportDefaultSpecifier\"
-@key = \"key\"
-@properties = \"properties\"
-@ObjectExpression = \"ObjectExpression\"
-@shorthand = \"shorthand\"
-@method = \"method\"
-@Property = \"Property\"
-@AssignmentPattern = \"AssignmentPattern\"
-@LogicalExpression = \"LogicalExpression\"
-@ArrayPattern = \"ArrayPattern\"
-@elements = \"elements\"
-@ObjectPattern = \"ObjectPattern\"
-@TryStatement = \"TryStatement\"
-@block = \"block\"
-@handler = \"handler\"
-@finalizer = \"finalizer\"
-@AwaitExpression = \"AwaitExpression\"
-@CatchClause = \"CatchClause\"
-@param = \"param\"
-@ArrayExpression = \"ArrayExpression\"
-@OP_AND = \"&&\"
-@UnaryExpression = \"UnaryExpression\"
-@bang = \"!\"
-@OP_NEQ = \"!==\"
-@OP_IN = \"in\"
-@QUOTED_NULL = \"null\"
-@declaration = \"declaration\"
-@ExportDefaultDeclaration = \"ExportDefaultDeclaration\"
--- last keywords first part
+@KW_IF = \"IF\"
+@KW_PLUS = \"PLUS\"
+@KW_BLOCK = \"BLOCK\"
+@KW_CLASS = \"CLASS\"
+@KW_IMPORT = \"IMPORT\"
+@KW_METHOD = \"METHOD\"
+@KW_RETURN = \"RETURN\"
+@KW_PACKAGE = \"PACKAGE\"
+@KW_EQUAL_TO = \"EQUAL_TO\"
+@KW_MULTIPLY = \"MULTIPLY\"
+@KW_VARIABLE = \"VARIABLE\"
+@KW_MODIFIERS = \"MODIFIERS\"
+@KW_TYPE_CAST = \"TYPE_CAST\"
+@KW_ANNOTATION = \"ANNOTATION\"
+@KW_ASSIGNMENT = \"ASSIGNMENT\"
+@KW_IDENTIFIER = \"IDENTIFIER\"
+@KW_INT_LITERAL = \"INT_LITERAL\"
+@KW_NULL_LITERAL = \"NULL_LITERAL\"
+@KW_MEMBER_SELECT = \"MEMBER_SELECT\"
+@KW_PARENTHESIZED = \"PARENTHESIZED\"
+@KW_PRIMITIVE_TYPE = \"PRIMITIVE_TYPE\"
+@KW_STRING_LITERAL = \"STRING_LITERAL\"
+@KW_BOOLEAN_LITERAL = \"BOOLEAN_LITERAL\"
+@KW_COMPILATION_UNIT = \"COMPILATION_UNIT\"
+@KW_METHOD_INVOCATION = \"METHOD_INVOCATION\"
+@KW_LOGICAL_COMPLEMENT = \"LOGICAL_COMPLEMENT\"
+@KW_PARAMETERIZED_TYPE = \"PARAMETERIZED_TYPE\"
+@KW_UNBOUNDED_WILDCARD = \"UNBOUNDED_WILDCARD\"
+@KW_EXPRESSION_STATEMENT = \"EXPRESSION_STATEMENT\"
 
--- **************
--- *            *
--- * statements *
--- *            *
--- **************
-
-@KW_STMT_IF     = \"IfStatement\"
-@KW_STMT_FOR    = \"ForStatement\"
-@KW_STMT_BLOCK  = \"BlockStatement\"
-@KW_STMT_RETURN = \"ReturnStatement\"
-@KW_STMT_EXP    = \"ExpressionStatement\"
-
--- ***************
--- *             *
--- * expressions *
--- *             *
--- ***************
-
-@KW_EXPR_NEW    = \"NewExpression\"
-@KW_EXPR_CALL   = \"CallExpression\"
-@KW_EXPR_BINOP  = \"BinaryExpression\"
-@KW_EXPR_MEMBER = \"MemberExpression\"
-@KW_EXPR_UPDATE = \"UpdateExpression\"
-@KW_EXPR_ASSIGN = \"AssignmentExpression\"
-@KW_EXPR_LAMBDA = \"ArrowFunctionExpression\"
-@KW_EXPR_FUNCTION = \"FunctionExpression\"
-
--- *************
--- *           *
--- * operators *
--- *           *
--- *************
-
-@KW_OP_LT       = \"\<\"
-@KW_OP_GT       = \"\>\"
-@KW_OP_EQ       = \"==\"
-@KW_OP_ASSIGN   = \"=\"
-@KW_OP_TIMES    = \"\*\"
-@KW_OP_PLUS     = \"\+\"
-@KW_OP_PLUSPLUS = \"\+\+\"
-@KW_OP_OR       = \"\|\|\"
+-- ****************
+-- *              *
+-- * JSON keys    *
+-- *              *
+-- ****************
+@KW_KIND = \"kind\"
+@KW_LOC = \"loc\"
+@KW_CHILDREN = \"children\"
+@KW_START_LINE = \"startLine\"
+@KW_START_COL = \"startCol\"
+@KW_END_LINE = \"endLine\"
+@KW_END_COL = \"endCol\"
+@KW_TEXT = \"text\"
+@KW_ANNOTATIONS = \"annotations\"
+@KW_SUPERS = \"supers\"
+@KW_TYPE_KEY = \"type\"
+@KW_INIT_KEY = \"init\"
 
 -- ************
 -- *          *
@@ -220,26 +122,18 @@ import Common
 -- *          *
 -- ************
 @DIGIT = 0-9
-@INT   = @DIGIT+
+@INT = @DIGIT+
 
--- ***************
--- *             *
--- * identifiers *
--- *             *
--- ***************
-@LETTER = [A-Za-z_]
-@LETTER_OR_DIGIT = @LETTER | @DIGIT
-@QUOTE = \"
-@SQUOTE = \'
-@DQUOTE = \\\"
-@NQUOTE = [^\"\']*
-@MQUOTE = [^\"]*
-@ID = (@QUOTE)(@MQUOTE)(@QUOTE)
-@QUOTED_INT = (@QUOTE)(@INT)(@QUOTE)
-@QUOTED_STR_S = (@QUOTE)(@SQUOTE)(@NQUOTE)(@SQUOTE)(@QUOTE)
-@QUOTED_STR_D = (@QUOTE)(@DQUOTE)(@NQUOTE)(@DQUOTE)(@QUOTE) 
-@QUOTED_STR = (@QUOTED_STR_S)|(@QUOTED_STR_D)
-@QUOTED_BOOL = (@QUOTE)(true)(@QUOTE)|(@QUOTE)(false)(@QUOTE)
+-- *******************
+-- *                 *
+-- * quoted strings  *
+-- *                 *
+-- *******************
+-- any run of non-" characters wrapped in double quotes;
+-- the fixed @KW_* macros are listed earlier in `tokens :-` so
+-- they win on equal-length matches (Alex picks the first rule
+-- that reaches the longest match).
+@ID = \"[^\"]*\"
 
 -- ***************
 -- *             *
@@ -284,164 +178,48 @@ tokens :-
 -- *          *
 -- ************
 
-@KW_ID              { lex' AlexRawToken_KWID            }
-@KW_END             { lex' AlexRawToken_END             }
-@KW_RAW             { lex' AlexRawToken_RAW             }
-@KW_LOC             { lex' AlexRawToken_LOC             }
-@KW_ARG             { lex' AlexRawToken_ARG             }
-@KW_VAR             { lex' AlexRawToken_VAR             }
-@KW_NULL            { lex' AlexRawToken_NULL            }
-@KW_TAIL            { lex' AlexRawToken_TAIL            }
-@KW_KIND            { lex' AlexRawToken_KIND            }
-@KW_TEST            { lex' AlexRawToken_TEST            }
-@KW_LINE            { lex' AlexRawToken_LINE            }
-@KW_TRUE            { lex' AlexRawToken_TRUE            }
-@KW_ARGS            { lex' AlexRawToken_ARGS            }
-@KW_NAME            { lex' AlexRawToken_NAME            }
-@KW_EXPR            { lex' AlexRawToken_EXPR            }
-@KW_MAME            { lex' AlexRawToken_MAME            }
-@KW_TYPE            { lex' AlexRawToken_TYPE            }
-@KW_LEFT            { lex' AlexRawToken_LEFT            }
-@KW_LOOP            { lex' AlexRawToken_LOOP            }
-@KW_INIT            { lex' AlexRawToken_INIT            }
-@KW_COND            { lex' AlexRawToken_COND            }
-@KW_BODY            { lex' AlexRawToken_BODY            }
-@KW_COOKED          { lex' AlexRawToken_COOKED          }
-@KW_UPDATE          { lex' AlexRawToken_UPDATE          }
-@KW_QUASIS          { lex' AlexRawToken_QUASIS          }
-@KW_FALSE           { lex' AlexRawToken_FALSE           }
-@KW_START           { lex' AlexRawToken_START           }
-@KW_EXPRS           { lex' AlexRawToken_EXPRS           }
-@KW_VALUE           { lex' AlexRawToken_VALUE           }
-@KW_RIGHT           { lex' AlexRawToken_RIGHT           }
-@KW_STMTS           { lex' AlexRawToken_STMTS           }
-@KW_ARRAY           { lex' AlexRawToken_ARRAY           }
-@KW_PARAM           { lex' AlexRawToken_PARAM           }
-@KW_PARAMS          { lex' AlexRawToken_PARAMS          }
-@KW_OBJECT          { lex' AlexRawToken_OBJECT          }
-@KW_PREFIX          { lex' AlexRawToken_PREFIX          }
-@KW_COLUMN          { lex' AlexRawToken_COLUMN          }
-@KW_LITERAL         { lex' AlexRawToken_LITERAL         }
-@KW_PROGRAM         { lex' AlexRawToken_PROGRAM         }
-@KW_PROPERTY        { lex' AlexRawToken_PROPERTY        }
-@KW_COMPUTED        { lex' AlexRawToken_COMPUTED        }
-@KW_OPERATOR        { lex' AlexRawToken_OPERATOR        }
-@KW_ALTERNATE       { lex' AlexRawToken_ALTERNATE       }
-@KW_CONSEQUENT      { lex' AlexRawToken_CONSEQUENT      }
-@KW_ARGUMENT        { lex' AlexRawToken_ARGUMENT        }
-@KW_ARGUMENTS       { lex' AlexRawToken_ARGUMENTS       }
-@KW_CALLEE          { lex' AlexRawToken_CALLEE          }
-@KW_ASYNC           { lex' AlexRawToken_ASYNC           }
-@KW_EXPRESSION      { lex' AlexRawToken_EXPRESSION      }
-@KW_EXPRESSIONS     { lex' AlexRawToken_EXPRESSIONS     }
-@KW_DECLARATIONS    { lex' AlexRawToken_DECLARATIONS    }
-@KW_SRC_TYPE        { lex' AlexRawToken_SRC_TYPE        }
-@KW_GENERATOR       { lex' AlexRawToken_GENERATOR       }
-@KW_STMT_IF         { lex' AlexRawToken_STMT_IF         }
-@KW_STMT_ECHO       { lex' AlexRawToken_STMT_ECHO       }
-@KW_EXPR_VAR        { lex' AlexRawToken_EXPR_VAR        }
-@KW_EXPR_NEW        { lex' AlexRawToken_EXPR_NEW        }
-@KW_EXPR_CALL       { lex' AlexRawToken_EXPR_CALL       }
-@KW_STMT_EXPR       { lex' AlexRawToken_STMT_EXPR       }
-@KW_SCALAR_INT      { lex' AlexRawToken_SCALAR_INT      }
-@KW_IDENTIFIER      { lex' AlexRawToken_IDENTIFIER      }
-@KW_RETURN_TYPE     { lex' AlexRawToken_RETURN_TYPE     }
-@KW_TEMPLATE_LI     { lex' AlexRawToken_TEMPLATE_LI     }
-@KW_TEMPLATE_EL     { lex' AlexRawToken_TEMPLATE_EL     }
-@KW_FUNCTION_DEC    { lex' AlexRawToken_FUNCTION_DEC    }
-@KW_EXPR_CONST_GET  { lex' AlexRawToken_EXPR_CONST_GET  }
-@KW_EXPR_BINOP_LT   { lex' AlexRawToken_EXPR_BINOP_LT   }
-@KW_EXPR_BINOP_PLUS { lex' AlexRawToken_EXPR_BINOP_PLUS }
-@KW_VAR_DECLARATION { lex' AlexRawToken_VAR_DECLARATION }
-@KW_VAR_DECLARATOR  { lex' AlexRawToken_VAR_DECLARATOR  }
-@local {lex' AlexRawToken_local}
-@source {lex' AlexRawToken_source}
-@specifiers {lex' AlexRawToken_specifiers}
-@imported {lex' AlexRawToken_imported}
-@ImportDeclaration {lex' AlexRawToken_ImportDeclaration}
-@ImportSpecifier {lex' AlexRawToken_ImportSpecifier}
-@ImportDefaultSpecifier {lex' AlexRawToken_ImportDefaultSpecifier}
-@key {lex' AlexRawToken_key}
-@properties {lex' AlexRawToken_properties}
-@ObjectExpression {lex' AlexRawToken_ObjectExpression}
-@shorthand {lex' AlexRawToken_shorthand}
-@method {lex' AlexRawToken_method}
-@Property {lex' AlexRawToken_Property}
-@AssignmentPattern {lex' AlexRawToken_AssignmentPattern}
-@LogicalExpression {lex' AlexRawToken_LogicalExpression}
-@ArrayPattern {lex' AlexRawToken_ArrayPattern}
-@elements {lex' AlexRawToken_elements}
-@ObjectPattern {lex' AlexRawToken_ObjectPattern}
-@TryStatement {lex' AlexRawToken_TryStatement}
-@block {lex' AlexRawToken_block}
-@handler {lex' AlexRawToken_handler}
-@finalizer {lex' AlexRawToken_finalizer}
-@AwaitExpression {lex' AlexRawToken_AwaitExpression}
-@CatchClause {lex' AlexRawToken_CatchClause}
-@param {lex' AlexRawToken_param}
-@ArrayExpression {lex' AlexRawToken_ArrayExpression}
-@OP_AND {lex' AlexRawToken_OP_AND}
-@UnaryExpression {lex' AlexRawToken_UnaryExpression}
-@bang {lex' AlexRawToken_bang}
-@OP_NEQ {lex' AlexRawToken_OP_NEQ}
-@OP_IN {lex' AlexRawToken_OP_IN}
-@QUOTED_NULL {lex' AlexRawToken_QUOTED_NULL}
-@declaration {lex' AlexRawToken_declaration}
-@ExportDefaultDeclaration {lex' AlexRawToken_ExportDefaultDeclaration}
--- last keywords second part
+@KW_IF { lex' AlexRawToken_IF }
+@KW_PLUS { lex' AlexRawToken_PLUS }
+@KW_BLOCK { lex' AlexRawToken_BLOCK }
+@KW_CLASS { lex' AlexRawToken_CLASS }
+@KW_IMPORT { lex' AlexRawToken_IMPORT }
+@KW_METHOD { lex' AlexRawToken_METHOD }
+@KW_RETURN { lex' AlexRawToken_RETURN }
+@KW_PACKAGE { lex' AlexRawToken_PACKAGE }
+@KW_EQUAL_TO { lex' AlexRawToken_EQUAL_TO }
+@KW_MULTIPLY { lex' AlexRawToken_MULTIPLY }
+@KW_VARIABLE { lex' AlexRawToken_VARIABLE }
+@KW_MODIFIERS { lex' AlexRawToken_MODIFIERS }
+@KW_TYPE_CAST { lex' AlexRawToken_TYPE_CAST }
+@KW_ANNOTATION { lex' AlexRawToken_ANNOTATION }
+@KW_ASSIGNMENT { lex' AlexRawToken_ASSIGNMENT }
+@KW_IDENTIFIER { lex' AlexRawToken_IDENTIFIER }
+@KW_INT_LITERAL { lex' AlexRawToken_INT_LITERAL }
+@KW_NULL_LITERAL { lex' AlexRawToken_NULL_LITERAL }
+@KW_MEMBER_SELECT { lex' AlexRawToken_MEMBER_SELECT }
+@KW_PARENTHESIZED { lex' AlexRawToken_PARENTHESIZED }
+@KW_PRIMITIVE_TYPE { lex' AlexRawToken_PRIMITIVE_TYPE }
+@KW_STRING_LITERAL { lex' AlexRawToken_STRING_LITERAL }
+@KW_BOOLEAN_LITERAL { lex' AlexRawToken_BOOLEAN_LITERAL }
+@KW_COMPILATION_UNIT { lex' AlexRawToken_COMPILATION_UNIT }
+@KW_METHOD_INVOCATION { lex' AlexRawToken_METHOD_INVOCATION }
+@KW_LOGICAL_COMPLEMENT { lex' AlexRawToken_LOGICAL_COMPLEMENT }
+@KW_PARAMETERIZED_TYPE { lex' AlexRawToken_PARAMETERIZED_TYPE }
+@KW_UNBOUNDED_WILDCARD { lex' AlexRawToken_UNBOUNDED_WILDCARD }
+@KW_EXPRESSION_STATEMENT { lex' AlexRawToken_EXPRESSION_STATEMENT }
 
--- *********
--- *       *
--- * other *
--- *       *
--- *********
-
-@QUOTED_INT  { lex' AlexRawToken_QUOTED_INT  }
-@QUOTED_STR  { lex' AlexRawToken_QUOTED_STR  }
-@QUOTED_BOOL { lex' AlexRawToken_QUOTED_BOOL }
-
--- ***************
--- *             *
--- * expressions *
--- *             *
--- ***************
-
-@KW_EXPR_NEW    { lex' AlexRawToken_EXPR_CALL   }
-@KW_EXPR_CALL   { lex' AlexRawToken_EXPR_CALL   }
-@KW_EXPR_MEMBER { lex' AlexRawToken_EXPR_MEMBER }
-@KW_EXPR_BINOP  { lex' AlexRawToken_EXPR_BINOP  }
-@KW_EXPR_UPDATE { lex' AlexRawToken_EXPR_UPDATE }
-@KW_EXPR_ASSIGN { lex' AlexRawToken_EXPR_ASSIGN }
-@KW_EXPR_LAMBDA { lex' AlexRawToken_EXPR_LAMBDA }
-@KW_EXPR_FUNCTION { lex' AlexRawToken_EXPR_FUNCTION }
-
--- **************
--- *            *
--- * statements *
--- *            *
--- **************
-
-@KW_STMT_IF       { lex' AlexRawToken_STMT_IF       }
-@KW_STMT_FOR      { lex' AlexRawToken_STMT_FOR      }
-@KW_STMT_BLOCK    { lex' AlexRawToken_STMT_BLOCK    }
-@KW_STMT_RETURN   { lex' AlexRawToken_STMT_RETURN   }
-@KW_STMT_EXP      { lex' AlexRawToken_STMT_EXP      }
-@KW_STMT_FUNCTION { lex' AlexRawToken_STMT_FUNCTION }
-
--- *************
--- *           *
--- * operators *
--- *           *
--- *************
-
-@KW_OP_LT       { lex' AlexRawToken_OP_LT       }
-@KW_OP_GT       { lex' AlexRawToken_OP_GT       }
-@KW_OP_EQ       { lex' AlexRawToken_OP_EQ       }
-@KW_OP_ASSIGN   { lex' AlexRawToken_OP_ASSIGN   }
-@KW_OP_TIMES    { lex' AlexRawToken_OP_TIMES    }
-@KW_OP_PLUS     { lex' AlexRawToken_OP_PLUS     }
-@KW_OP_PLUSPLUS { lex' AlexRawToken_OP_PLUSPLUS }
-@KW_OP_OR       { lex' AlexRawToken_OP_OR       }
+@KW_KIND { lex' AlexRawToken_KIND }
+@KW_LOC { lex' AlexRawToken_LOC }
+@KW_CHILDREN { lex' AlexRawToken_CHILDREN }
+@KW_START_LINE { lex' AlexRawToken_START_LINE }
+@KW_START_COL { lex' AlexRawToken_START_COL }
+@KW_END_LINE { lex' AlexRawToken_END_LINE }
+@KW_END_COL { lex' AlexRawToken_END_COL }
+@KW_TEXT { lex' AlexRawToken_TEXT }
+@KW_ANNOTATIONS { lex' AlexRawToken_annotations }
+@KW_SUPERS { lex' AlexRawToken_supers }
+@KW_TYPE_KEY { lex' AlexRawToken_TYPE }
+@KW_INIT_KEY { lex' AlexRawToken_INIT }
 
 -- ***************************
 -- *                         *
@@ -453,13 +231,13 @@ tokens :-
 
 -- ****************************
 -- *                          *
--- * integers and identifiers *
+-- * integers                 *
 -- *                          *
 -- ****************************
 
-@ID        { lex  AlexRawToken_ID                 }
-@INT       { lex (AlexRawToken_INT . round. read) }
-.          { lexicalError                         }
+@INT { lex (AlexRawToken_INT . round . read) }
+@ID  { lex (AlexRawToken_ID . unquote) }
+.    { lexicalError }
 
 {
 
@@ -635,7 +413,44 @@ data AlexRawToken
      | AlexRawToken_QUOTED_NULL
      | AlexRawToken_declaration
      | AlexRawToken_ExportDefaultDeclaration
+     | AlexRawToken_annotations
+     | AlexRawToken_supers
      -- last keywords third part
+
+     | AlexRawToken_IF
+     | AlexRawToken_PLUS
+     | AlexRawToken_BLOCK
+     | AlexRawToken_CLASS
+     | AlexRawToken_IMPORT
+     | AlexRawToken_METHOD
+     | AlexRawToken_RETURN
+     | AlexRawToken_PACKAGE
+     | AlexRawToken_EQUAL_TO
+     | AlexRawToken_MULTIPLY
+     | AlexRawToken_VARIABLE
+     | AlexRawToken_MODIFIERS
+     | AlexRawToken_TYPE_CAST
+     | AlexRawToken_ANNOTATION
+     | AlexRawToken_ASSIGNMENT
+     | AlexRawToken_INT_LITERAL
+     | AlexRawToken_NULL_LITERAL
+     | AlexRawToken_MEMBER_SELECT
+     | AlexRawToken_PARENTHESIZED
+     | AlexRawToken_PRIMITIVE_TYPE
+     | AlexRawToken_STRING_LITERAL
+     | AlexRawToken_BOOLEAN_LITERAL
+     | AlexRawToken_COMPILATION_UNIT
+     | AlexRawToken_METHOD_INVOCATION
+     | AlexRawToken_LOGICAL_COMPLEMENT
+     | AlexRawToken_PARAMETERIZED_TYPE
+     | AlexRawToken_UNBOUNDED_WILDCARD
+     | AlexRawToken_EXPRESSION_STATEMENT
+     | AlexRawToken_CHILDREN
+     | AlexRawToken_START_LINE
+     | AlexRawToken_START_COL
+     | AlexRawToken_END_LINE
+     | AlexRawToken_END_COL
+     | AlexRawToken_TEXT
 
      -- *********
      -- *       *
@@ -798,6 +613,16 @@ tokIntValue t = case (tokenRaw t) of { AlexRawToken_INT i -> i; _ -> 0; }
 -- **************
 tokIDValue :: AlexTokenTag -> String
 tokIDValue t = case (tokenRaw t) of { AlexRawToken_ID s -> s; _ -> ""; }
+
+-- ***********
+-- *         *
+-- * unquote *
+-- *         *
+-- ***********
+-- Strip the surrounding double quotes that @ID matches so the
+-- resulting String carries just the payload ( "foo" -> foo ).
+unquote :: String -> String
+unquote s = let n = length s in take (n-2) (drop 1 s)
 
 -- ************
 -- *          *
