@@ -75,6 +75,7 @@ import Common
 @KW_IMPORT = \"IMPORT\"
 @KW_METHOD = \"METHOD\"
 @KW_RETURN = \"RETURN\"
+@KW_CONSTRUCTOR = \"CONSTRUCTOR\"
 @KW_PACKAGE = \"PACKAGE\"
 @KW_EQUAL_TO = \"EQUAL_TO\"
 @KW_MULTIPLY = \"MULTIPLY\"
@@ -94,6 +95,7 @@ import Common
 @KW_COMPILATION_UNIT = \"COMPILATION_UNIT\"
 @KW_METHOD_INVOCATION = \"METHOD_INVOCATION\"
 @KW_LOGICAL_COMPLEMENT = \"LOGICAL_COMPLEMENT\"
+@KW_PARAMETER = \"PARAMETER\"
 @KW_PARAMETERIZED_TYPE = \"PARAMETERIZED_TYPE\"
 @KW_UNBOUNDED_WILDCARD = \"UNBOUNDED_WILDCARD\"
 @KW_EXPRESSION_STATEMENT = \"EXPRESSION_STATEMENT\"
@@ -112,9 +114,14 @@ import Common
 @KW_END_COL = \"endCol\"
 @KW_TEXT = \"text\"
 @KW_ANNOTATIONS = \"annotations\"
+@KW_PARAMETERS_KEY = \"parameters\"
 @KW_SUPERS = \"supers\"
 @KW_TYPE_KEY = \"type\"
 @KW_INIT_KEY = \"init\"
+@KW_COND_KEY = \"cond\"
+@KW_BODY_KEY = \"body\"
+@KW_LEFT_KEY = \"left\"
+@KW_RIGHT_KEY = \"right\"
 
 -- ************
 -- *          *
@@ -185,6 +192,7 @@ tokens :-
 @KW_IMPORT { lex' AlexRawToken_IMPORT }
 @KW_METHOD { lex' AlexRawToken_METHOD }
 @KW_RETURN { lex' AlexRawToken_RETURN }
+@KW_CONSTRUCTOR { lex' AlexRawToken_CONSTRUCTOR }
 @KW_PACKAGE { lex' AlexRawToken_PACKAGE }
 @KW_EQUAL_TO { lex' AlexRawToken_EQUAL_TO }
 @KW_MULTIPLY { lex' AlexRawToken_MULTIPLY }
@@ -204,6 +212,7 @@ tokens :-
 @KW_COMPILATION_UNIT { lex' AlexRawToken_COMPILATION_UNIT }
 @KW_METHOD_INVOCATION { lex' AlexRawToken_METHOD_INVOCATION }
 @KW_LOGICAL_COMPLEMENT { lex' AlexRawToken_LOGICAL_COMPLEMENT }
+@KW_PARAMETER { lex' AlexRawToken_PARAMETER }
 @KW_PARAMETERIZED_TYPE { lex' AlexRawToken_PARAMETERIZED_TYPE }
 @KW_UNBOUNDED_WILDCARD { lex' AlexRawToken_UNBOUNDED_WILDCARD }
 @KW_EXPRESSION_STATEMENT { lex' AlexRawToken_EXPRESSION_STATEMENT }
@@ -217,9 +226,14 @@ tokens :-
 @KW_END_COL { lex' AlexRawToken_END_COL }
 @KW_TEXT { lex' AlexRawToken_TEXT }
 @KW_ANNOTATIONS { lex' AlexRawToken_annotations }
+@KW_PARAMETERS_KEY { lex' AlexRawToken_parameters }
 @KW_SUPERS { lex' AlexRawToken_supers }
 @KW_TYPE_KEY { lex' AlexRawToken_TYPE }
 @KW_INIT_KEY { lex' AlexRawToken_INIT }
+@KW_COND_KEY { lex' AlexRawToken_COND }
+@KW_BODY_KEY { lex' AlexRawToken_BODY }
+@KW_LEFT_KEY { lex' AlexRawToken_LEFT }
+@KW_RIGHT_KEY { lex' AlexRawToken_RIGHT }
 
 -- ***************************
 -- *                         *
@@ -414,6 +428,7 @@ data AlexRawToken
      | AlexRawToken_declaration
      | AlexRawToken_ExportDefaultDeclaration
      | AlexRawToken_annotations
+     | AlexRawToken_parameters
      | AlexRawToken_supers
      -- last keywords third part
 
@@ -424,6 +439,8 @@ data AlexRawToken
      | AlexRawToken_IMPORT
      | AlexRawToken_METHOD
      | AlexRawToken_RETURN
+     | AlexRawToken_CONSTRUCTOR
+     | AlexRawToken_PARAMETER
      | AlexRawToken_PACKAGE
      | AlexRawToken_EQUAL_TO
      | AlexRawToken_MULTIPLY

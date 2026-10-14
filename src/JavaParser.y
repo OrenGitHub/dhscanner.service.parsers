@@ -205,10 +205,25 @@ import System.FilePath
 'STRING_LITERAL'   { AlexTokenTag AlexRawToken_STRING_LITERAL   _ }
 'VARIABLE'         { AlexTokenTag AlexRawToken_VARIABLE         _ }
 'METHOD'           { AlexTokenTag AlexRawToken_METHOD           _ }
+'PARAMETER'        { AlexTokenTag AlexRawToken_PARAMETER        _ }
 'PARAMETERIZED_TYPE' { AlexTokenTag AlexRawToken_PARAMETERIZED_TYPE _ }
 'PRIMITIVE_TYPE'   { AlexTokenTag AlexRawToken_PRIMITIVE_TYPE   _ }
 'INT_LITERAL'      { AlexTokenTag AlexRawToken_INT_LITERAL      _ }
+'NULL_LITERAL'     { AlexTokenTag AlexRawToken_NULL_LITERAL     _ }
+'BOOLEAN_LITERAL'  { AlexTokenTag AlexRawToken_BOOLEAN_LITERAL  _ }
+'BLOCK'            { AlexTokenTag AlexRawToken_BLOCK            _ }
+'RETURN'           { AlexTokenTag AlexRawToken_RETURN           _ }
+'CONSTRUCTOR'      { AlexTokenTag AlexRawToken_CONSTRUCTOR      _ }
+'IF'               { AlexTokenTag AlexRawToken_IF               _ }
+'PARENTHESIZED'    { AlexTokenTag AlexRawToken_PARENTHESIZED    _ }
+'METHOD_INVOCATION' { AlexTokenTag AlexRawToken_METHOD_INVOCATION _ }
+'EQUAL_TO'         { AlexTokenTag AlexRawToken_EQUAL_TO         _ }
+'PLUS'             { AlexTokenTag AlexRawToken_PLUS             _ }
+'MULTIPLY'         { AlexTokenTag AlexRawToken_MULTIPLY         _ }
+'LOGICAL_COMPLEMENT' { AlexTokenTag AlexRawToken_LOGICAL_COMPLEMENT _ }
+'EXPRESSION_STATEMENT' { AlexTokenTag AlexRawToken_EXPRESSION_STATEMENT _ }
 'annotations'      { AlexTokenTag AlexRawToken_annotations      _ }
+'parameters'       { AlexTokenTag AlexRawToken_parameters       _ }
 'supers'           { AlexTokenTag AlexRawToken_supers           _ }
 
 -- *********
@@ -372,6 +387,7 @@ stmt_class:
 -- *************
 attribute:
 stmt_vardec { $1 } |
+stmt_ctor   { $1 } |
 stmt_method { $1 }
 
 stmt_vardec:
@@ -454,24 +470,56 @@ primitive_type:
     JavaParserActions.primitiveType $8 (tokIDValue $12)
 }
 
+-- *************
+-- *           *
+-- * parameter *
+-- *           *
+-- *************
+parameter:
+'{'
+    'kind' ':' 'PARAMETER' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'type' ':' type
+'}'
+{
+    JavaParserActions.parameter $8 (tokIDValue $12) $16
+}
+
+-- *************
+-- *           *
+-- * stmt_ctor *
+-- *           *
+-- *************
+stmt_ctor:
+'{'
+    'kind' ':' 'CONSTRUCTOR' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'parameters' ':' possibly_empty_commalistof(parameter) ','
+    'children' ':' possibly_empty_commalistof(stmt_body)
+'}'
+{
+    JavaParserActions.stmtCtor $8 (tokIDValue $12) $20
+}
+
 -- ***************
 -- *             *
 -- * stmt_method *
 -- *             *
 -- ***************
--- Placeholder: accepts a METHOD envelope with ANY children (consumed and
--- discarded for now). Enriching METHOD in the printer -- the same way we
--- enriched CLASS and VARIABLE -- is the next natural step and will let
--- this rule gain real returnType / params / body sub-rules.
 stmt_method:
 '{'
     'kind' ':' 'METHOD' ','
     'loc' ':' location ','
     'text' ':' ID ','
-    'children' ':' '[' ']'
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'parameters' ':' possibly_empty_commalistof(parameter) ','
+    'children' ':' '[' type ',' stmt_body ']'
 '}'
 {
-    JavaParserActions.stmtMethod $8 (tokIDValue $12)
+    JavaParserActions.stmtMethod $8 (tokIDValue $12) $20 $25
 }
 
 -- **************
@@ -490,10 +538,16 @@ annotation:
 }
 
 exp:
-exp_var { $1 } |
-exp_str { $1 } |
-exp_int { $1 } |
-exp_assign { $1 }
+exp_var           { $1 } |
+exp_str           { $1 } |
+exp_int           { $1 } |
+exp_null          { $1 } |
+exp_bool          { $1 } |
+exp_assign        { $1 } |
+exp_parenthesized { $1 } |
+exp_call          { $1 } |
+exp_binop         { $1 } |
+unop              { $1 }
 
 -- ***********
 -- *         *
@@ -532,6 +586,194 @@ exp_int:
 '}'
 {
     JavaParserActions.expInt $8 (tokIDValue $12)
+}
+
+-- ************
+-- *          *
+-- * exp_null *
+-- *          *
+-- ************
+exp_null:
+'{'
+    'kind' ':' 'NULL_LITERAL' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.expNull $8
+}
+
+-- ************
+-- *          *
+-- * exp_bool *
+-- *          *
+-- ************
+exp_bool:
+'{'
+    'kind' ':' 'BOOLEAN_LITERAL' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.expBool $8 (tokIDValue $12)
+}
+
+-- *********************
+-- *                   *
+-- * exp_parenthesized *
+-- *                   *
+-- *********************
+exp_parenthesized:
+'{'
+    'kind' ':' 'PARENTHESIZED' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $13
+}
+
+-- ************
+-- *          *
+-- * exp_call *
+-- *          *
+-- ************
+exp_call:
+'{'
+    'kind' ':' 'METHOD_INVOCATION' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(exp) ']'
+'}'
+{
+    JavaParserActions.expCall $8 $13
+}
+
+-- *************
+-- *           *
+-- * exp_binop *
+-- *           *
+-- *************
+exp_binop:
+'{'
+    'kind' ':' binop_kind ','
+    'loc' ':' location ','
+    'left' ':' exp ','
+    'right' ':' exp ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.expBinop $8 $12 $16 $4
+}
+
+binop_kind:
+'EQUAL_TO' { Ast.EQ    } |
+'PLUS'     { Ast.PLUS  } |
+'MULTIPLY' { Ast.TIMES }
+
+-- ********
+-- *      *
+-- * unop *
+-- *      *
+-- ********
+-- Unary-operator expressions are lowered via the generic
+-- `<dhscanner-instrumentation>[<tag>]` convention ( same marker
+-- scheme used by `throw`, `fallthrough_return_null`, `kv`, `fstring`,
+-- `ternary_*`, `jsx`, `typeof`, `delete` -- see TsParserActions.hs ).
+-- Each operator gets its own sibling sub-rule ( `not`, `negate`,
+-- `complement`, … ) that consumes the native envelope up through its
+-- opening `[`, lets the inner `exp` parse normally, and leaves the
+-- trailing `']' '}'` to be consumed by `unop`. The sub-rule returns
+-- the operator envelope's `loc` ; the enclosing `unop` picks the
+-- instrumentation tag.
+unop:
+not exp ']' '}'
+{
+    JavaParserActions.expUnop "not" $1 $2
+}
+
+not:
+'{'
+    'kind' ':' 'LOGICAL_COMPLEMENT' ','
+    'loc' ':' location ','
+    'children' ':' '['
+{
+    $8
+}
+
+-- *************
+-- *           *
+-- * stmt_body *
+-- *           *
+-- *************
+stmt_body:
+stmt_block  { $1 } |
+stmt_exp    { $1 } |
+stmt_return { $1 } |
+stmt_if     { $1 } |
+stmt_vardec { $1 }
+
+-- **************
+-- *            *
+-- * stmt_block *
+-- *            *
+-- **************
+stmt_block:
+'{'
+    'kind' ':' 'BLOCK' ','
+    'loc' ':' location ','
+    'children' ':' possibly_empty_commalistof(stmt_body)
+'}'
+{
+    JavaParserActions.stmtBlock $8 $12
+}
+
+-- ************
+-- *          *
+-- * stmt_exp *
+-- *          *
+-- ************
+stmt_exp:
+'{'
+    'kind' ':' 'EXPRESSION_STATEMENT' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    JavaParserActions.stmtExp $13
+}
+
+-- ***************
+-- *             *
+-- * stmt_return *
+-- *             *
+-- ***************
+stmt_return:
+'{'
+    'kind' ':' 'RETURN' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    JavaParserActions.stmtReturn $8 $13
+}
+
+-- ***********
+-- *         *
+-- * stmt_if *
+-- *         *
+-- ***********
+stmt_if:
+'{'
+    'kind' ':' 'IF' ','
+    'loc' ':' location ','
+    'cond' ':' exp ','
+    'body' ':' stmt_body ','
+    'children' ':' possibly_empty_commalistof(stmt_body)
+'}'
+{
+    JavaParserActions.stmtIf $8 $12 $16 $20
 }
 
 -- **************
@@ -609,7 +851,7 @@ field_var:
     'kind' ':' 'MEMBER_SELECT' ','
     'loc' ':' location ','
     'text' ':' ID ','
-    'children' ':' '[' var ']'
+    'children' ':' '[' exp ']'
 '}'
 {
     JavaParserActions.fieldVar $8 (tokIDValue $12) $17
