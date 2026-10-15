@@ -199,6 +199,9 @@ import System.FilePath
 'IMPORT'           { AlexTokenTag AlexRawToken_IMPORT           _ }
 'MEMBER_SELECT'    { AlexTokenTag AlexRawToken_MEMBER_SELECT    _ }
 'CLASS'            { AlexTokenTag AlexRawToken_CLASS            _ }
+'INTERFACE'        { AlexTokenTag AlexRawToken_INTERFACE        _ }
+'ENUM'             { AlexTokenTag AlexRawToken_ENUM             _ }
+'NEW_CLASS'        { AlexTokenTag AlexRawToken_NEW_CLASS        _ }
 'MODIFIERS'        { AlexTokenTag AlexRawToken_MODIFIERS        _ }
 'ANNOTATION'       { AlexTokenTag AlexRawToken_ANNOTATION       _ }
 'ASSIGNMENT'       { AlexTokenTag AlexRawToken_ASSIGNMENT       _ }
@@ -358,9 +361,11 @@ program:
 }
 
 stmt:
-stmt_package { $1 } |
-stmt_import  { $1 } |
-stmt_class   { $1 }
+stmt_package   { $1 } |
+stmt_import    { $1 } |
+stmt_class     { $1 } |
+stmt_interface { $1 } |
+stmt_enum      { $1 }
 
 -- **************
 -- *            *
@@ -370,6 +375,67 @@ stmt_class   { $1 }
 stmt_class:
 '{'
     'kind' ':' 'CLASS' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'supers' ':' possibly_empty_commalistof(type) ','
+    'children' ':' possibly_empty_commalistof(attribute)
+'}'
+{
+    JavaParserActions.stmtClass $8 (tokIDValue $12) $16 $20 $24
+}
+
+-- ******************
+-- *                *
+-- * stmt_interface *
+-- *                *
+-- ******************
+-- javac's `ClassTree` lumps classes, interfaces, enums, annotation-
+-- types and records under the same shape -- `AstPrinter.scan` emits
+-- the same `{ kind, loc, text, annotations, supers, children }`
+-- envelope for all of them (only the `kind` payload differs). From
+-- dhscanner's point of view an interface is just a class whose
+-- method bodies happen to be abstract, so we lower it with the
+-- same `stmtClass` smart constructor -- the downstream kbgen /
+-- queryengine already treat `StmtClass` as "whatever carries member
+-- declarations under a type name", which fits interface shape
+-- byte-for-byte today ( `stmtClass` discards `supers` and ignores
+-- the `annotations` + body-level `_members` payload anyway, see
+-- `JavaParserActions.stmtClass` ). When a later iteration starts
+-- caring about the class-vs-interface distinction ( eg. "detect
+-- marker-interfaces", "track default-method presence" ) this is the
+-- single call-site to split, same way `METHOD` vs `CONSTRUCTOR` is
+-- split at the printer level in `AstPrinter.scan`.
+stmt_interface:
+'{'
+    'kind' ':' 'INTERFACE' ','
+    'loc' ':' location ','
+    'text' ':' ID ','
+    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'supers' ':' possibly_empty_commalistof(type) ','
+    'children' ':' possibly_empty_commalistof(attribute)
+'}'
+{
+    JavaParserActions.stmtClass $8 (tokIDValue $12) $16 $20 $24
+}
+
+-- *************
+-- *           *
+-- * stmt_enum *
+-- *           *
+-- *************
+-- Same ClassTree-family envelope as `stmt_class` / `stmt_interface` --
+-- javac's `AstPrinter.scan` emits the identical five-tuple
+-- ( kind, loc, text, annotations[], supers[], children[] ) for all
+-- `ClassTree` members ( class / interface / enum / annotation-type /
+-- record ). Lowered via the same `stmtClass` smart constructor; the
+-- enum constants themselves live under `children` as `VARIABLE`
+-- envelopes whose `init` is a synthetic `NEW_CLASS` ( see JLS §8.9 /
+-- the `exp_new` rule below for the matching desugaring on the
+-- expression side ).
+stmt_enum:
+'{'
+    'kind' ':' 'ENUM' ','
     'loc' ':' location ','
     'text' ':' ID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
@@ -546,6 +612,7 @@ exp_bool          { $1 } |
 exp_assign        { $1 } |
 exp_parenthesized { $1 } |
 exp_call          { $1 } |
+exp_new           { $1 } |
 exp_binop         { $1 } |
 unop              { $1 }
 
@@ -643,6 +710,34 @@ exp_parenthesized:
 exp_call:
 '{'
     'kind' ':' 'METHOD_INVOCATION' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(exp) ']'
+'}'
+{
+    JavaParserActions.expCall $8 $13
+}
+
+-- ***********
+-- *         *
+-- * exp_new *
+-- *         *
+-- ***********
+-- Lower a native `NEW_CLASS` envelope ( `{ kind: NEW_CLASS, loc,
+-- children: [ <type-expression>, <ctor-arg>* ] }`, emitted by
+-- javac for every `new Foo(...)` expression as well as for every
+-- synthetic enum-constant initialiser per JLS §8.9 ) through the
+-- same `expCall` smart constructor used by `exp_call` -- javac's
+-- public tree API models `new Foo(a, b)` as "call Foo as a
+-- constructor with args a, b", so the ExpCall envelope with
+-- `callee = <type>` + `args = <ctor-args>` fits byte-for-byte.
+-- For bare enum constants the native children list degenerates
+-- to a single IDENTIFIER ( the enum type ) and the resulting
+-- ExpCall carries an empty args list -- semantically "call the
+-- type with no args", exactly what `new EnumType()` means at
+-- the JLS level.
+exp_new:
+'{'
+    'kind' ':' 'NEW_CLASS' ','
     'loc' ':' location ','
     'children' ':' '[' commalistof(exp) ']'
 '}'

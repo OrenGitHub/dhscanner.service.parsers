@@ -72,6 +72,9 @@ import Common
 @KW_PLUS = \"PLUS\"
 @KW_BLOCK = \"BLOCK\"
 @KW_CLASS = \"CLASS\"
+@KW_INTERFACE = \"INTERFACE\"
+@KW_ENUM = \"ENUM\"
+@KW_NEW_CLASS = \"NEW_CLASS\"
 @KW_IMPORT = \"IMPORT\"
 @KW_METHOD = \"METHOD\"
 @KW_RETURN = \"RETURN\"
@@ -189,6 +192,9 @@ tokens :-
 @KW_PLUS { lex' AlexRawToken_PLUS }
 @KW_BLOCK { lex' AlexRawToken_BLOCK }
 @KW_CLASS { lex' AlexRawToken_CLASS }
+@KW_INTERFACE { lex' AlexRawToken_INTERFACE }
+@KW_ENUM { lex' AlexRawToken_ENUM }
+@KW_NEW_CLASS { lex' AlexRawToken_NEW_CLASS }
 @KW_IMPORT { lex' AlexRawToken_IMPORT }
 @KW_METHOD { lex' AlexRawToken_METHOD }
 @KW_RETURN { lex' AlexRawToken_RETURN }
@@ -436,6 +442,9 @@ data AlexRawToken
      | AlexRawToken_PLUS
      | AlexRawToken_BLOCK
      | AlexRawToken_CLASS
+     | AlexRawToken_INTERFACE
+     | AlexRawToken_ENUM
+     | AlexRawToken_NEW_CLASS
      | AlexRawToken_IMPORT
      | AlexRawToken_METHOD
      | AlexRawToken_RETURN
