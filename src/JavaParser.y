@@ -218,13 +218,15 @@ import System.FilePath
 'RETURN'           { AlexTokenTag AlexRawToken_RETURN           _ }
 'CONSTRUCTOR'      { AlexTokenTag AlexRawToken_CONSTRUCTOR      _ }
 'IF'               { AlexTokenTag AlexRawToken_IF               _ }
-'PARENTHESIZED'    { AlexTokenTag AlexRawToken_PARENTHESIZED    _ }
 'METHOD_INVOCATION' { AlexTokenTag AlexRawToken_METHOD_INVOCATION _ }
 'EQUAL_TO'         { AlexTokenTag AlexRawToken_EQUAL_TO         _ }
 'PLUS'             { AlexTokenTag AlexRawToken_PLUS             _ }
 'MULTIPLY'         { AlexTokenTag AlexRawToken_MULTIPLY         _ }
 'LOGICAL_COMPLEMENT' { AlexTokenTag AlexRawToken_LOGICAL_COMPLEMENT _ }
 'EXPRESSION_STATEMENT' { AlexTokenTag AlexRawToken_EXPRESSION_STATEMENT _ }
+'TRY'              { AlexTokenTag AlexRawToken_TRY              _ }
+'CATCH'            { AlexTokenTag AlexRawToken_CATCH            _ }
+'CONDITIONAL_EXPRESSION' { AlexTokenTag AlexRawToken_CONDITIONAL_EXPRESSION _ }
 'annotations'      { AlexTokenTag AlexRawToken_annotations      _ }
 'parameters'       { AlexTokenTag AlexRawToken_parameters       _ }
 'supers'           { AlexTokenTag AlexRawToken_supers           _ }
@@ -376,13 +378,13 @@ stmt_class:
 '{'
     'kind' ':' 'CLASS' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'supers' ':' possibly_empty_commalistof(type) ','
     'children' ':' possibly_empty_commalistof(attribute)
 '}'
 {
-    JavaParserActions.stmtClass $8 (tokIDValue $12) $16 $20 $24
+    JavaParserActions.stmtClass $8 $12 $16 $20 $24
 }
 
 -- ******************
@@ -390,33 +392,17 @@ stmt_class:
 -- * stmt_interface *
 -- *                *
 -- ******************
--- javac's `ClassTree` lumps classes, interfaces, enums, annotation-
--- types and records under the same shape -- `AstPrinter.scan` emits
--- the same `{ kind, loc, text, annotations, supers, children }`
--- envelope for all of them (only the `kind` payload differs). From
--- dhscanner's point of view an interface is just a class whose
--- method bodies happen to be abstract, so we lower it with the
--- same `stmtClass` smart constructor -- the downstream kbgen /
--- queryengine already treat `StmtClass` as "whatever carries member
--- declarations under a type name", which fits interface shape
--- byte-for-byte today ( `stmtClass` discards `supers` and ignores
--- the `annotations` + body-level `_members` payload anyway, see
--- `JavaParserActions.stmtClass` ). When a later iteration starts
--- caring about the class-vs-interface distinction ( eg. "detect
--- marker-interfaces", "track default-method presence" ) this is the
--- single call-site to split, same way `METHOD` vs `CONSTRUCTOR` is
--- split at the printer level in `AstPrinter.scan`.
 stmt_interface:
 '{'
     'kind' ':' 'INTERFACE' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'supers' ':' possibly_empty_commalistof(type) ','
     'children' ':' possibly_empty_commalistof(attribute)
 '}'
 {
-    JavaParserActions.stmtClass $8 (tokIDValue $12) $16 $20 $24
+    JavaParserActions.stmtClass $8 $12 $16 $20 $24
 }
 
 -- *************
@@ -424,26 +410,17 @@ stmt_interface:
 -- * stmt_enum *
 -- *           *
 -- *************
--- Same ClassTree-family envelope as `stmt_class` / `stmt_interface` --
--- javac's `AstPrinter.scan` emits the identical five-tuple
--- ( kind, loc, text, annotations[], supers[], children[] ) for all
--- `ClassTree` members ( class / interface / enum / annotation-type /
--- record ). Lowered via the same `stmtClass` smart constructor; the
--- enum constants themselves live under `children` as `VARIABLE`
--- envelopes whose `init` is a synthetic `NEW_CLASS` ( see JLS §8.9 /
--- the `exp_new` rule below for the matching desugaring on the
--- expression side ).
 stmt_enum:
 '{'
     'kind' ':' 'ENUM' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'supers' ':' possibly_empty_commalistof(type) ','
     'children' ':' possibly_empty_commalistof(attribute)
 '}'
 {
-    JavaParserActions.stmtClass $8 (tokIDValue $12) $16 $20 $24
+    JavaParserActions.stmtClass $8 $12 $16 $20 $24
 }
 
 -- *************
@@ -469,13 +446,13 @@ stmt_vardec_init:
 '{'
     'kind' ':' 'VARIABLE' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'type' ':' type ','
     'init' ':' exp
 '}'
 {
-    JavaParserActions.stmtVardec $8 (tokIDValue $12) $20 (Just $24)
+    JavaParserActions.stmtVardec $8 $12 $20 (Just $24)
 }
 
 -- **********************
@@ -487,12 +464,12 @@ stmt_vardec_no_init:
 '{'
     'kind' ':' 'VARIABLE' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'type' ':' type
 '}'
 {
-    JavaParserActions.stmtVardec $8 (tokIDValue $12) $20 Nothing
+    JavaParserActions.stmtVardec $8 $12 $20 Nothing
 }
 
 -- ********
@@ -529,11 +506,11 @@ primitive_type:
 '{'
     'kind' ':' 'PRIMITIVE_TYPE' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' ']'
 '}'
 {
-    JavaParserActions.primitiveType $8 (tokIDValue $12)
+    JavaParserActions.primitiveType $8 $12
 }
 
 -- *************
@@ -545,11 +522,11 @@ parameter:
 '{'
     'kind' ':' 'PARAMETER' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'type' ':' type
 '}'
 {
-    JavaParserActions.parameter $8 (tokIDValue $12) $16
+    JavaParserActions.parameter $8 $12 $16
 }
 
 -- *************
@@ -561,13 +538,13 @@ stmt_ctor:
 '{'
     'kind' ':' 'CONSTRUCTOR' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'parameters' ':' possibly_empty_commalistof(parameter) ','
     'children' ':' possibly_empty_commalistof(stmt_body)
 '}'
 {
-    JavaParserActions.stmtCtor $8 (tokIDValue $12) $20
+    JavaParserActions.stmtCtor $8 $12 $20
 }
 
 -- ***************
@@ -579,13 +556,13 @@ stmt_method:
 '{'
     'kind' ':' 'METHOD' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'annotations' ':' possibly_empty_commalistof(annotation) ','
     'parameters' ':' possibly_empty_commalistof(parameter) ','
     'children' ':' '[' type ',' stmt_body ']'
 '}'
 {
-    JavaParserActions.stmtMethod $8 (tokIDValue $12) $20 $25
+    JavaParserActions.stmtMethod $8 $12 $20 $25
 }
 
 -- **************
@@ -610,11 +587,11 @@ exp_int           { $1 } |
 exp_null          { $1 } |
 exp_bool          { $1 } |
 exp_assign        { $1 } |
-exp_parenthesized { $1 } |
 exp_call          { $1 } |
 exp_new           { $1 } |
 exp_binop         { $1 } |
-unop              { $1 }
+exp_ternary        { $1 } |
+exp_unop          { $1 }
 
 -- ***********
 -- *         *
@@ -632,11 +609,11 @@ exp_str:
 '{'
     'kind' ':' 'STRING_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' ']'
 '}'
 {
-    JavaParserActions.expStr $8 (tokIDValue $12)
+    JavaParserActions.expStr $8 $12
 }
 
 -- ***********
@@ -648,11 +625,11 @@ exp_int:
 '{'
     'kind' ':' 'INT_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' ']'
 '}'
 {
-    JavaParserActions.expInt $8 (tokIDValue $12)
+    JavaParserActions.expInt $8 $12
 }
 
 -- ************
@@ -664,7 +641,7 @@ exp_null:
 '{'
     'kind' ':' 'NULL_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' ']'
 '}'
 {
@@ -680,26 +657,11 @@ exp_bool:
 '{'
     'kind' ':' 'BOOLEAN_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' ']'
 '}'
 {
-    JavaParserActions.expBool $8 (tokIDValue $12)
-}
-
--- *********************
--- *                   *
--- * exp_parenthesized *
--- *                   *
--- *********************
-exp_parenthesized:
-'{'
-    'kind' ':' 'PARENTHESIZED' ','
-    'loc' ':' location ','
-    'children' ':' '[' exp ']'
-'}'
-{
-    $13
+    JavaParserActions.expBool $8 $12
 }
 
 -- ************
@@ -722,19 +684,6 @@ exp_call:
 -- * exp_new *
 -- *         *
 -- ***********
--- Lower a native `NEW_CLASS` envelope ( `{ kind: NEW_CLASS, loc,
--- children: [ <type-expression>, <ctor-arg>* ] }`, emitted by
--- javac for every `new Foo(...)` expression as well as for every
--- synthetic enum-constant initialiser per JLS §8.9 ) through the
--- same `expCall` smart constructor used by `exp_call` -- javac's
--- public tree API models `new Foo(a, b)` as "call Foo as a
--- constructor with args a, b", so the ExpCall envelope with
--- `callee = <type>` + `args = <ctor-args>` fits byte-for-byte.
--- For bare enum constants the native children list degenerates
--- to a single IDENTIFIER ( the enum type ) and the resulting
--- ExpCall carries an empty args list -- semantically "call the
--- type with no args", exactly what `new EnumType()` means at
--- the JLS level.
 exp_new:
 '{'
     'kind' ':' 'NEW_CLASS' ','
@@ -767,34 +716,37 @@ binop_kind:
 'PLUS'     { Ast.PLUS  } |
 'MULTIPLY' { Ast.TIMES }
 
--- ********
--- *      *
--- * unop *
--- *      *
--- ********
--- Unary-operator expressions are lowered via the generic
--- `<dhscanner-instrumentation>[<tag>]` convention ( same marker
--- scheme used by `throw`, `fallthrough_return_null`, `kv`, `fstring`,
--- `ternary_*`, `jsx`, `typeof`, `delete` -- see TsParserActions.hs ).
--- Each operator gets its own sibling sub-rule ( `not`, `negate`,
--- `complement`, … ) that consumes the native envelope up through its
--- opening `[`, lets the inner `exp` parse normally, and leaves the
--- trailing `']' '}'` to be consumed by `unop`. The sub-rule returns
--- the operator envelope's `loc` ; the enclosing `unop` picks the
--- instrumentation tag.
-unop:
-not exp ']' '}'
+-- ***************
+-- *             *
+-- * exp_ternary *
+-- *             *
+-- ***************
+exp_ternary:
+'{'
+    'kind' ':' 'CONDITIONAL_EXPRESSION' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' exp ',' exp ']'
+'}'
 {
-    JavaParserActions.expUnop "not" $1 $2
+    JavaParserActions.exp_ternary $8 $13 $15 $17
 }
 
-not:
+-- ************
+-- *          *
+-- * exp_unop *
+-- *          *
+-- ************
+exp_unop:
+exp_not { $1 }
+
+exp_not:
 '{'
     'kind' ':' 'LOGICAL_COMPLEMENT' ','
     'loc' ':' location ','
-    'children' ':' '['
+    'children' ':' '[' exp ']'
+'}'
 {
-    $8
+    JavaParserActions.expUnop "not" $8 $13
 }
 
 -- *************
@@ -807,7 +759,8 @@ stmt_block  { $1 } |
 stmt_exp    { $1 } |
 stmt_return { $1 } |
 stmt_if     { $1 } |
-stmt_vardec { $1 }
+stmt_vardec { $1 } |
+stmt_try    { $1 }
 
 -- **************
 -- *            *
@@ -871,6 +824,36 @@ stmt_if:
     JavaParserActions.stmtIf $8 $12 $16 $20
 }
 
+-- ************
+-- *          *
+-- * stmt_try *
+-- *          *
+-- ************
+stmt_try:
+'{'
+    'kind' ':' 'TRY' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_block ',' catch_part ']'
+'}'
+{
+    JavaParserActions.stmtTry $8 $13 $15
+}
+
+-- **************
+-- *            *
+-- * catch_part *
+-- *            *
+-- **************
+catch_part:
+'{'
+    'kind' ':' 'CATCH' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_vardec ',' stmt_block ']'
+'}'
+{
+    $15
+}
+
 -- **************
 -- *            *
 -- * exp_assign *
@@ -929,11 +912,11 @@ simple_var:
 '{'
     'kind' ':' 'IDENTIFIER' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' ']'
 '}'
 {
-    JavaParserActions.simpleVar $8 (tokIDValue $12)
+    JavaParserActions.simpleVar $8 $12
 }
 
 -- *************
@@ -945,12 +928,21 @@ field_var:
 '{'
     'kind' ':' 'MEMBER_SELECT' ','
     'loc' ':' location ','
-    'text' ':' ID ','
+    'text' ':' tokenID ','
     'children' ':' '[' exp ']'
 '}'
 {
-    JavaParserActions.fieldVar $8 (tokIDValue $12) $17
+    JavaParserActions.fieldVar $8 $12 $17
 }
+
+-- ***********
+-- *         *
+-- * tokenID *
+-- *         *
+-- ***********
+tokenID:
+ID            { tokIDValue $1 } |
+'annotations' { "annotations"  }
 
 -- ************
 -- *          *
