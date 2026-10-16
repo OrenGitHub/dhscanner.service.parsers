@@ -15,6 +15,7 @@ import Location
 -- *                 *
 -- *******************
 import qualified Data.Map
+import Data.Maybe ( fromMaybe, maybeToList )
 
 -- ***************
 -- *             *
@@ -116,7 +117,7 @@ fieldVar'' lhs name loc = Ast.VarField $ Ast.VarFieldContent {
 -- * stmtClass *
 -- *           *
 -- *************
-stmtClass :: Location -> String -> [ Ast.Exp ] -> [ Ast.Var ] -> [ Ast.Stmt ] -> Ast.Stmt
+stmtClass :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Var ] -> Maybe [ Ast.Stmt ] -> Ast.Stmt
 stmtClass loc name _annotations _supers _members = Ast.StmtClass $ Ast.StmtClassContent {
     Ast.stmtClassName = Token.ClassName (Token.Named name loc),
     Ast.stmtClassSupers = [],
@@ -154,12 +155,12 @@ parameter loc name typ = Ast.Param {
 -- * stmtCtor *
 -- *          *
 -- ************
-stmtCtor :: Location -> String -> [ Ast.Param ] -> Ast.Stmt
-stmtCtor loc name _params = Ast.StmtMethod $ Ast.StmtMethodContent {
+stmtCtor :: Location -> String -> Maybe [ Ast.Param ] -> Maybe Ast.Stmt -> Ast.Stmt
+stmtCtor loc name _params body = Ast.StmtMethod $ Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName (Token.Named name loc),
     Ast.stmtMethodParams = [],
-    Ast.stmtMethodBody = [],
+    Ast.stmtMethodBody = maybeToList body,
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
     Ast.hostingClassSupers = []
@@ -170,12 +171,12 @@ stmtCtor loc name _params = Ast.StmtMethod $ Ast.StmtMethodContent {
 -- * stmtMethod *
 -- *            *
 -- **************
-stmtMethod :: Location -> String -> [ Ast.Param ] -> Ast.Var -> Ast.Stmt
-stmtMethod loc name _params _typ = Ast.StmtMethod $ Ast.StmtMethodContent {
+stmtMethod :: Location -> String -> Maybe [ Ast.Param ] -> Ast.Var -> Maybe Ast.Stmt -> Ast.Stmt
+stmtMethod loc name _params _returnType body = Ast.StmtMethod $ Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName (Token.Named name loc),
     Ast.stmtMethodParams = [],
-    Ast.stmtMethodBody = [],
+    Ast.stmtMethodBody = maybeToList body,
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
     Ast.hostingClassSupers = []
@@ -337,9 +338,9 @@ expCall loc (callee:args) = Ast.ExpCall $ Ast.ExpCallContent {
 -- * stmtBlock *
 -- *           *
 -- *************
-stmtBlock :: Location -> [ Ast.Stmt ] -> Ast.Stmt
+stmtBlock :: Location -> Maybe [ Ast.Stmt ] -> Ast.Stmt
 stmtBlock loc stmts = Ast.StmtBlock $ Ast.StmtBlockContent {
-    Ast.stmtBlockContent = stmts,
+    Ast.stmtBlockContent = fromMaybe [] stmts,
     Ast.stmtBlockLocation = loc
 }
 
@@ -367,11 +368,11 @@ stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent {
 -- * stmtIf *
 -- *        *
 -- **********
-stmtIf :: Location -> Ast.Exp -> Ast.Stmt -> [ Ast.Stmt ] -> Ast.Stmt
+stmtIf :: Location -> Ast.Exp -> Ast.Stmt -> Maybe [ Ast.Stmt ] -> Ast.Stmt
 stmtIf loc cond thenStmt elseStmts = Ast.StmtIf $ Ast.StmtIfContent {
     Ast.stmtIfCond = cond,
     Ast.stmtIfBody = [ thenStmt ],
-    Ast.stmtElseBody = elseStmts,
+    Ast.stmtElseBody = fromMaybe [] elseStmts,
     Ast.stmtIfLocation = loc
 }
 

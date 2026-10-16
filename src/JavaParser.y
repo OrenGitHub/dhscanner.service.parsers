@@ -69,8 +69,6 @@ import System.FilePath
 -- *             *
 -- ***************
 
-'('    { AlexTokenTag AlexRawToken_LPAREN _ }
-')'    { AlexTokenTag AlexRawToken_RPAREN _ }
 '['    { AlexTokenTag AlexRawToken_LBRACK _ }
 ']'    { AlexTokenTag AlexRawToken_RBRACK _ }
 '{'    { AlexTokenTag AlexRawToken_LBRACE _ }
@@ -84,232 +82,71 @@ import System.FilePath
 
 ':'    { AlexTokenTag AlexRawToken_COLON  _ }
 ','    { AlexTokenTag AlexRawToken_COMMA  _ }
-'-'    { AlexTokenTag AlexRawToken_HYPHEN _ }
-
--- *********************
--- *                   *
--- * reserved keywords *
--- *                   *
--- *********************
-
-'id'                    { AlexTokenTag AlexRawToken_KWID            _ }
-'end'                   { AlexTokenTag AlexRawToken_END             _ }
-'raw'                   { AlexTokenTag AlexRawToken_RAW             _ }
-'loc'                   { AlexTokenTag AlexRawToken_LOC             _ }
-'Arg'                   { AlexTokenTag AlexRawToken_ARG             _ }
-'var'                   { AlexTokenTag AlexRawToken_VAR             _ }
-'tail'                  { AlexTokenTag AlexRawToken_TAIL            _ }
-'kind'                  { AlexTokenTag AlexRawToken_KIND            _ }
-'null'                  { AlexTokenTag AlexRawToken_NULL            _ }
-'test'                  { AlexTokenTag AlexRawToken_TEST            _ }
-'line'                  { AlexTokenTag AlexRawToken_LINE            _ }
-'true'                  { AlexTokenTag AlexRawToken_TRUE            _ }
-'args'                  { AlexTokenTag AlexRawToken_ARGS            _ }
-'name'                  { AlexTokenTag AlexRawToken_NAME            _ }
-'expr'                  { AlexTokenTag AlexRawToken_EXPR            _ }
-'Name'                  { AlexTokenTag AlexRawToken_MAME            _ }
-'type'                  { AlexTokenTag AlexRawToken_TYPE            _ }
-'left'                  { AlexTokenTag AlexRawToken_LEFT            _ }
-'loop'                  { AlexTokenTag AlexRawToken_LOOP            _ }
-'init'                  { AlexTokenTag AlexRawToken_INIT            _ }
-'cond'                  { AlexTokenTag AlexRawToken_COND            _ }
-'body'                  { AlexTokenTag AlexRawToken_BODY            _ }
-'quasis'                { AlexTokenTag AlexRawToken_QUASIS          _ }
-'cooked'                { AlexTokenTag AlexRawToken_COOKED          _ }
-'update'                { AlexTokenTag AlexRawToken_UPDATE          _ }
-'false'                 { AlexTokenTag AlexRawToken_FALSE           _ }
-'start'                 { AlexTokenTag AlexRawToken_START           _ }
-'exprs'                 { AlexTokenTag AlexRawToken_EXPRS           _ }
-'value'                 { AlexTokenTag AlexRawToken_VALUE           _ }
-'right'                 { AlexTokenTag AlexRawToken_RIGHT           _ }
-'stmts'                 { AlexTokenTag AlexRawToken_STMTS           _ }
-'array'                 { AlexTokenTag AlexRawToken_ARRAY           _ }
-'Param'                 { AlexTokenTag AlexRawToken_PARAM           _ }
-'object'                { AlexTokenTag AlexRawToken_OBJECT          _ }
-'prefix'                { AlexTokenTag AlexRawToken_PREFIX          _ }
-'params'                { AlexTokenTag AlexRawToken_PARAMS          _ }
-'column'                { AlexTokenTag AlexRawToken_COLUMN          _ }
-'Literal'               { AlexTokenTag AlexRawToken_LITERAL         _ }
-'Program'               { AlexTokenTag AlexRawToken_PROGRAM         _ }
-'property'              { AlexTokenTag AlexRawToken_PROPERTY        _ }
-'computed'              { AlexTokenTag AlexRawToken_COMPUTED        _ }
-'operator'              { AlexTokenTag AlexRawToken_OPERATOR        _ }
-'alternate'             { AlexTokenTag AlexRawToken_ALTERNATE       _ }
-'consequent'            { AlexTokenTag AlexRawToken_CONSEQUENT      _ }
-'argument'              { AlexTokenTag AlexRawToken_ARGUMENT        _ }
-'arguments'             { AlexTokenTag AlexRawToken_ARGUMENTS       _ }
-'generator'             { AlexTokenTag AlexRawToken_GENERATOR       _ }
-'expression'            { AlexTokenTag AlexRawToken_EXPRESSION      _ }
-'expressions'           { AlexTokenTag AlexRawToken_EXPRESSIONS     _ }
-'declarations'          { AlexTokenTag AlexRawToken_DECLARATIONS    _ }
-'async'                 { AlexTokenTag AlexRawToken_ASYNC           _ }
-'callee'                { AlexTokenTag AlexRawToken_CALLEE          _ }
-'sourceType'            { AlexTokenTag AlexRawToken_SRC_TYPE        _ }
-'Scalar_Int'            { AlexTokenTag AlexRawToken_SCALAR_INT      _ }
-'IDENTIFIER'            { AlexTokenTag AlexRawToken_IDENTIFIER      _ }
-'returnType'            { AlexTokenTag AlexRawToken_RETURN_TYPE     _ }
-'FunctionDeclaration'   { AlexTokenTag AlexRawToken_FUNCTION_DEC    _ }
-'VariableDeclaration'   { AlexTokenTag AlexRawToken_VAR_DECLARATION _ }
-'VariableDeclarator'    { AlexTokenTag AlexRawToken_VAR_DECLARATOR  _ }
-'local' { AlexTokenTag AlexRawToken_local _ }
-'source' { AlexTokenTag AlexRawToken_source _ }
-'specifiers' { AlexTokenTag AlexRawToken_specifiers _ }
-'imported' { AlexTokenTag AlexRawToken_imported _ }
-'ImportDeclaration' { AlexTokenTag AlexRawToken_ImportDeclaration _ }
-'ImportSpecifier' { AlexTokenTag AlexRawToken_ImportSpecifier _ }
-'ImportDefaultSpecifier' { AlexTokenTag AlexRawToken_ImportDefaultSpecifier _ }
-'key' { AlexTokenTag AlexRawToken_key _ }
-'properties' { AlexTokenTag AlexRawToken_properties _ }
-'ObjectExpression' { AlexTokenTag AlexRawToken_ObjectExpression _ }
-'shorthand' { AlexTokenTag AlexRawToken_shorthand _ }
-'method' { AlexTokenTag AlexRawToken_method _ }
-'Property' { AlexTokenTag AlexRawToken_Property _ }
-'AssignmentPattern' { AlexTokenTag AlexRawToken_AssignmentPattern _ }
-'LogicalExpression' { AlexTokenTag AlexRawToken_LogicalExpression _ }
-'ArrayPattern' { AlexTokenTag AlexRawToken_ArrayPattern _ }
-'elements' { AlexTokenTag AlexRawToken_elements _ }
-'ObjectPattern' { AlexTokenTag AlexRawToken_ObjectPattern _ }
-'TryStatement' { AlexTokenTag AlexRawToken_TryStatement _ }
-'block' { AlexTokenTag AlexRawToken_block _ }
-'handler' { AlexTokenTag AlexRawToken_handler _ }
-'finalizer' { AlexTokenTag AlexRawToken_finalizer _ }
-'AwaitExpression' { AlexTokenTag AlexRawToken_AwaitExpression _ }
-'CatchClause' { AlexTokenTag AlexRawToken_CatchClause _ }
-'param' { AlexTokenTag AlexRawToken_param _ }
-'ArrayExpression' { AlexTokenTag AlexRawToken_ArrayExpression _ }
-'UnaryExpression' { AlexTokenTag AlexRawToken_UnaryExpression _ }
-'declaration' { AlexTokenTag AlexRawToken_declaration _ }
-'ExportDefaultDeclaration' { AlexTokenTag AlexRawToken_ExportDefaultDeclaration _ }
--- last keywords first part
 
 -- ****************************
 -- *                          *
--- * native ast location keys *
+-- * native ast json keys     *
 -- *                          *
 -- ****************************
 
-'startLine' { AlexTokenTag AlexRawToken_START_LINE _ }
-'startCol'  { AlexTokenTag AlexRawToken_START_COL  _ }
-'endLine'   { AlexTokenTag AlexRawToken_END_LINE   _ }
-'endCol'    { AlexTokenTag AlexRawToken_END_COL    _ }
-'children'  { AlexTokenTag AlexRawToken_CHILDREN   _ }
-'text'      { AlexTokenTag AlexRawToken_TEXT       _ }
-'COMPILATION_UNIT' { AlexTokenTag AlexRawToken_COMPILATION_UNIT _ }
-'PACKAGE'          { AlexTokenTag AlexRawToken_PACKAGE          _ }
-'IMPORT'           { AlexTokenTag AlexRawToken_IMPORT           _ }
-'MEMBER_SELECT'    { AlexTokenTag AlexRawToken_MEMBER_SELECT    _ }
-'CLASS'            { AlexTokenTag AlexRawToken_CLASS            _ }
-'INTERFACE'        { AlexTokenTag AlexRawToken_INTERFACE        _ }
-'ENUM'             { AlexTokenTag AlexRawToken_ENUM             _ }
-'NEW_CLASS'        { AlexTokenTag AlexRawToken_NEW_CLASS        _ }
-'MODIFIERS'        { AlexTokenTag AlexRawToken_MODIFIERS        _ }
-'ANNOTATION'       { AlexTokenTag AlexRawToken_ANNOTATION       _ }
-'ASSIGNMENT'       { AlexTokenTag AlexRawToken_ASSIGNMENT       _ }
-'STRING_LITERAL'   { AlexTokenTag AlexRawToken_STRING_LITERAL   _ }
-'VARIABLE'         { AlexTokenTag AlexRawToken_VARIABLE         _ }
-'METHOD'           { AlexTokenTag AlexRawToken_METHOD           _ }
-'PARAMETER'        { AlexTokenTag AlexRawToken_PARAMETER        _ }
-'PARAMETERIZED_TYPE' { AlexTokenTag AlexRawToken_PARAMETERIZED_TYPE _ }
-'PRIMITIVE_TYPE'   { AlexTokenTag AlexRawToken_PRIMITIVE_TYPE   _ }
-'INT_LITERAL'      { AlexTokenTag AlexRawToken_INT_LITERAL      _ }
-'NULL_LITERAL'     { AlexTokenTag AlexRawToken_NULL_LITERAL     _ }
-'BOOLEAN_LITERAL'  { AlexTokenTag AlexRawToken_BOOLEAN_LITERAL  _ }
-'BLOCK'            { AlexTokenTag AlexRawToken_BLOCK            _ }
-'RETURN'           { AlexTokenTag AlexRawToken_RETURN           _ }
-'CONSTRUCTOR'      { AlexTokenTag AlexRawToken_CONSTRUCTOR      _ }
-'IF'               { AlexTokenTag AlexRawToken_IF               _ }
-'METHOD_INVOCATION' { AlexTokenTag AlexRawToken_METHOD_INVOCATION _ }
-'EQUAL_TO'         { AlexTokenTag AlexRawToken_EQUAL_TO         _ }
-'PLUS'             { AlexTokenTag AlexRawToken_PLUS             _ }
-'MULTIPLY'         { AlexTokenTag AlexRawToken_MULTIPLY         _ }
-'LOGICAL_COMPLEMENT' { AlexTokenTag AlexRawToken_LOGICAL_COMPLEMENT _ }
+'kind'        { AlexTokenTag AlexRawToken_KIND        _ }
+'loc'         { AlexTokenTag AlexRawToken_LOC         _ }
+'children'    { AlexTokenTag AlexRawToken_CHILDREN    _ }
+'text'        { AlexTokenTag AlexRawToken_TEXT        _ }
+'startLine'   { AlexTokenTag AlexRawToken_START_LINE  _ }
+'startCol'    { AlexTokenTag AlexRawToken_START_COL   _ }
+'endLine'     { AlexTokenTag AlexRawToken_END_LINE    _ }
+'endCol'      { AlexTokenTag AlexRawToken_END_COL     _ }
+'annotations' { AlexTokenTag AlexRawToken_annotations _ }
+'parameters'  { AlexTokenTag AlexRawToken_parameters  _ }
+'supers'      { AlexTokenTag AlexRawToken_supers      _ }
+'type'        { AlexTokenTag AlexRawToken_TYPE        _ }
+'init'        { AlexTokenTag AlexRawToken_INIT        _ }
+'cond'        { AlexTokenTag AlexRawToken_COND        _ }
+'body'        { AlexTokenTag AlexRawToken_BODY        _ }
+'returnType'  { AlexTokenTag AlexRawToken_RETURN_TYPE _ }
+'left'        { AlexTokenTag AlexRawToken_LEFT        _ }
+'right'       { AlexTokenTag AlexRawToken_RIGHT       _ }
+
+-- ****************************
+-- *                          *
+-- * native ast kind names    *
+-- *                          *
+-- ****************************
+
+'COMPILATION_UNIT'     { AlexTokenTag AlexRawToken_COMPILATION_UNIT     _ }
+'PACKAGE'              { AlexTokenTag AlexRawToken_PACKAGE              _ }
+'IMPORT'               { AlexTokenTag AlexRawToken_IMPORT               _ }
+'MEMBER_SELECT'        { AlexTokenTag AlexRawToken_MEMBER_SELECT        _ }
+'CLASS'                { AlexTokenTag AlexRawToken_CLASS                _ }
+'INTERFACE'            { AlexTokenTag AlexRawToken_INTERFACE            _ }
+'ENUM'                 { AlexTokenTag AlexRawToken_ENUM                 _ }
+'NEW_CLASS'            { AlexTokenTag AlexRawToken_NEW_CLASS            _ }
+'ANNOTATION'           { AlexTokenTag AlexRawToken_ANNOTATION           _ }
+'ASSIGNMENT'           { AlexTokenTag AlexRawToken_ASSIGNMENT           _ }
+'STRING_LITERAL'       { AlexTokenTag AlexRawToken_STRING_LITERAL       _ }
+'VARIABLE'             { AlexTokenTag AlexRawToken_VARIABLE             _ }
+'METHOD'               { AlexTokenTag AlexRawToken_METHOD               _ }
+'PARAMETER'            { AlexTokenTag AlexRawToken_PARAMETER            _ }
+'PARAMETERIZED_TYPE'   { AlexTokenTag AlexRawToken_PARAMETERIZED_TYPE   _ }
+'PRIMITIVE_TYPE'       { AlexTokenTag AlexRawToken_PRIMITIVE_TYPE       _ }
+'INT_LITERAL'          { AlexTokenTag AlexRawToken_INT_LITERAL          _ }
+'NULL_LITERAL'         { AlexTokenTag AlexRawToken_NULL_LITERAL         _ }
+'BOOLEAN_LITERAL'      { AlexTokenTag AlexRawToken_BOOLEAN_LITERAL      _ }
+'BLOCK'                { AlexTokenTag AlexRawToken_BLOCK                _ }
+'RETURN'               { AlexTokenTag AlexRawToken_RETURN               _ }
+'CONSTRUCTOR'          { AlexTokenTag AlexRawToken_CONSTRUCTOR          _ }
+'IF'                   { AlexTokenTag AlexRawToken_IF                   _ }
+'METHOD_INVOCATION'    { AlexTokenTag AlexRawToken_METHOD_INVOCATION    _ }
+'EQUAL_TO'             { AlexTokenTag AlexRawToken_EQUAL_TO             _ }
+'PLUS'                 { AlexTokenTag AlexRawToken_PLUS                 _ }
+'MULTIPLY'             { AlexTokenTag AlexRawToken_MULTIPLY             _ }
+'LOGICAL_COMPLEMENT'   { AlexTokenTag AlexRawToken_LOGICAL_COMPLEMENT   _ }
 'EXPRESSION_STATEMENT' { AlexTokenTag AlexRawToken_EXPRESSION_STATEMENT _ }
-'TRY'              { AlexTokenTag AlexRawToken_TRY              _ }
-'CATCH'            { AlexTokenTag AlexRawToken_CATCH            _ }
+'TRY'                  { AlexTokenTag AlexRawToken_TRY                  _ }
+'CATCH'                { AlexTokenTag AlexRawToken_CATCH                _ }
 'CONDITIONAL_EXPRESSION' { AlexTokenTag AlexRawToken_CONDITIONAL_EXPRESSION _ }
-'annotations'      { AlexTokenTag AlexRawToken_annotations      _ }
-'parameters'       { AlexTokenTag AlexRawToken_parameters       _ }
-'supers'           { AlexTokenTag AlexRawToken_supers           _ }
-
--- *********
--- *       *
--- * other *
--- *       *
--- *********
-
-QUOTED_INT  { AlexTokenTag AlexRawToken_QUOTED_INT  _ }
-QUOTED_STR  { AlexTokenTag AlexRawToken_QUOTED_STR  _ }
-QUOTED_BOOL { AlexTokenTag AlexRawToken_QUOTED_BOOL _ }
-QUOTED_NULL { AlexTokenTag AlexRawToken_QUOTED_NULL _ }
-
--- ***************
--- *             *
--- * expressions *
--- *             *
--- ***************
-
-'NewExpression'    { AlexTokenTag AlexRawToken_EXPR_NEW    _ }
-'CallExpression'   { AlexTokenTag AlexRawToken_EXPR_CALL   _ }
-'MemberExpression' { AlexTokenTag AlexRawToken_EXPR_MEMBER _ }
-'BinaryExpression' { AlexTokenTag AlexRawToken_EXPR_BINOP  _ }
-'UpdateExpression' { AlexTokenTag AlexRawToken_EXPR_UPDATE _ }
-'AssignExpression' { AlexTokenTag AlexRawToken_EXPR_ASSIGN _ }
-'LambdaExpression' { AlexTokenTag AlexRawToken_EXPR_LAMBDA _ }
-'FunctionExpression' { AlexTokenTag AlexRawToken_EXPR_FUNCTION _ }
-
--- ***************
--- *             *
--- * expressions *
--- *             *
--- ***************
-
-'Expr_Variable'         { AlexTokenTag AlexRawToken_EXPR_VAR        _ }
-'Expr_ConstFetch'       { AlexTokenTag AlexRawToken_EXPR_CONST_GET  _ }
-'Expr_BinaryOp_Plus'    { AlexTokenTag AlexRawToken_EXPR_BINOP_PLUS _ }
-'Expr_BinaryOp_Smaller' { AlexTokenTag AlexRawToken_EXPR_BINOP_LT   _ }
-
--- **************
--- *            *
--- * statements *
--- *            *
--- **************
-
-'IfStatement'         { AlexTokenTag AlexRawToken_STMT_IF     _ }
-'ForStatement'        { AlexTokenTag AlexRawToken_STMT_FOR    _ }
-'BlockStatement'      { AlexTokenTag AlexRawToken_STMT_BLOCK  _ }
-'ReturnStatement'     { AlexTokenTag AlexRawToken_STMT_RETURN _ }
-'TemplateLiteral'     { AlexTokenTag AlexRawToken_TEMPLATE_LI _ }
-'TemplateElement'     { AlexTokenTag AlexRawToken_TEMPLATE_EL _ }
-'ExpressionStatement' { AlexTokenTag AlexRawToken_STMT_EXP    _ }
-
--- **************
--- *            *
--- * statements *
--- *            *
--- **************
-
-'Stmt_Echo'     { AlexTokenTag AlexRawToken_STMT_ECHO       _ }
-'Stmt_Expr'     { AlexTokenTag AlexRawToken_STMT_EXPR       _ }
-'Stmt_Function' { AlexTokenTag AlexRawToken_STMT_FUNCTION   _ }
-
--- *************
--- *           *
--- * operators *
--- *           *
--- *************
-
-'<'  { AlexTokenTag AlexRawToken_OP_LT       _ }
-'+'  { AlexTokenTag AlexRawToken_OP_PLUS     _ }
-'>'  { AlexTokenTag AlexRawToken_OP_GT       _ }
-'==' { AlexTokenTag AlexRawToken_OP_EQ       _ }
-'='  { AlexTokenTag AlexRawToken_OP_ASSIGN   _ }
-'*'  { AlexTokenTag AlexRawToken_OP_TIMES    _ }
-'++' { AlexTokenTag AlexRawToken_OP_PLUSPLUS _ }
-'||' { AlexTokenTag AlexRawToken_OP_OR _ }
-'&&' { AlexTokenTag AlexRawToken_OP_AND _ }
-'!'  { AlexTokenTag AlexRawToken_bang _ }
-'!==' { AlexTokenTag AlexRawToken_OP_NEQ _ }
-'in' { AlexTokenTag AlexRawToken_OP_IN _ }
+'IDENTIFIER'           { AlexTokenTag AlexRawToken_IDENTIFIER           _ }
 
 -- ****************************
 -- *                          *
@@ -334,14 +171,13 @@ ID     { AlexTokenTag (AlexRawToken_ID  id) _ }
 -- **********************
 listof(a):      a { [$1] } | a          listof(a) { $1:$2 }
 commalistof(a): a { [$1] } | a ',' commalistof(a) { $1:$3 }
-possibly_empty_commalistof(a): '[' ']' { [] } | '[' commalistof(a) ']' { $2 }
 
 -- ***********************
 -- *                     *
 -- * parametrized maybes *
 -- *                     *
 -- ***********************
-ornull(a): 'null' { Nothing } | a { Just $1 }
+optional(a): { Nothing } | a { Just $1 }
 
 -- *********************
 -- *                   *
@@ -379,12 +215,12 @@ stmt_class:
     'kind' ':' 'CLASS' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
-    'supers' ':' possibly_empty_commalistof(type) ','
-    'children' ':' possibly_empty_commalistof(attribute)
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'supers' ':' '[' optional(commalistof(type)) ']' ','
+    'children' ':' '[' optional(commalistof(attribute)) ']'
 '}'
 {
-    JavaParserActions.stmtClass $8 $12 $16 $20 $24
+    JavaParserActions.stmtClass $8 $12 $17 $23 $29
 }
 
 -- ******************
@@ -397,12 +233,12 @@ stmt_interface:
     'kind' ':' 'INTERFACE' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
-    'supers' ':' possibly_empty_commalistof(type) ','
-    'children' ':' possibly_empty_commalistof(attribute)
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'supers' ':' '[' optional(commalistof(type)) ']' ','
+    'children' ':' '[' optional(commalistof(attribute)) ']'
 '}'
 {
-    JavaParserActions.stmtClass $8 $12 $16 $20 $24
+    JavaParserActions.stmtClass $8 $12 $17 $23 $29
 }
 
 -- *************
@@ -415,12 +251,12 @@ stmt_enum:
     'kind' ':' 'ENUM' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
-    'supers' ':' possibly_empty_commalistof(type) ','
-    'children' ':' possibly_empty_commalistof(attribute)
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'supers' ':' '[' optional(commalistof(type)) ']' ','
+    'children' ':' '[' optional(commalistof(attribute)) ']'
 '}'
 {
-    JavaParserActions.stmtClass $8 $12 $16 $20 $24
+    JavaParserActions.stmtClass $8 $12 $17 $23 $29
 }
 
 -- *************
@@ -447,12 +283,12 @@ stmt_vardec_init:
     'kind' ':' 'VARIABLE' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
     'type' ':' type ','
     'init' ':' exp
 '}'
 {
-    JavaParserActions.stmtVardec $8 $12 $20 (Just $24)
+    JavaParserActions.stmtVardec $8 $12 $22 (Just $26)
 }
 
 -- **********************
@@ -465,11 +301,11 @@ stmt_vardec_no_init:
     'kind' ':' 'VARIABLE' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
     'type' ':' type
 '}'
 {
-    JavaParserActions.stmtVardec $8 $12 $20 Nothing
+    JavaParserActions.stmtVardec $8 $12 $22 Nothing
 }
 
 -- ********
@@ -506,8 +342,7 @@ primitive_type:
 '{'
     'kind' ':' 'PRIMITIVE_TYPE' ','
     'loc' ':' location ','
-    'text' ':' tokenID ','
-    'children' ':' '[' ']'
+    'text' ':' tokenID
 '}'
 {
     JavaParserActions.primitiveType $8 $12
@@ -539,12 +374,12 @@ stmt_ctor:
     'kind' ':' 'CONSTRUCTOR' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
-    'parameters' ':' possibly_empty_commalistof(parameter) ','
-    'children' ':' possibly_empty_commalistof(stmt_body)
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'parameters' ':' '[' optional(commalistof(parameter)) ']' ','
+    'body' ':' '[' optional(stmt_block) ']'
 '}'
 {
-    JavaParserActions.stmtCtor $8 $12 $20
+    JavaParserActions.stmtCtor $8 $12 $23 $29
 }
 
 -- ***************
@@ -557,12 +392,13 @@ stmt_method:
     'kind' ':' 'METHOD' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'annotations' ':' possibly_empty_commalistof(annotation) ','
-    'parameters' ':' possibly_empty_commalistof(parameter) ','
-    'children' ':' '[' type ',' stmt_body ']'
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'parameters' ':' '[' optional(commalistof(parameter)) ']' ','
+    'returnType' ':' type ','
+    'body' ':' '[' optional(stmt_block) ']'
 '}'
 {
-    JavaParserActions.stmtMethod $8 $12 $20 $25
+    JavaParserActions.stmtMethod $8 $12 $23 $28 $33
 }
 
 -- **************
@@ -609,8 +445,7 @@ exp_str:
 '{'
     'kind' ':' 'STRING_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' tokenID ','
-    'children' ':' '[' ']'
+    'text' ':' tokenID
 '}'
 {
     JavaParserActions.expStr $8 $12
@@ -625,8 +460,7 @@ exp_int:
 '{'
     'kind' ':' 'INT_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' tokenID ','
-    'children' ':' '[' ']'
+    'text' ':' tokenID
 '}'
 {
     JavaParserActions.expInt $8 $12
@@ -641,8 +475,7 @@ exp_null:
 '{'
     'kind' ':' 'NULL_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' tokenID ','
-    'children' ':' '[' ']'
+    'text' ':' tokenID
 '}'
 {
     JavaParserActions.expNull $8
@@ -657,8 +490,7 @@ exp_bool:
 '{'
     'kind' ':' 'BOOLEAN_LITERAL' ','
     'loc' ':' location ','
-    'text' ':' tokenID ','
-    'children' ':' '[' ']'
+    'text' ':' tokenID
 '}'
 {
     JavaParserActions.expBool $8 $12
@@ -704,8 +536,7 @@ exp_binop:
     'kind' ':' binop_kind ','
     'loc' ':' location ','
     'left' ':' exp ','
-    'right' ':' exp ','
-    'children' ':' '[' ']'
+    'right' ':' exp
 '}'
 {
     JavaParserActions.expBinop $8 $12 $16 $4
@@ -771,10 +602,10 @@ stmt_block:
 '{'
     'kind' ':' 'BLOCK' ','
     'loc' ':' location ','
-    'children' ':' possibly_empty_commalistof(stmt_body)
+    'children' ':' '[' optional(commalistof(stmt_body)) ']'
 '}'
 {
-    JavaParserActions.stmtBlock $8 $12
+    JavaParserActions.stmtBlock $8 $13
 }
 
 -- ************
@@ -818,10 +649,10 @@ stmt_if:
     'loc' ':' location ','
     'cond' ':' exp ','
     'body' ':' stmt_body ','
-    'children' ':' possibly_empty_commalistof(stmt_body)
+    'children' ':' '[' optional(commalistof(stmt_body)) ']'
 '}'
 {
-    JavaParserActions.stmtIf $8 $12 $16 $20
+    JavaParserActions.stmtIf $8 $12 $16 $21
 }
 
 -- ************
@@ -912,8 +743,7 @@ simple_var:
 '{'
     'kind' ':' 'IDENTIFIER' ','
     'loc' ':' location ','
-    'text' ':' tokenID ','
-    'children' ':' '[' ']'
+    'text' ':' tokenID
 '}'
 {
     JavaParserActions.simpleVar $8 $12

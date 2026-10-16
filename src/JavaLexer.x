@@ -47,8 +47,6 @@ import Common
 -- * parentheses *
 -- *             *
 -- ***************
-@LPAREN = \(
-@RPAREN = \)
 @LBRACK = \[
 @RBRACK = \]
 @LBRACE = \{
@@ -61,7 +59,6 @@ import Common
 -- ***************
 @COLON  = ":"
 @COMMA  = ","
-@HYPHEN = \- 
 
 -- ************
 -- *          *
@@ -83,8 +80,6 @@ import Common
 @KW_EQUAL_TO = \"EQUAL_TO\"
 @KW_MULTIPLY = \"MULTIPLY\"
 @KW_VARIABLE = \"VARIABLE\"
-@KW_MODIFIERS = \"MODIFIERS\"
-@KW_TYPE_CAST = \"TYPE_CAST\"
 @KW_ANNOTATION = \"ANNOTATION\"
 @KW_ASSIGNMENT = \"ASSIGNMENT\"
 @KW_IDENTIFIER = \"IDENTIFIER\"
@@ -99,7 +94,6 @@ import Common
 @KW_LOGICAL_COMPLEMENT = \"LOGICAL_COMPLEMENT\"
 @KW_PARAMETER = \"PARAMETER\"
 @KW_PARAMETERIZED_TYPE = \"PARAMETERIZED_TYPE\"
-@KW_UNBOUNDED_WILDCARD = \"UNBOUNDED_WILDCARD\"
 @KW_EXPRESSION_STATEMENT = \"EXPRESSION_STATEMENT\"
 @KW_TRY = \"TRY\"
 @KW_CATCH = \"CATCH\"
@@ -125,6 +119,7 @@ import Common
 @KW_INIT_KEY = \"init\"
 @KW_COND_KEY = \"cond\"
 @KW_BODY_KEY = \"body\"
+@KW_RETURN_TYPE_KEY = \"returnType\"
 @KW_LEFT_KEY = \"left\"
 @KW_RIGHT_KEY = \"right\"
 
@@ -167,8 +162,6 @@ tokens :-
 -- *             *
 -- ***************
 
-@LPAREN    { lex' AlexRawToken_LPAREN }
-@RPAREN    { lex' AlexRawToken_RPAREN }
 @LBRACK    { lex' AlexRawToken_LBRACK }
 @RBRACK    { lex' AlexRawToken_RBRACK }
 @LBRACE    { lex' AlexRawToken_LBRACE }
@@ -182,7 +175,6 @@ tokens :-
 
 @COLON     { lex' AlexRawToken_COLON  }
 @COMMA     { lex' AlexRawToken_COMMA  }
-@HYPHEN    { lex' AlexRawToken_HYPHEN }
 
 -- ************
 -- *          *
@@ -205,8 +197,6 @@ tokens :-
 @KW_EQUAL_TO { lex' AlexRawToken_EQUAL_TO }
 @KW_MULTIPLY { lex' AlexRawToken_MULTIPLY }
 @KW_VARIABLE { lex' AlexRawToken_VARIABLE }
-@KW_MODIFIERS { lex' AlexRawToken_MODIFIERS }
-@KW_TYPE_CAST { lex' AlexRawToken_TYPE_CAST }
 @KW_ANNOTATION { lex' AlexRawToken_ANNOTATION }
 @KW_ASSIGNMENT { lex' AlexRawToken_ASSIGNMENT }
 @KW_IDENTIFIER { lex' AlexRawToken_IDENTIFIER }
@@ -221,7 +211,6 @@ tokens :-
 @KW_LOGICAL_COMPLEMENT { lex' AlexRawToken_LOGICAL_COMPLEMENT }
 @KW_PARAMETER { lex' AlexRawToken_PARAMETER }
 @KW_PARAMETERIZED_TYPE { lex' AlexRawToken_PARAMETERIZED_TYPE }
-@KW_UNBOUNDED_WILDCARD { lex' AlexRawToken_UNBOUNDED_WILDCARD }
 @KW_EXPRESSION_STATEMENT { lex' AlexRawToken_EXPRESSION_STATEMENT }
 @KW_TRY { lex' AlexRawToken_TRY }
 @KW_CATCH { lex' AlexRawToken_CATCH }
@@ -242,6 +231,7 @@ tokens :-
 @KW_INIT_KEY { lex' AlexRawToken_INIT }
 @KW_COND_KEY { lex' AlexRawToken_COND }
 @KW_BODY_KEY { lex' AlexRawToken_BODY }
+@KW_RETURN_TYPE_KEY { lex' AlexRawToken_RETURN_TYPE }
 @KW_LEFT_KEY { lex' AlexRawToken_LEFT }
 @KW_RIGHT_KEY { lex' AlexRawToken_RIGHT }
 
@@ -319,240 +309,70 @@ data AlexTokenTag
 -- *************
 data AlexRawToken
 
-     = AlexRawToken_INT Int         -- ^ locations and numbers
-     | AlexRawToken_ID String       -- ^ including constant strings
+     = AlexRawToken_INT Int
+     | AlexRawToken_ID String
 
-     -- ***************
-     -- *             *
-     -- * parentheses *
-     -- *             *
-     -- ***************
+     | AlexRawToken_LBRACK
+     | AlexRawToken_RBRACK
+     | AlexRawToken_LBRACE
+     | AlexRawToken_RBRACE
+     | AlexRawToken_COLON
+     | AlexRawToken_COMMA
 
-     | AlexRawToken_LPAREN          -- ^ Parentheses __(__
-     | AlexRawToken_RPAREN          -- ^ Parentheses __)__
-     | AlexRawToken_LBRACK          -- ^ Parentheses __[__
-     | AlexRawToken_RBRACK          -- ^ Parentheses __]__
-     | AlexRawToken_LBRACE          -- ^ Parentheses __{__
-     | AlexRawToken_RBRACE          -- ^ Parentheses __}__
- 
-     | AlexRawToken_KWID            -- ^ Reserved Keyword
-     | AlexRawToken_END             -- ^ Reserved Keyword
-     | AlexRawToken_RAW             -- ^ Reserved Keyword
-     | AlexRawToken_LOC             -- ^ Reserved Keyword
-     | AlexRawToken_ARG             -- ^ Reserved Keyword
-     | AlexRawToken_VAR             -- ^ Reserved Keyword
-     | AlexRawToken_TEST            -- ^ Reserved Keyword
-     | AlexRawToken_NULL            -- ^ Reserved Keyword
-     | AlexRawToken_TAIL            -- ^ Reserved Keyword
-     | AlexRawToken_KIND            -- ^ Reserved Keyword
-     | AlexRawToken_LINE            -- ^ Reserved Keyword
-     | AlexRawToken_TRUE            -- ^ Reserved Keyword
-     | AlexRawToken_ARGS            -- ^ Reserved Keyword
-     | AlexRawToken_NAME            -- ^ Reserved Keyword
-     | AlexRawToken_EXPR            -- ^ Reserved Keyword
-     | AlexRawToken_MAME            -- ^ Reserved Keyword
-     | AlexRawToken_TYPE            -- ^ Reserved Keyword
-     | AlexRawToken_LEFT            -- ^ Reserved Keyword
-     | AlexRawToken_LOOP            -- ^ Reserved Keyword
-     | AlexRawToken_INIT            -- ^ Reserved Keyword
-     | AlexRawToken_COND            -- ^ Reserved Keyword
-     | AlexRawToken_BODY            -- ^ Reserved Keyword
-     | AlexRawToken_START           -- ^ Reserved Keyword
-     | AlexRawToken_COOKED          -- ^ Reserved Keyword
-     | AlexRawToken_UPDATE          -- ^ Reserved Keyword
-     | AlexRawToken_QUASIS          -- ^ Reserved Keyword
-     | AlexRawToken_FALSE           -- ^ Reserved Keyword
-     | AlexRawToken_EXPRS           -- ^ Reserved Keyword
-     | AlexRawToken_VALUE           -- ^ Reserved Keyword
-     | AlexRawToken_RIGHT           -- ^ Reserved Keyword
-     | AlexRawToken_STMTS           -- ^ Reserved Keyword
-     | AlexRawToken_ARRAY           -- ^ Reserved Keyword
-     | AlexRawToken_PARAM           -- ^ Reserved Keyword
-     | AlexRawToken_OBJECT          -- ^ Reserved Keyword
-     | AlexRawToken_PREFIX          -- ^ Reserved Keyword
-     | AlexRawToken_PARAMS          -- ^ Reserved Keyword
-     | AlexRawToken_COLUMN          -- ^ Reserved Keyword
-     | AlexRawToken_LITERAL         -- ^ Reserved Keyword
-     | AlexRawToken_PROGRAM         -- ^ Reserved Keyword
-     | AlexRawToken_PROPERTY        -- ^ Reserved Keyword
-     | AlexRawToken_COMPUTED        -- ^ Reserved Keyword
-     | AlexRawToken_OPERATOR        -- ^ Reserved Keyword
-     | AlexRawToken_ALTERNATE       -- ^ Reserved Keyword
-     | AlexRawToken_CONSEQUENT      -- ^ Reserved Keyword
-     | AlexRawToken_ARGUMENT        -- ^ Reserved Keyword
-     | AlexRawToken_ARGUMENTS       -- ^ Reserved Keyword
-     | AlexRawToken_CALLEE          -- ^ Reserved Keyword
-     | AlexRawToken_ASYNC           -- ^ Reserved Keyword
-     | AlexRawToken_EXPRESSION      -- ^ Reserved Keyword
-     | AlexRawToken_EXPRESSIONS     -- ^ Reserved Keyword
-     | AlexRawToken_DECLARATIONS    -- ^ Reserved Keyword
-     | AlexRawToken_SRC_TYPE        -- ^ Reserved Keyword
-     | AlexRawToken_GENERATOR       -- ^ Reserved Keyword
-     | AlexRawToken_STMT_ECHO       -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_VAR        -- ^ Reserved Keyword
-     | AlexRawToken_STMT_EXPR       -- ^ Reserved Keyword
-     | AlexRawToken_SCALAR_INT      -- ^ Reserved Keyword
-     | AlexRawToken_IDENTIFIER      -- ^ Reserved Keyword
-     | AlexRawToken_RETURN_TYPE     -- ^ Reserved Keyword
-     | AlexRawToken_TEMPLATE_LI     -- ^ Reserved Keyword
-     | AlexRawToken_TEMPLATE_EL     -- ^ Reserved Keyword
-     | AlexRawToken_STMT_FUNCTION   -- ^ Reserved Keyword
-     | AlexRawToken_FUNCTION_DEC    -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_CONST_GET  -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_BINOP_LT   -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_BINOP_PLUS -- ^ Reserved Keyword
-     | AlexRawToken_VAR_DECLARATION -- ^ Reserved Keyword
-     | AlexRawToken_VAR_DECLARATOR  -- ^ Reserved Keyword
-     | AlexRawToken_local
-     | AlexRawToken_source
-     | AlexRawToken_specifiers
-     | AlexRawToken_imported
-     | AlexRawToken_ImportDeclaration
-     | AlexRawToken_ImportSpecifier
-     | AlexRawToken_ImportDefaultSpecifier
-     | AlexRawToken_key
-     | AlexRawToken_properties
-     | AlexRawToken_ObjectExpression
-     | AlexRawToken_shorthand
-     | AlexRawToken_method
-     | AlexRawToken_Property
-     | AlexRawToken_AssignmentPattern
-     | AlexRawToken_LogicalExpression
-     | AlexRawToken_ArrayPattern
-     | AlexRawToken_elements
-     | AlexRawToken_ObjectPattern
-     | AlexRawToken_TryStatement
-     | AlexRawToken_block
-     | AlexRawToken_handler
-     | AlexRawToken_finalizer
-     | AlexRawToken_AwaitExpression
-     | AlexRawToken_CatchClause
-     | AlexRawToken_param
-     | AlexRawToken_ArrayExpression
-     | AlexRawToken_OP_AND
-     | AlexRawToken_UnaryExpression
-     | AlexRawToken_bang
-     | AlexRawToken_OP_NEQ
-     | AlexRawToken_OP_IN
-     | AlexRawToken_QUOTED_NULL
-     | AlexRawToken_declaration
-     | AlexRawToken_ExportDefaultDeclaration
-     | AlexRawToken_annotations
-     | AlexRawToken_parameters
-     | AlexRawToken_supers
-     -- last keywords third part
-
-     | AlexRawToken_IF
-     | AlexRawToken_PLUS
-     | AlexRawToken_BLOCK
-     | AlexRawToken_CLASS
-     | AlexRawToken_INTERFACE
-     | AlexRawToken_ENUM
-     | AlexRawToken_NEW_CLASS
-     | AlexRawToken_IMPORT
-     | AlexRawToken_METHOD
-     | AlexRawToken_RETURN
-     | AlexRawToken_CONSTRUCTOR
-     | AlexRawToken_PARAMETER
-     | AlexRawToken_PACKAGE
-     | AlexRawToken_EQUAL_TO
-     | AlexRawToken_MULTIPLY
-     | AlexRawToken_VARIABLE
-     | AlexRawToken_MODIFIERS
-     | AlexRawToken_TYPE_CAST
-     | AlexRawToken_ANNOTATION
-     | AlexRawToken_ASSIGNMENT
-     | AlexRawToken_INT_LITERAL
-     | AlexRawToken_NULL_LITERAL
-     | AlexRawToken_MEMBER_SELECT
-     | AlexRawToken_PRIMITIVE_TYPE
-     | AlexRawToken_STRING_LITERAL
-     | AlexRawToken_BOOLEAN_LITERAL
-     | AlexRawToken_COMPILATION_UNIT
-     | AlexRawToken_METHOD_INVOCATION
-     | AlexRawToken_LOGICAL_COMPLEMENT
-     | AlexRawToken_PARAMETERIZED_TYPE
-     | AlexRawToken_UNBOUNDED_WILDCARD
-     | AlexRawToken_EXPRESSION_STATEMENT
-     | AlexRawToken_TRY
-     | AlexRawToken_CATCH
-     | AlexRawToken_CONDITIONAL_EXPRESSION
+     | AlexRawToken_KIND
+     | AlexRawToken_LOC
      | AlexRawToken_CHILDREN
+     | AlexRawToken_TEXT
      | AlexRawToken_START_LINE
      | AlexRawToken_START_COL
      | AlexRawToken_END_LINE
      | AlexRawToken_END_COL
-     | AlexRawToken_TEXT
+     | AlexRawToken_annotations
+     | AlexRawToken_parameters
+     | AlexRawToken_supers
+     | AlexRawToken_TYPE
+     | AlexRawToken_INIT
+     | AlexRawToken_COND
+     | AlexRawToken_BODY
+     | AlexRawToken_RETURN_TYPE
+     | AlexRawToken_LEFT
+     | AlexRawToken_RIGHT
 
-     -- *********
-     -- *       *
-     -- * other *
-     -- *       *
-     -- *********
+     | AlexRawToken_COMPILATION_UNIT
+     | AlexRawToken_PACKAGE
+     | AlexRawToken_IMPORT
+     | AlexRawToken_MEMBER_SELECT
+     | AlexRawToken_CLASS
+     | AlexRawToken_INTERFACE
+     | AlexRawToken_ENUM
+     | AlexRawToken_NEW_CLASS
+     | AlexRawToken_ANNOTATION
+     | AlexRawToken_ASSIGNMENT
+     | AlexRawToken_STRING_LITERAL
+     | AlexRawToken_VARIABLE
+     | AlexRawToken_METHOD
+     | AlexRawToken_PARAMETER
+     | AlexRawToken_PARAMETERIZED_TYPE
+     | AlexRawToken_PRIMITIVE_TYPE
+     | AlexRawToken_INT_LITERAL
+     | AlexRawToken_NULL_LITERAL
+     | AlexRawToken_BOOLEAN_LITERAL
+     | AlexRawToken_BLOCK
+     | AlexRawToken_RETURN
+     | AlexRawToken_CONSTRUCTOR
+     | AlexRawToken_IF
+     | AlexRawToken_METHOD_INVOCATION
+     | AlexRawToken_EQUAL_TO
+     | AlexRawToken_PLUS
+     | AlexRawToken_MULTIPLY
+     | AlexRawToken_LOGICAL_COMPLEMENT
+     | AlexRawToken_EXPRESSION_STATEMENT
+     | AlexRawToken_TRY
+     | AlexRawToken_CATCH
+     | AlexRawToken_CONDITIONAL_EXPRESSION
+     | AlexRawToken_IDENTIFIER
 
-     | AlexRawToken_QUOTED_INT      -- ^ Reserved Keyword
-     | AlexRawToken_QUOTED_STR      -- ^ Reserved Keyword
-     | AlexRawToken_QUOTED_BOOL     -- ^ Reserved Keyword
-
-     -- *************
-     -- *           *
-     -- * operators *
-     -- *           *
-     -- *************
-
-     | AlexRawToken_OP_LT           -- ^ Reserved Keyword
-     | AlexRawToken_OP_GT           -- ^ Reserved Keyword
-     | AlexRawToken_OP_EQ           -- ^ Reserved Keyword
-     | AlexRawToken_OP_ASSIGN       -- ^ Reserved Keyword
-     | AlexRawToken_OP_TIMES        -- ^ Reserved Keyword
-     | AlexRawToken_OP_PLUS         -- ^ Reserved Keyword
-     | AlexRawToken_OP_PLUSPLUS     -- ^ Reserved Keyword
-     | AlexRawToken_OP_OR           -- ^ Reserved Keyword
-
-     -- ***************
-     -- *             *
-     -- * expressions *
-     -- *             *
-     -- ***************
-
-     | AlexRawToken_EXPR_NEW        -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_CALL       -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_BINOP      -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_MEMBER     -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_UPDATE     -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_ASSIGN     -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_LAMBDA     -- ^ Reserved Keyword
-     | AlexRawToken_EXPR_FUNCTION   -- ^ Reserved Keyword
-
-     -- **************
-     -- *            *
-     -- * statements *
-     -- *            *
-     -- **************
-
-     | AlexRawToken_STMT_IF         -- ^ Reserved Keyword
-     | AlexRawToken_STMT_FOR        -- ^ Reserved Keyword
-     | AlexRawToken_STMT_BLOCK      -- ^ Reserved Keyword
-     | AlexRawToken_STMT_RETURN     -- ^ Reserved Keyword
-     | AlexRawToken_STMT_EXP        -- ^ Reserved Keyword
-
-     -- ***************
-     -- *             *
-     -- * punctuation *
-     -- *             *
-     -- ***************
-
-     | AlexRawToken_COLON           -- ^ Punctuation __:__
-     | AlexRawToken_COMMA           -- ^ Punctuation __,__
-     | AlexRawToken_HYPHEN          -- ^ Punctuation __-__
-
-     -- *******
-     -- *     *
-     -- * EOF *
-     -- *     *
-     -- *******
-
-     | TokenEOF -- ^ [EOF](https://en.wikipedia.org/wiki/End-of-file)
+     | TokenEOF
  
      deriving ( Show )
 

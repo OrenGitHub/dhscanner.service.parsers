@@ -393,6 +393,7 @@ the iterations landed since the previous row.
 | ( baseline, pre-session ) | 607 | 2541 | 19.28% | -- |
 | + `stmt_try` + `stmt_catch` + `expTernary` | 620 | 2528 | 19.70% | +13 |
 | + `tokenID` ( `annotations` identifier/keyword collision ) | 704 | 2444 | 22.36% | +84 |
+| + METHOD/CONSTRUCTOR named `returnType`+`body` ( abstract = `[]` ); omit dummy `children:[]` on leaves | 1163 | 1985 | 36.94% | +459 |
 
 Methodology for picking the next iteration target : after each full-repo
 scan, bucket `DHSCANNER_PARSING_FAILED` rows by `more_details`
@@ -421,11 +422,10 @@ blocking kind / token, and land one grammar / printer adjustment -- same
    multi-catch, try-with-resources, `switch`, enum constants,
    inner-class decls, array indexing / literal, generic-method-call
    type arguments, etc.
-3. **Enrich METHOD in the printer** — same pattern as CLASS/VARIABLE:
-   top-level `annotations` ✅ ( shipped ), named `parameters:[]` ✅
-   ( shipped ), named `returnType`, named `body` ( or `null` for
-   abstract ). Then promote `stmt_method` from placeholder to real
-   production.
+3. ~~**Enrich METHOD in the printer**~~ — shipped. Top-level
+   `annotations` / `parameters` / `returnType` / `body` ( 0-or-1
+   `[ BLOCK ]`, abstract = `[]` ). No `children` key. DSpace
+   704 -> 1163. Representative: `AccessStatusServiceFactory.java`.
 4. **Flesh out smart constructors from stubs** —
    `stmtClass` should fill `stmtClassSupers` / `stmtClassDataMembers` /
    `stmtClassMethods`; `stmtMethod` should return a real `StmtMethodContent`;
