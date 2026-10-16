@@ -728,7 +728,7 @@ exp_ternary:
     'children' ':' '[' exp ',' exp ',' exp ']'
 '}'
 {
-    JavaParserActions.exp_ternary $8 $13 $15 $17
+    JavaParserActions.expTernary $8 $13 $15 $17
 }
 
 -- ************
