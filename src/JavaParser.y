@@ -402,6 +402,7 @@ stmt_vardec_no_init:
 -- ********
 type:
 simple_var         { $1 } |
+field_var          { $1 } |
 parameterized_type { $1 } |
 primitive_type     { $1 } |
 array_type         { $1 }
@@ -529,6 +530,7 @@ exp_bool          { $1 } |
 exp_assign        { $1 } |
 exp_call          { $1 } |
 exp_new           { $1 } |
+exp_new_array     { $1 } |
 exp_binop         { $1 } |
 exp_ternary        { $1 } |
 exp_unop          { $1 } |
@@ -650,6 +652,27 @@ exp_new:
 new_class_child:
 exp                { $1 } |
 parameterized_type { Ast.ExpVar (Ast.ExpVarContent $1) }
+
+-- ***************
+-- *             *
+-- * exp_new_array *
+-- *             *
+-- ***************
+exp_new_array:
+'{'
+    'kind' ':' 'NEW_ARRAY' ','
+    'loc' ':' location ','
+    'children' ':' '[' optional(commalistof(new_array_child)) ']'
+'}'
+{
+    JavaParserActions.instrumentationCall "new_array" $8 (fromMaybe [] $13)
+}
+
+new_array_child:
+exp                { $1 } |
+parameterized_type { Ast.ExpVar (Ast.ExpVarContent $1) } |
+primitive_type     { Ast.ExpVar (Ast.ExpVarContent $1) } |
+array_type         { Ast.ExpVar (Ast.ExpVarContent $1) }
 
 -- **************
 -- *            *
@@ -909,6 +932,15 @@ stmt_enhanced_for:
     JavaParserActions.stmtEnhancedFor $8 $13 $15 $17
 }
 
+-- *****************
+-- *               *
+-- * stmt_for_init *
+-- *               *
+-- *****************
+stmt_for_init:
+stmt_vardec { $1 } |
+stmt_exp    { $1 }
+
 -- **********
 -- *        *
 -- * stmt_for *
@@ -918,7 +950,7 @@ stmt_for:
 '{'
     'kind' ':' 'FOR_LOOP' ','
     'loc' ':' location ','
-    'children' ':' '[' stmt_vardec ',' exp ',' stmt_exp ',' stmt_body ']'
+    'children' ':' '[' stmt_for_init ',' exp ',' stmt_exp ',' stmt_body ']'
 '}'
 {
     JavaParserActions.stmtFor $8 $13 $15 $17 $19
@@ -1016,8 +1048,24 @@ stmt_import:
 }
 
 var:
-simple_var { $1} |
-field_var { $1}
+simple_var    { $1} |
+field_var     { $1} |
+subscript_var { $1}
+
+-- ***************
+-- *             *
+-- * subscript_var *
+-- *             *
+-- ***************
+subscript_var:
+'{'
+    'kind' ':' 'ARRAY_ACCESS' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' exp ']'
+'}'
+{
+    JavaParserActions.subscriptVar $8 $13 $15
+}
 
 -- **************
 -- *            *
@@ -1034,6 +1082,10 @@ simple_var:
     JavaParserActions.simpleVar $8 $12
 }
 
+field_var_lhs:
+exp            { $1 } |
+primitive_type { Ast.ExpVar (Ast.ExpVarContent $1) }
+
 -- *************
 -- *           *
 -- * field_var *
@@ -1044,7 +1096,7 @@ field_var:
     'kind' ':' 'MEMBER_SELECT' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
-    'children' ':' '[' exp ']'
+    'children' ':' '[' field_var_lhs ']'
 '}'
 {
     JavaParserActions.fieldVar $8 $12 $17

@@ -112,6 +112,14 @@ fieldVar'' lhs name loc = Ast.VarField $ Ast.VarFieldContent {
     Ast.varFieldLocation = loc
 }
 
+-- ***************
+-- *             *
+-- * subscriptVar *
+-- *             *
+-- ***************
+subscriptVar :: Location -> Ast.Exp -> Ast.Exp -> Ast.Var
+subscriptVar loc lhs index = Ast.VarSubscript (Ast.VarSubscriptContent lhs index loc)
+
 -- *************
 -- *           *
 -- * stmtClass *
