@@ -717,6 +717,9 @@ exp_binop:
 binop_kind:
 'EQUAL_TO'         { Ast.EQ    } |
 'NOT_EQUAL_TO'     { Ast.EQ    } |
+'GREATER_THAN'     { Ast.EQ    } |
+'LESS_THAN'        { Ast.EQ    } |
+'LESS_THAN_EQUAL'  { Ast.EQ    } |
 'PLUS'             { Ast.PLUS  } |
 'MULTIPLY'         { Ast.TIMES } |
 'CONDITIONAL_AND'  { Ast.PLUS  } |
@@ -743,7 +746,8 @@ exp_ternary:
 -- *          *
 -- ************
 exp_unop:
-exp_not { $1 }
+exp_not               { $1 } |
+exp_postfix_increment { $1 }
 
 exp_not:
 '{'
@@ -753,6 +757,16 @@ exp_not:
 '}'
 {
     JavaParserActions.expUnop "not" $8 $13
+}
+
+exp_postfix_increment:
+'{'
+    'kind' ':' 'POSTFIX_INCREMENT' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    JavaParserActions.expUnop "postfix_increment" $8 $13
 }
 
 -- *************
@@ -767,8 +781,10 @@ stmt_return       { $1 } |
 stmt_throw        { $1 } |
 stmt_continue     { $1 } |
 stmt_if           { $1 } |
+stmt_while        { $1 } |
 stmt_vardec       { $1 } |
 stmt_enhanced_for { $1 } |
+stmt_for          { $1 } |
 stmt_try          { $1 }
 
 -- **************
@@ -810,7 +826,7 @@ stmt_return:
 '{'
     'kind' ':' 'RETURN' ','
     'loc' ':' location ','
-    'children' ':' '[' exp ']'
+    'children' ':' '[' optional(exp) ']'
 '}'
 {
     JavaParserActions.stmtReturn $8 $13
@@ -863,6 +879,21 @@ stmt_if:
     JavaParserActions.stmtIf $8 $12 $16 $21
 }
 
+-- **************
+-- *            *
+-- * stmt_while *
+-- *            *
+-- **************
+stmt_while:
+'{'
+    'kind' ':' 'WHILE_LOOP' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' stmt_body ']'
+'}'
+{
+    JavaParserActions.stmtWhile $8 $13 $15
+}
+
 -- *********************
 -- *                   *
 -- * stmt_enhanced_for *
@@ -878,6 +909,21 @@ stmt_enhanced_for:
     JavaParserActions.stmtEnhancedFor $8 $13 $15 $17
 }
 
+-- **********
+-- *        *
+-- * stmt_for *
+-- *        *
+-- **********
+stmt_for:
+'{'
+    'kind' ':' 'FOR_LOOP' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_vardec ',' exp ',' stmt_exp ',' stmt_body ']'
+'}'
+{
+    JavaParserActions.stmtFor $8 $13 $15 $17 $19
+}
+
 -- ************
 -- *          *
 -- * stmt_try *
@@ -887,11 +933,27 @@ stmt_try:
 '{'
     'kind' ':' 'TRY' ','
     'loc' ':' location ','
-    'children' ':' '[' stmt_block ',' catch_part ']'
+    'children' ':' '[' stmt_block ',' commalistof(try_part) ']'
 '}'
 {
     JavaParserActions.stmtTry $8 $13 $15
+} |
+'{'
+    'kind' ':' 'TRY' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_vardec ',' stmt_block optional_try_catches ']'
+'}'
+{
+    JavaParserActions.stmtTryWithResource $8 $13 $15 $16
 }
+
+optional_try_catches:
+{ Nothing } |
+',' commalistof(try_part) { Just $2 }
+
+try_part:
+catch_part { $1 } |
+stmt_block { $1 }
 
 -- **************
 -- *            *

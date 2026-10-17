@@ -385,9 +385,9 @@ stmtExp = Ast.StmtExp
 -- * stmtReturn *
 -- *            *
 -- **************
-stmtReturn :: Location -> Ast.Exp -> Ast.Stmt
+stmtReturn :: Location -> Maybe Ast.Exp -> Ast.Stmt
 stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent {
-    Ast.stmtReturnValue = Just value,
+    Ast.stmtReturnValue = value,
     Ast.stmtReturnLocation = loc
 }
 
@@ -420,6 +420,17 @@ stmtIf loc cond thenStmt elseStmts = Ast.StmtIf $ Ast.StmtIfContent {
     Ast.stmtIfLocation = loc
 }
 
+-- *************
+-- *           *
+-- * stmtWhile *
+-- *           *
+-- *************
+stmtWhile :: Location -> Ast.Exp -> Ast.Stmt -> Ast.Stmt
+stmtWhile loc cond body = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ Ast.StmtExp cond ] ++ unblock body,
+    Ast.stmtBlockLocation = loc
+}
+
 -- *******************
 -- *                 *
 -- * stmtEnhancedFor *
@@ -433,6 +444,17 @@ stmtEnhancedFor loc varStmt iterable body = Ast.StmtBlock $ Ast.StmtBlockContent
 
 -- ***********
 -- *         *
+-- * stmtFor *
+-- *         *
+-- ***********
+stmtFor :: Location -> Ast.Stmt -> Ast.Exp -> Ast.Stmt -> Ast.Stmt -> Ast.Stmt
+stmtFor loc initStmt cond updateStmt body = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ initStmt, Ast.StmtExp cond, updateStmt ] ++ unblock body,
+    Ast.stmtBlockLocation = loc
+}
+
+-- ***********
+-- *         *
 -- * unblock *
 -- *         *
 -- ***********
@@ -440,14 +462,28 @@ unblock :: Ast.Stmt -> [ Ast.Stmt ]
 unblock (Ast.StmtBlock (Ast.StmtBlockContent stmts _)) = stmts
 unblock s = [ s ]
 
+-- ***********************
+-- *                     *
+-- * stmtTryWithResource *
+-- *                     *
+-- ***********************
+stmtTryWithResource :: Location -> Ast.Stmt -> Ast.Stmt -> Maybe [ Ast.Stmt ] -> Ast.Stmt
+stmtTryWithResource loc resource tryBlock catchBlocks = stmtTry loc (prependTryResource loc resource tryBlock) (fromMaybe [] catchBlocks)
+
+prependTryResource :: Location -> Ast.Stmt -> Ast.Stmt -> Ast.Stmt
+prependTryResource loc resource tryBlock = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ resource ] ++ unblock tryBlock,
+    Ast.stmtBlockLocation = loc
+}
+
 -- ***********
 -- *         *
 -- * stmtTry *
 -- *         *
 -- ***********
-stmtTry :: Location -> Ast.Stmt -> Ast.Stmt -> Ast.Stmt
-stmtTry loc tryBlock catchBlock = Ast.StmtTry $ Ast.StmtTryContent {
+stmtTry :: Location -> Ast.Stmt -> [ Ast.Stmt ] -> Ast.Stmt
+stmtTry loc tryBlock catchBlocks = Ast.StmtTry $ Ast.StmtTryContent {
     Ast.stmtTryPart = unblock tryBlock,
-    Ast.stmtCatchPart = unblock catchBlock,
+    Ast.stmtCatchPart = concatMap unblock catchBlocks,
     Ast.stmtTryLocation = loc
 }
