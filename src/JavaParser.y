@@ -405,7 +405,8 @@ simple_var         { $1 } |
 field_var          { $1 } |
 parameterized_type { $1 } |
 primitive_type     { $1 } |
-array_type         { $1 }
+array_type         { $1 } |
+union_type         { $1 }
 
 -- **********************
 -- *                    *
@@ -450,6 +451,21 @@ array_type:
 '}'
 {
     JavaParserActions.arrayType $8 $13
+}
+
+-- **************
+-- *            *
+-- * union_type *
+-- *            *
+-- **************
+union_type:
+'{'
+    'kind' ':' 'UNION_TYPE' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(type) ']'
+'}'
+{
+    JavaParserActions.parameterizedType $8 $13
 }
 
 -- *************
@@ -535,6 +551,7 @@ exp_binop         { $1 } |
 exp_ternary        { $1 } |
 exp_unop          { $1 } |
 exp_lambda        { $1 } |
+exp_instanceof    { $1 } |
 exp_member_reference { $1 }
 
 -- ***********
@@ -721,6 +738,21 @@ lambda_parameter:
     ()
 }
 
+-- ******************
+-- *                *
+-- * exp_instanceof *
+-- *                *
+-- ******************
+exp_instanceof:
+'{'
+    'kind' ':' 'INSTANCE_OF' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' type ']'
+'}'
+{
+    JavaParserActions.expBinop $8 $13 (Ast.ExpVar (Ast.ExpVarContent $15)) Ast.EQ
+}
+
 -- *************
 -- *           *
 -- * exp_binop *
@@ -804,6 +836,7 @@ stmt_return       { $1 } |
 stmt_throw        { $1 } |
 stmt_continue     { $1 } |
 stmt_if           { $1 } |
+stmt_switch       { $1 } |
 stmt_while        { $1 } |
 stmt_vardec       { $1 } |
 stmt_enhanced_for { $1 } |
@@ -901,6 +934,55 @@ stmt_if:
 {
     JavaParserActions.stmtIf $8 $12 $16 $21
 }
+
+-- ***************
+-- *             *
+-- * stmt_switch *
+-- *             *
+-- ***************
+stmt_switch:
+'{'
+    'kind' ':' 'SWITCH' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp optional_switch_cases ']'
+'}'
+{
+    JavaParserActions.stmtExp $13
+}
+
+optional_switch_cases:
+{ () } |
+',' commalistof(switch_case) { () }
+
+switch_case:
+'{'
+    'kind' ':' 'CASE' ','
+    'loc' ':' location ','
+    'children' ':' '[' optional(commalistof(switch_case_child)) ']'
+'}'
+{
+    ()
+}
+
+switch_case_child:
+case_label { () } |
+stmt_body  { () } |
+exp        { () }
+
+case_label:
+'{'
+    'kind' ':' case_label_kind ','
+    'loc' ':' location ','
+    'children' ':' '[' optional(commalistof(exp)) ']'
+'}'
+{
+    ()
+}
+
+case_label_kind:
+'CONSTANT_CASE_LABEL' { () } |
+'DEFAULT_CASE_LABEL'  { () } |
+'PATTERN_CASE_LABEL'  { () }
 
 -- **************
 -- *            *
@@ -1009,13 +1091,27 @@ catch_part:
 -- **************
 exp_assign:
 '{'
-    'kind' ':' 'ASSIGNMENT' ','
+    'kind' ':' assignment_kind ','
     'loc' ':' location ','
     'children' ':' '[' var ',' exp ']'
 '}'
 {
     JavaParserActions.expAssign $8 $13 $15
 }
+
+assignment_kind:
+'ASSIGNMENT'                       { () } |
+'MULTIPLY_ASSIGNMENT'              { () } |
+'DIVIDE_ASSIGNMENT'                { () } |
+'REMAINDER_ASSIGNMENT'             { () } |
+'PLUS_ASSIGNMENT'                  { () } |
+'MINUS_ASSIGNMENT'                 { () } |
+'LEFT_SHIFT_ASSIGNMENT'            { () } |
+'RIGHT_SHIFT_ASSIGNMENT'           { () } |
+'UNSIGNED_RIGHT_SHIFT_ASSIGNMENT'  { () } |
+'AND_ASSIGNMENT'                   { () } |
+'XOR_ASSIGNMENT'                   { () } |
+'OR_ASSIGNMENT'                    { () }
 
 -- ****************
 -- *              *
