@@ -147,6 +147,93 @@ import System.FilePath
 'CATCH'                { AlexTokenTag AlexRawToken_CATCH                _ }
 'CONDITIONAL_EXPRESSION' { AlexTokenTag AlexRawToken_CONDITIONAL_EXPRESSION _ }
 'IDENTIFIER'           { AlexTokenTag AlexRawToken_IDENTIFIER           _ }
+'ANNOTATED_TYPE'                    { AlexTokenTag AlexRawToken_ANNOTATED_TYPE                    _ }
+'TYPE_ANNOTATION'                   { AlexTokenTag AlexRawToken_TYPE_ANNOTATION                   _ }
+'ARRAY_ACCESS'                      { AlexTokenTag AlexRawToken_ARRAY_ACCESS                      _ }
+'ARRAY_TYPE'                        { AlexTokenTag AlexRawToken_ARRAY_TYPE                        _ }
+'ASSERT'                            { AlexTokenTag AlexRawToken_ASSERT                            _ }
+'BREAK'                             { AlexTokenTag AlexRawToken_BREAK                             _ }
+'CASE'                              { AlexTokenTag AlexRawToken_CASE                              _ }
+'CONTINUE'                          { AlexTokenTag AlexRawToken_CONTINUE                          _ }
+'DO_WHILE_LOOP'                     { AlexTokenTag AlexRawToken_DO_WHILE_LOOP                     _ }
+'ENHANCED_FOR_LOOP'                 { AlexTokenTag AlexRawToken_ENHANCED_FOR_LOOP                 _ }
+'MEMBER_REFERENCE'                  { AlexTokenTag AlexRawToken_MEMBER_REFERENCE                  _ }
+'FOR_LOOP'                          { AlexTokenTag AlexRawToken_FOR_LOOP                          _ }
+'INSTANCE_OF'                       { AlexTokenTag AlexRawToken_INSTANCE_OF                       _ }
+'TEMPLATE'                          { AlexTokenTag AlexRawToken_TEMPLATE                          _ }
+'LABELED_STATEMENT'                 { AlexTokenTag AlexRawToken_LABELED_STATEMENT                 _ }
+'MODIFIERS'                         { AlexTokenTag AlexRawToken_MODIFIERS                         _ }
+'NEW_ARRAY'                         { AlexTokenTag AlexRawToken_NEW_ARRAY                         _ }
+'LAMBDA_EXPRESSION'                 { AlexTokenTag AlexRawToken_LAMBDA_EXPRESSION                 _ }
+'PARENTHESIZED'                     { AlexTokenTag AlexRawToken_PARENTHESIZED                     _ }
+'ANY_PATTERN'                       { AlexTokenTag AlexRawToken_ANY_PATTERN                       _ }
+'BINDING_PATTERN'                   { AlexTokenTag AlexRawToken_BINDING_PATTERN                   _ }
+'DEFAULT_CASE_LABEL'                { AlexTokenTag AlexRawToken_DEFAULT_CASE_LABEL                _ }
+'CONSTANT_CASE_LABEL'               { AlexTokenTag AlexRawToken_CONSTANT_CASE_LABEL               _ }
+'PATTERN_CASE_LABEL'                { AlexTokenTag AlexRawToken_PATTERN_CASE_LABEL                _ }
+'DECONSTRUCTION_PATTERN'            { AlexTokenTag AlexRawToken_DECONSTRUCTION_PATTERN            _ }
+'EMPTY_STATEMENT'                   { AlexTokenTag AlexRawToken_EMPTY_STATEMENT                   _ }
+'SWITCH'                            { AlexTokenTag AlexRawToken_SWITCH                            _ }
+'SWITCH_EXPRESSION'                 { AlexTokenTag AlexRawToken_SWITCH_EXPRESSION                 _ }
+'SYNCHRONIZED'                      { AlexTokenTag AlexRawToken_SYNCHRONIZED                      _ }
+'THROW'                             { AlexTokenTag AlexRawToken_THROW                             _ }
+'UNION_TYPE'                        { AlexTokenTag AlexRawToken_UNION_TYPE                        _ }
+'INTERSECTION_TYPE'                 { AlexTokenTag AlexRawToken_INTERSECTION_TYPE                 _ }
+'TYPE_CAST'                         { AlexTokenTag AlexRawToken_TYPE_CAST                         _ }
+'TYPE_PARAMETER'                    { AlexTokenTag AlexRawToken_TYPE_PARAMETER                    _ }
+'WHILE_LOOP'                        { AlexTokenTag AlexRawToken_WHILE_LOOP                        _ }
+'POSTFIX_INCREMENT'                 { AlexTokenTag AlexRawToken_POSTFIX_INCREMENT                 _ }
+'POSTFIX_DECREMENT'                 { AlexTokenTag AlexRawToken_POSTFIX_DECREMENT                 _ }
+'PREFIX_INCREMENT'                  { AlexTokenTag AlexRawToken_PREFIX_INCREMENT                  _ }
+'PREFIX_DECREMENT'                  { AlexTokenTag AlexRawToken_PREFIX_DECREMENT                  _ }
+'UNARY_PLUS'                        { AlexTokenTag AlexRawToken_UNARY_PLUS                        _ }
+'UNARY_MINUS'                       { AlexTokenTag AlexRawToken_UNARY_MINUS                       _ }
+'BITWISE_COMPLEMENT'                { AlexTokenTag AlexRawToken_BITWISE_COMPLEMENT                _ }
+'DIVIDE'                            { AlexTokenTag AlexRawToken_DIVIDE                            _ }
+'REMAINDER'                         { AlexTokenTag AlexRawToken_REMAINDER                         _ }
+'MINUS'                             { AlexTokenTag AlexRawToken_MINUS                             _ }
+'LEFT_SHIFT'                        { AlexTokenTag AlexRawToken_LEFT_SHIFT                        _ }
+'RIGHT_SHIFT'                       { AlexTokenTag AlexRawToken_RIGHT_SHIFT                       _ }
+'UNSIGNED_RIGHT_SHIFT'              { AlexTokenTag AlexRawToken_UNSIGNED_RIGHT_SHIFT              _ }
+'LESS_THAN'                         { AlexTokenTag AlexRawToken_LESS_THAN                         _ }
+'GREATER_THAN'                      { AlexTokenTag AlexRawToken_GREATER_THAN                      _ }
+'LESS_THAN_EQUAL'                   { AlexTokenTag AlexRawToken_LESS_THAN_EQUAL                   _ }
+'GREATER_THAN_EQUAL'                { AlexTokenTag AlexRawToken_GREATER_THAN_EQUAL                _ }
+'NOT_EQUAL_TO'                      { AlexTokenTag AlexRawToken_NOT_EQUAL_TO                      _ }
+'AND'                               { AlexTokenTag AlexRawToken_AND                               _ }
+'XOR'                               { AlexTokenTag AlexRawToken_XOR                               _ }
+'OR'                                { AlexTokenTag AlexRawToken_OR                                _ }
+'CONDITIONAL_AND'                   { AlexTokenTag AlexRawToken_CONDITIONAL_AND                   _ }
+'CONDITIONAL_OR'                    { AlexTokenTag AlexRawToken_CONDITIONAL_OR                    _ }
+'MULTIPLY_ASSIGNMENT'               { AlexTokenTag AlexRawToken_MULTIPLY_ASSIGNMENT               _ }
+'DIVIDE_ASSIGNMENT'                 { AlexTokenTag AlexRawToken_DIVIDE_ASSIGNMENT                 _ }
+'REMAINDER_ASSIGNMENT'              { AlexTokenTag AlexRawToken_REMAINDER_ASSIGNMENT              _ }
+'PLUS_ASSIGNMENT'                   { AlexTokenTag AlexRawToken_PLUS_ASSIGNMENT                   _ }
+'MINUS_ASSIGNMENT'                  { AlexTokenTag AlexRawToken_MINUS_ASSIGNMENT                  _ }
+'LEFT_SHIFT_ASSIGNMENT'             { AlexTokenTag AlexRawToken_LEFT_SHIFT_ASSIGNMENT             _ }
+'RIGHT_SHIFT_ASSIGNMENT'            { AlexTokenTag AlexRawToken_RIGHT_SHIFT_ASSIGNMENT            _ }
+'UNSIGNED_RIGHT_SHIFT_ASSIGNMENT'   { AlexTokenTag AlexRawToken_UNSIGNED_RIGHT_SHIFT_ASSIGNMENT   _ }
+'AND_ASSIGNMENT'                    { AlexTokenTag AlexRawToken_AND_ASSIGNMENT                    _ }
+'XOR_ASSIGNMENT'                    { AlexTokenTag AlexRawToken_XOR_ASSIGNMENT                    _ }
+'OR_ASSIGNMENT'                     { AlexTokenTag AlexRawToken_OR_ASSIGNMENT                     _ }
+'LONG_LITERAL'                      { AlexTokenTag AlexRawToken_LONG_LITERAL                      _ }
+'FLOAT_LITERAL'                     { AlexTokenTag AlexRawToken_FLOAT_LITERAL                     _ }
+'DOUBLE_LITERAL'                    { AlexTokenTag AlexRawToken_DOUBLE_LITERAL                    _ }
+'CHAR_LITERAL'                      { AlexTokenTag AlexRawToken_CHAR_LITERAL                      _ }
+'UNBOUNDED_WILDCARD'                { AlexTokenTag AlexRawToken_UNBOUNDED_WILDCARD                _ }
+'EXTENDS_WILDCARD'                  { AlexTokenTag AlexRawToken_EXTENDS_WILDCARD                  _ }
+'SUPER_WILDCARD'                    { AlexTokenTag AlexRawToken_SUPER_WILDCARD                    _ }
+'ERRONEOUS'                         { AlexTokenTag AlexRawToken_ERRONEOUS                         _ }
+'ANNOTATION_TYPE'                   { AlexTokenTag AlexRawToken_ANNOTATION_TYPE                   _ }
+'MODULE'                            { AlexTokenTag AlexRawToken_MODULE                            _ }
+'EXPORTS'                           { AlexTokenTag AlexRawToken_EXPORTS                           _ }
+'OPENS'                             { AlexTokenTag AlexRawToken_OPENS                             _ }
+'PROVIDES'                          { AlexTokenTag AlexRawToken_PROVIDES                          _ }
+'RECORD'                            { AlexTokenTag AlexRawToken_RECORD                            _ }
+'REQUIRES'                          { AlexTokenTag AlexRawToken_REQUIRES                          _ }
+'USES'                              { AlexTokenTag AlexRawToken_USES                              _ }
+'OTHER'                             { AlexTokenTag AlexRawToken_OTHER                             _ }
+'YIELD'                             { AlexTokenTag AlexRawToken_YIELD                             _ }
 
 -- ****************************
 -- *                          *
@@ -316,7 +403,8 @@ stmt_vardec_no_init:
 type:
 simple_var         { $1 } |
 parameterized_type { $1 } |
-primitive_type     { $1 }
+primitive_type     { $1 } |
+array_type         { $1 }
 
 -- **********************
 -- *                    *
@@ -346,6 +434,21 @@ primitive_type:
 '}'
 {
     JavaParserActions.primitiveType $8 $12
+}
+
+-- **************
+-- *            *
+-- * array_type *
+-- *            *
+-- **************
+array_type:
+'{'
+    'kind' ':' 'ARRAY_TYPE' ','
+    'loc' ':' location ','
+    'children' ':' '[' type ']'
+'}'
+{
+    JavaParserActions.arrayType $8 $13
 }
 
 -- *************
@@ -419,6 +522,7 @@ annotation:
 exp:
 exp_var           { $1 } |
 exp_str           { $1 } |
+exp_char          { $1 } |
 exp_int           { $1 } |
 exp_null          { $1 } |
 exp_bool          { $1 } |
@@ -427,7 +531,9 @@ exp_call          { $1 } |
 exp_new           { $1 } |
 exp_binop         { $1 } |
 exp_ternary        { $1 } |
-exp_unop          { $1 }
+exp_unop          { $1 } |
+exp_lambda        { $1 } |
+exp_member_reference { $1 }
 
 -- ***********
 -- *         *
@@ -444,6 +550,21 @@ exp_var: var { Ast.ExpVar (Ast.ExpVarContent $1) }
 exp_str:
 '{'
     'kind' ':' 'STRING_LITERAL' ','
+    'loc' ':' location ','
+    'text' ':' tokenID
+'}'
+{
+    JavaParserActions.expStr $8 $12
+}
+
+-- ************
+-- *          *
+-- * exp_char *
+-- *          *
+-- ************
+exp_char:
+'{'
+    'kind' ':' 'CHAR_LITERAL' ','
     'loc' ':' location ','
     'text' ':' tokenID
 '}'
@@ -520,10 +641,61 @@ exp_new:
 '{'
     'kind' ':' 'NEW_CLASS' ','
     'loc' ':' location ','
-    'children' ':' '[' commalistof(exp) ']'
+    'children' ':' '[' commalistof(new_class_child) ']'
 '}'
 {
     JavaParserActions.expCall $8 $13
+}
+
+new_class_child:
+exp                { $1 } |
+parameterized_type { Ast.ExpVar (Ast.ExpVarContent $1) }
+
+-- **************
+-- *            *
+-- * exp_lambda *
+-- *            *
+-- **************
+exp_lambda:
+'{'
+    'kind' ':' 'LAMBDA_EXPRESSION' ','
+    'loc' ':' location ','
+    'children' ':' '[' optional(commalistof(lambda_child)) ']'
+'}'
+{
+    JavaParserActions.expLambda $8 $13
+}
+
+-- ************************
+-- *                      *
+-- * exp_member_reference *
+-- *                      *
+-- ************************
+exp_member_reference:
+'{'
+    'kind' ':' 'MEMBER_REFERENCE' ','
+    'loc' ':' location ','
+    'children' ':' '[' commalistof(exp) ']'
+'}'
+{
+    JavaParserActions.expMemberReference $8 $13
+}
+
+lambda_child:
+exp              { Just $1 } |
+parameter        { Nothing } |
+lambda_parameter { Nothing } |
+stmt_body        { Nothing }
+
+lambda_parameter:
+'{'
+    'kind' ':' 'VARIABLE' ','
+    'loc' ':' location ','
+    'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']'
+'}'
+{
+    ()
 }
 
 -- *************
@@ -543,9 +715,12 @@ exp_binop:
 }
 
 binop_kind:
-'EQUAL_TO' { Ast.EQ    } |
-'PLUS'     { Ast.PLUS  } |
-'MULTIPLY' { Ast.TIMES }
+'EQUAL_TO'         { Ast.EQ    } |
+'NOT_EQUAL_TO'     { Ast.EQ    } |
+'PLUS'             { Ast.PLUS  } |
+'MULTIPLY'         { Ast.TIMES } |
+'CONDITIONAL_AND'  { Ast.PLUS  } |
+'CONDITIONAL_OR'   { Ast.PLUS  }
 
 -- ***************
 -- *             *
@@ -586,12 +761,15 @@ exp_not:
 -- *           *
 -- *************
 stmt_body:
-stmt_block  { $1 } |
-stmt_exp    { $1 } |
-stmt_return { $1 } |
-stmt_if     { $1 } |
-stmt_vardec { $1 } |
-stmt_try    { $1 }
+stmt_block        { $1 } |
+stmt_exp          { $1 } |
+stmt_return       { $1 } |
+stmt_throw        { $1 } |
+stmt_continue     { $1 } |
+stmt_if           { $1 } |
+stmt_vardec       { $1 } |
+stmt_enhanced_for { $1 } |
+stmt_try          { $1 }
 
 -- **************
 -- *            *
@@ -638,6 +816,36 @@ stmt_return:
     JavaParserActions.stmtReturn $8 $13
 }
 
+-- **************
+-- *            *
+-- * stmt_throw *
+-- *            *
+-- **************
+stmt_throw:
+'{'
+    'kind' ':' 'THROW' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    JavaParserActions.stmtThrow $8 $13
+}
+
+-- ***************
+-- *             *
+-- * stmt_continue *
+-- *             *
+-- ***************
+stmt_continue:
+'{'
+    'kind' ':' 'CONTINUE' ','
+    'loc' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.stmtContinue $8
+}
+
 -- ***********
 -- *         *
 -- * stmt_if *
@@ -653,6 +861,21 @@ stmt_if:
 '}'
 {
     JavaParserActions.stmtIf $8 $12 $16 $21
+}
+
+-- *********************
+-- *                   *
+-- * stmt_enhanced_for *
+-- *                   *
+-- *********************
+stmt_enhanced_for:
+'{'
+    'kind' ':' 'ENHANCED_FOR_LOOP' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_vardec ',' exp ',' stmt_body ']'
+'}'
+{
+    JavaParserActions.stmtEnhancedFor $8 $13 $15 $17
 }
 
 -- ************
@@ -772,7 +995,9 @@ field_var:
 -- ***********
 tokenID:
 ID            { tokIDValue $1 } |
-'annotations' { "annotations"  }
+'type'        { "type"         } |
+'annotations' { "annotations"  } |
+'init'        { "init"         }
 
 -- ************
 -- *          *

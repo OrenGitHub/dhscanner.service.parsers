@@ -15,7 +15,7 @@ import Location
 -- *                 *
 -- *******************
 import qualified Data.Map
-import Data.Maybe ( fromMaybe, maybeToList )
+import Data.Maybe ( catMaybes, fromMaybe, maybeToList )
 
 -- ***************
 -- *             *
@@ -199,6 +199,14 @@ parameterizedType loc [] = Ast.VarSimple (Ast.VarSimpleContent (Token.VarName (T
 primitiveType :: Location -> String -> Ast.Var
 primitiveType loc name = Ast.VarSimple (Ast.VarSimpleContent (Token.VarName (Token.Named name loc)))
 
+-- *********
+-- *       *
+-- * arrayType *
+-- *       *
+-- *********
+arrayType :: Location -> Ast.Var -> Ast.Var
+arrayType _loc elementType = elementType
+
 -- *************
 -- *           *
 -- * modifiers *
@@ -335,6 +343,26 @@ expCall loc (callee:args) = Ast.ExpCall $ Ast.ExpCallContent {
 
 -- *************
 -- *           *
+-- * expLambda *
+-- *           *
+-- *************
+expLambda :: Location -> Maybe [ Maybe Ast.Exp ] -> Ast.Exp
+expLambda loc children = instrumentationCall "lambda" loc (lambdaArgs children)
+
+lambdaArgs :: Maybe [ Maybe Ast.Exp ] -> [ Ast.Exp ]
+lambdaArgs Nothing = []
+lambdaArgs (Just children) = catMaybes children
+
+-- **********************
+-- *                    *
+-- * expMemberReference *
+-- *                    *
+-- **********************
+expMemberReference :: Location -> [ Ast.Exp ] -> Ast.Exp
+expMemberReference loc children = instrumentationCall "member_reference" loc children
+
+-- *************
+-- *           *
 -- * stmtBlock *
 -- *           *
 -- *************
@@ -363,6 +391,22 @@ stmtReturn loc value = Ast.StmtReturn $ Ast.StmtReturnContent {
     Ast.stmtReturnLocation = loc
 }
 
+-- *************
+-- *           *
+-- * stmtThrow *
+-- *           *
+-- *************
+stmtThrow :: Location -> Ast.Exp -> Ast.Stmt
+stmtThrow loc value = Ast.StmtExp (instrumentationCall "throw" loc [value])
+
+-- ****************
+-- *              *
+-- * stmtContinue *
+-- *              *
+-- ****************
+stmtContinue :: Location -> Ast.Stmt
+stmtContinue loc = Ast.StmtExp (instrumentationCall "continue" loc [])
+
 -- **********
 -- *        *
 -- * stmtIf *
@@ -374,6 +418,17 @@ stmtIf loc cond thenStmt elseStmts = Ast.StmtIf $ Ast.StmtIfContent {
     Ast.stmtIfBody = [ thenStmt ],
     Ast.stmtElseBody = fromMaybe [] elseStmts,
     Ast.stmtIfLocation = loc
+}
+
+-- *******************
+-- *                 *
+-- * stmtEnhancedFor *
+-- *                 *
+-- *******************
+stmtEnhancedFor :: Location -> Ast.Stmt -> Ast.Exp -> Ast.Stmt -> Ast.Stmt
+stmtEnhancedFor loc varStmt iterable body = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ varStmt, Ast.StmtExp iterable ] ++ unblock body,
+    Ast.stmtBlockLocation = loc
 }
 
 -- ***********
