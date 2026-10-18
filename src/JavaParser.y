@@ -354,11 +354,13 @@ stmt_enum:
 attribute:
 stmt_vardec { $1 } |
 stmt_ctor   { $1 } |
-stmt_method { $1 }
+stmt_method { $1 } |
+stmt_class  { $1 }
 
 stmt_vardec:
-stmt_vardec_init    { $1 } |
-stmt_vardec_no_init { $1 }
+stmt_vardec_init          { $1 } |
+stmt_vardec_inferred_init { $1 } |
+stmt_vardec_no_init       { $1 }
 
 -- *******************
 -- *                 *
@@ -376,6 +378,23 @@ stmt_vardec_init:
 '}'
 {
     JavaParserActions.stmtVardec $8 $12 $22 (Just $26)
+}
+
+-- ****************************
+-- *                          *
+-- * stmt_vardec_inferred_init *
+-- *                          *
+-- ****************************
+stmt_vardec_inferred_init:
+'{'
+    'kind' ':' 'VARIABLE' ','
+    'loc' ':' location ','
+    'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'init' ':' exp
+'}'
+{
+    JavaParserActions.stmtVardec $8 $12 (JavaParserActions.primitiveType $8 "var") (Just $22)
 }
 
 -- **********************
@@ -401,12 +420,13 @@ stmt_vardec_no_init:
 -- *      *
 -- ********
 type:
-simple_var         { $1 } |
-field_var          { $1 } |
-parameterized_type { $1 } |
-primitive_type     { $1 } |
-array_type         { $1 } |
-union_type         { $1 }
+simple_var           { $1 } |
+field_var            { $1 } |
+parameterized_type   { $1 } |
+primitive_type       { $1 } |
+array_type           { $1 } |
+union_type           { $1 } |
+super_wildcard_type  { $1 }
 
 -- **********************
 -- *                    *
@@ -466,6 +486,21 @@ union_type:
 '}'
 {
     JavaParserActions.parameterizedType $8 $13
+}
+
+-- ***********************
+-- *                     *
+-- * super_wildcard_type *
+-- *                     *
+-- ***********************
+super_wildcard_type:
+'{'
+    'kind' ':' 'SUPER_WILDCARD' ','
+    'loc' ':' location ','
+    'children' ':' '[' type ']'
+'}'
+{
+    $13
 }
 
 -- *************
@@ -598,13 +633,17 @@ exp_char:
 -- ***********
 exp_int:
 '{'
-    'kind' ':' 'INT_LITERAL' ','
+    'kind' ':' int_literal_kind ','
     'loc' ':' location ','
     'text' ':' tokenID
 '}'
 {
     JavaParserActions.expInt $8 $12
 }
+
+int_literal_kind:
+'INT_LITERAL'  { () } |
+'LONG_LITERAL' { () }
 
 -- ************
 -- *          *
@@ -667,8 +706,22 @@ exp_new:
 }
 
 new_class_child:
-exp                { $1 } |
-parameterized_type { Ast.ExpVar (Ast.ExpVarContent $1) }
+exp                 { $1 } |
+parameterized_type  { Ast.ExpVar (Ast.ExpVarContent $1) } |
+anonymous_class_exp { $1 }
+
+anonymous_class_exp:
+'{'
+    'kind' ':' 'CLASS' ','
+    'loc' ':' location ','
+    'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'supers' ':' '[' optional(commalistof(type)) ']' ','
+    'children' ':' '[' optional(commalistof(attribute)) ']'
+'}'
+{
+    JavaParserActions.instrumentationCall "anonymous_class" $8 []
+}
 
 -- ***************
 -- *             *
@@ -770,15 +823,20 @@ exp_binop:
 }
 
 binop_kind:
-'EQUAL_TO'         { Ast.EQ    } |
-'NOT_EQUAL_TO'     { Ast.EQ    } |
-'GREATER_THAN'     { Ast.EQ    } |
-'LESS_THAN'        { Ast.EQ    } |
-'LESS_THAN_EQUAL'  { Ast.EQ    } |
-'PLUS'             { Ast.PLUS  } |
-'MULTIPLY'         { Ast.TIMES } |
-'CONDITIONAL_AND'  { Ast.PLUS  } |
-'CONDITIONAL_OR'   { Ast.PLUS  }
+'EQUAL_TO'            { Ast.EQ    } |
+'NOT_EQUAL_TO'        { Ast.EQ    } |
+'GREATER_THAN'        { Ast.EQ    } |
+'GREATER_THAN_EQUAL'  { Ast.EQ    } |
+'LESS_THAN'           { Ast.EQ    } |
+'LESS_THAN_EQUAL'     { Ast.EQ    } |
+'PLUS'                { Ast.PLUS  } |
+'MINUS'               { Ast.PLUS  } |
+'REMAINDER'           { Ast.PLUS  } |
+'MULTIPLY'            { Ast.TIMES } |
+'DIVIDE'              { Ast.TIMES } |
+'AND'                 { Ast.PLUS  } |
+'CONDITIONAL_AND'     { Ast.PLUS  } |
+'CONDITIONAL_OR'      { Ast.PLUS  }
 
 -- ***************
 -- *             *
@@ -802,7 +860,8 @@ exp_ternary:
 -- ************
 exp_unop:
 exp_not               { $1 } |
-exp_postfix_increment { $1 }
+exp_postfix_increment { $1 } |
+exp_prefix_increment  { $1 }
 
 exp_not:
 '{'
@@ -824,6 +883,16 @@ exp_postfix_increment:
     JavaParserActions.expUnop "postfix_increment" $8 $13
 }
 
+exp_prefix_increment:
+'{'
+    'kind' ':' 'PREFIX_INCREMENT' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    JavaParserActions.expUnop "prefix_increment" $8 $13
+}
+
 -- *************
 -- *           *
 -- * stmt_body *
@@ -835,6 +904,7 @@ stmt_exp          { $1 } |
 stmt_return       { $1 } |
 stmt_throw        { $1 } |
 stmt_continue     { $1 } |
+stmt_break        { $1 } |
 stmt_if           { $1 } |
 stmt_switch       { $1 } |
 stmt_while        { $1 } |
@@ -916,6 +986,21 @@ stmt_continue:
 '}'
 {
     JavaParserActions.stmtContinue $8
+}
+
+-- **************
+-- *            *
+-- * stmt_break *
+-- *            *
+-- **************
+stmt_break:
+'{'
+    'kind' ':' 'BREAK' ','
+    'loc' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.stmtBreak $8
 }
 
 -- ***********
@@ -1059,6 +1144,14 @@ stmt_try:
 '}'
 {
     JavaParserActions.stmtTryWithResource $8 $13 $15 $16
+} |
+'{'
+    'kind' ':' 'TRY' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_vardec ',' stmt_vardec ',' stmt_block optional_try_catches ']'
+'}'
+{
+    JavaParserActions.stmtTryWithResources $8 [$13, $15] $17 $18
 }
 
 optional_try_catches:
@@ -1203,11 +1296,30 @@ field_var:
 -- * tokenID *
 -- *         *
 -- ***********
+-- Every reserved Alex token is a valid Java identifier spelling. The
+-- lexer steals those strings from the generic ID rule, so `text`
+-- payloads must accept the full keyword set rather than grow one
+-- collision at a time. When a new %token keyword is added, add it here.
 tokenID:
-ID            { tokIDValue $1 } |
-'type'        { "type"         } |
-'annotations' { "annotations"  } |
-'init'        { "init"         }
+ID                                      { tokIDValue $1 } |
+'kind'                                  { "kind" } |
+'loc'                                   { "loc" } |
+'children'                              { "children" } |
+'text'                                  { "text" } |
+'startLine'                             { "startLine" } |
+'startCol'                              { "startCol" } |
+'endLine'                               { "endLine" } |
+'endCol'                                { "endCol" } |
+'annotations'                           { "annotations" } |
+'parameters'                            { "parameters" } |
+'supers'                                { "supers" } |
+'type'                                  { "type" } |
+'init'                                  { "init" } |
+'cond'                                  { "cond" } |
+'body'                                  { "body" } |
+'returnType'                            { "returnType" } |
+'left'                                  { "left" } |
+'right'                                 { "right" } |
 
 -- ************
 -- *          *

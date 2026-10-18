@@ -415,6 +415,14 @@ stmtThrow loc value = Ast.StmtExp (instrumentationCall "throw" loc [value])
 stmtContinue :: Location -> Ast.Stmt
 stmtContinue loc = Ast.StmtExp (instrumentationCall "continue" loc [])
 
+-- *************
+-- *           *
+-- * stmtBreak *
+-- *           *
+-- *************
+stmtBreak :: Location -> Ast.Stmt
+stmtBreak loc = Ast.StmtExp (instrumentationCall "break" loc [])
+
 -- **********
 -- *        *
 -- * stmtIf *
@@ -477,6 +485,15 @@ unblock s = [ s ]
 -- ***********************
 stmtTryWithResource :: Location -> Ast.Stmt -> Ast.Stmt -> Maybe [ Ast.Stmt ] -> Ast.Stmt
 stmtTryWithResource loc resource tryBlock catchBlocks = stmtTry loc (prependTryResource loc resource tryBlock) (fromMaybe [] catchBlocks)
+
+stmtTryWithResources :: Location -> [ Ast.Stmt ] -> Ast.Stmt -> Maybe [ Ast.Stmt ] -> Ast.Stmt
+stmtTryWithResources loc resources tryBlock catchBlocks = stmtTry loc (prependTryResources loc resources tryBlock) (fromMaybe [] catchBlocks)
+
+prependTryResources :: Location -> [ Ast.Stmt ] -> Ast.Stmt -> Ast.Stmt
+prependTryResources loc resources tryBlock = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = resources ++ unblock tryBlock,
+    Ast.stmtBlockLocation = loc
+}
 
 prependTryResource :: Location -> Ast.Stmt -> Ast.Stmt -> Ast.Stmt
 prependTryResource loc resource tryBlock = Ast.StmtBlock $ Ast.StmtBlockContent {
