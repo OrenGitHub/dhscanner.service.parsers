@@ -959,6 +959,7 @@ stmt_method:
         Ast.stmtMethodName = Token.MethodName $17,
         Ast.stmtMethodParams = [],
         Ast.stmtMethodBody = case $26 of { Nothing -> []; Just _stmts -> _stmts },
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $2,
         Ast.hostingClassName = Token.ClassName (Token.Named "not_a_real_class_name" $2),
         Ast.hostingClassSupers = []

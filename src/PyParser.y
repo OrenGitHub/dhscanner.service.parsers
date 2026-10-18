@@ -1857,6 +1857,7 @@ methodify'' c vars f = let m = Token.MethodName $ Token.getFuncNameToken (Ast.st
     Ast.stmtMethodName = m,
     Ast.stmtMethodParams = (Ast.stmtFuncParams f),
     Ast.stmtMethodBody = (Ast.stmtFuncBody f),
+    Ast.stmtMethodAnnotations = (Ast.stmtFuncAnnotations f),
     Ast.stmtMethodLocation = (Ast.stmtFuncLocation f),
     Ast.hostingClassName = c,
     Ast.hostingClassSupers = superify vars

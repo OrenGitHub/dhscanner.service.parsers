@@ -2274,6 +2274,7 @@ stmt_method:
         Ast.stmtMethodName = Token.MethodName $4,
         Ast.stmtMethodParams = $6,
         Ast.stmtMethodBody = $8,
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $2,
         Ast.hostingClassName = Token.ClassName (Token.Named "host" $2),
         Ast.hostingClassSupers = []
@@ -2289,6 +2290,7 @@ identifier
         Ast.stmtMethodName = Token.MethodName $1,
         Ast.stmtMethodParams = [],
         Ast.stmtMethodBody = [],
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = Token.location $1,
         Ast.hostingClassName = Token.ClassName $1,
         Ast.hostingClassSupers = []

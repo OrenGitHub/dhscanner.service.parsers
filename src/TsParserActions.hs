@@ -391,6 +391,7 @@ stmtMethod loc name params maybeReturnType maybeBody = Just $ Ast.StmtMethod $ A
     Ast.stmtMethodName = Token.MethodName name,
     Ast.stmtMethodParams = params,
     Ast.stmtMethodBody = ensureCallableBodyEndsWithReturn loc (fromMaybe [] maybeBody),
+    Ast.stmtMethodAnnotations = [],
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
     Ast.hostingClassSupers = []
@@ -418,7 +419,8 @@ enumDataMember :: Token.Named -> Ast.DataMember
 enumDataMember name = Ast.DataMember {
     Ast.dataMemberName = Token.MemberName name,
     Ast.dataMemberNominalType = Nothing,
-    Ast.dataMemberInitValue = Nothing
+    Ast.dataMemberInitValue = Nothing,
+    Ast.dataMemberAnnotations = []
 }
 
 stmtEnum :: Token.Named -> [Ast.DataMember] -> Ast.Stmt

@@ -1165,6 +1165,7 @@ stmt_func:
                      Ast.stmtMethodName = Token.MethodName $11,
                      Ast.stmtMethodParams = [p] ++ (snd (fst $14)),
                      Ast.stmtMethodBody = [$17],
+                     Ast.stmtMethodAnnotations = [],
                      Ast.stmtMethodLocation = Token.location $11,
                      Ast.hostingClassName = Token.ClassName $11,
                      Ast.hostingClassSupers = []
@@ -1599,7 +1600,8 @@ dataFrom :: Ast.Var -> Token.Named -> Ast.DataMember
 dataFrom v f = Ast.DataMember {
     Ast.dataMemberName = Token.MemberName f,
     Ast.dataMemberNominalType = Just (varme (chooseBetween f v)),
-    Ast.dataMemberInitValue = Nothing
+    Ast.dataMemberInitValue = Nothing,
+    Ast.dataMemberAnnotations = []
 }
 
 dataMemberFrom'' :: Token.FieldName -> Ast.Var -> Maybe (Token.MemberName, Ast.DataMember)
@@ -1637,7 +1639,7 @@ keepJsonDataMember' :: Token.VarName -> Bool
 keepJsonDataMember' (Token.VarName (Token.Named v _)) = (v == "json")
 
 keepJsonDataMember :: Ast.DataMember -> Bool
-keepJsonDataMember (Ast.DataMember _ (Just (Ast.VarSimple (Ast.VarSimpleContent v))) _) = keepJsonDataMember' v
+keepJsonDataMember (Ast.DataMember _ (Just (Ast.VarSimple (Ast.VarSimpleContent v))) _ _) = keepJsonDataMember' v
 keepJsonDataMember _ = False
 
 keepJsonDataMembers :: Map Token.MemberName Ast.DataMember -> Map Token.MemberName Ast.DataMember
@@ -1651,11 +1653,12 @@ paramFrom name = Ast.Param {
 }
 
 methodFrom :: Token.ClassName -> Ast.DataMember -> Ast.StmtMethodContent
-methodFrom c (Ast.DataMember (Token.MemberName name) _ _) = Ast.StmtMethodContent {
+methodFrom c (Ast.DataMember (Token.MemberName name) _ _ _) = Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName name,
     Ast.stmtMethodParams = [paramFrom name],
     Ast.stmtMethodBody = [],
+    Ast.stmtMethodAnnotations = [],
     Ast.stmtMethodLocation = (Token.location name),
     Ast.hostingClassName = c,
     Ast.hostingClassSupers = []

@@ -795,6 +795,7 @@ stmt_property:
         Ast.stmtMethodName = Token.MethodName (Token.Named "POPO" $12),
         Ast.stmtMethodParams = [],
         Ast.stmtMethodBody = [],
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $12,
         Ast.hostingClassName = Token.ClassName (Token.Named "MOMO" $12),
         Ast.hostingClassSupers = []
@@ -858,6 +859,7 @@ stmt_method:
         Ast.stmtMethodName = Token.MethodName (Token.Named "POPO" $12),
         Ast.stmtMethodParams = $19,
         Ast.stmtMethodBody = [],
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $12,
         Ast.hostingClassName = Token.ClassName (Token.Named "MOMO" $12),
         Ast.hostingClassSupers = []
@@ -989,6 +991,7 @@ stmt_ctor_1:
         Ast.stmtMethodName = Token.MethodName (Token.Named "POPO" $12),
         Ast.stmtMethodParams = $17,
         Ast.stmtMethodBody = [],
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $12,
         Ast.hostingClassName = Token.ClassName (Token.Named "MOMO" $12),
         Ast.hostingClassSupers = []
@@ -1010,6 +1013,7 @@ stmt_ctor_2:
         Ast.stmtMethodName = Token.MethodName (Token.Named "POPO" $12),
         Ast.stmtMethodParams = $17,
         Ast.stmtMethodBody = [],
+        Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $12,
         Ast.hostingClassName = Token.ClassName (Token.Named "MOMO" $12),
         Ast.hostingClassSupers = []
@@ -1192,6 +1196,7 @@ methodify'' c vars f = let m = Token.MethodName $ Token.getFuncNameToken (Ast.st
     Ast.stmtMethodName = m,
     Ast.stmtMethodParams = (Ast.stmtFuncParams f),
     Ast.stmtMethodBody = (Ast.stmtFuncBody f),
+    Ast.stmtMethodAnnotations = (Ast.stmtFuncAnnotations f),
     Ast.stmtMethodLocation = (Ast.stmtFuncLocation f),
     Ast.hostingClassName = c,
     Ast.hostingClassSupers = superify vars

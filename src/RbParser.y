@@ -2513,6 +2513,7 @@ methodify'' c s f = let m = Token.MethodName $ Token.getFuncNameToken (Ast.stmtF
     Ast.stmtMethodName = Token.MethodName $ Token.getFuncNameToken (Ast.stmtFuncName f),
     Ast.stmtMethodParams = (Ast.stmtFuncParams f),
     Ast.stmtMethodBody = (Ast.stmtFuncBody f),
+    Ast.stmtMethodAnnotations = (Ast.stmtFuncAnnotations f),
     Ast.stmtMethodLocation = (Ast.stmtFuncLocation f),
     Ast.hostingClassName = c,
     Ast.hostingClassSupers = case s of { Nothing -> []; Just oneSuperClassName -> [ oneSuperClassName ] }
