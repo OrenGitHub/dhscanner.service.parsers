@@ -1319,7 +1319,7 @@ ID                                      { tokIDValue $1 } |
 'body'                                  { "body" } |
 'returnType'                            { "returnType" } |
 'left'                                  { "left" } |
-'right'                                 { "right" } |
+'right'                                 { "right" }
 
 -- ************
 -- *          *
