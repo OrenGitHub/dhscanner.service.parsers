@@ -290,7 +290,23 @@ stmt_package   { $1 } |
 stmt_import    { $1 } |
 stmt_class     { $1 } |
 stmt_interface { $1 } |
-stmt_enum      { $1 }
+stmt_enum      { $1 } |
+stmt_empty     { $1 }
+
+-- ****************
+-- *              *
+-- * stmt_empty   *
+-- *              *
+-- ****************
+stmt_empty:
+'{'
+    'kind' ':' 'EMPTY_STATEMENT' ','
+    'loc' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    JavaParserActions.stmtBlock $8 Nothing
+}
 
 -- **************
 -- *            *
@@ -355,7 +371,9 @@ attribute:
 stmt_vardec { $1 } |
 stmt_ctor   { $1 } |
 stmt_method { $1 } |
-stmt_class  { $1 }
+stmt_class  { $1 } |
+stmt_enum   { $1 } |
+stmt_block  { $1 }
 
 stmt_vardec:
 stmt_vardec_init          { $1 } |
@@ -420,13 +438,14 @@ stmt_vardec_no_init:
 -- *      *
 -- ********
 type:
-simple_var           { $1 } |
-field_var            { $1 } |
-parameterized_type   { $1 } |
-primitive_type       { $1 } |
-array_type           { $1 } |
-union_type           { $1 } |
-super_wildcard_type  { $1 }
+simple_var            { $1 } |
+field_var             { $1 } |
+parameterized_type    { $1 } |
+primitive_type        { $1 } |
+array_type            { $1 } |
+union_type            { $1 } |
+extends_wildcard_type { $1 } |
+super_wildcard_type   { $1 }
 
 -- **********************
 -- *                    *
@@ -486,6 +505,21 @@ union_type:
 '}'
 {
     JavaParserActions.parameterizedType $8 $13
+}
+
+-- *************************
+-- *                       *
+-- * extends_wildcard_type *
+-- *                       *
+-- *************************
+extends_wildcard_type:
+'{'
+    'kind' ':' 'EXTENDS_WILDCARD' ','
+    'loc' ':' location ','
+    'children' ':' '[' type ']'
+'}'
+{
+    $13
 }
 
 -- ***********************
@@ -587,6 +621,7 @@ exp_ternary        { $1 } |
 exp_unop          { $1 } |
 exp_lambda        { $1 } |
 exp_instanceof    { $1 } |
+exp_switch        { $1 } |
 exp_member_reference { $1 }
 
 -- ***********
@@ -642,8 +677,10 @@ exp_int:
 }
 
 int_literal_kind:
-'INT_LITERAL'  { () } |
-'LONG_LITERAL' { () }
+'INT_LITERAL'    { () } |
+'LONG_LITERAL'   { () } |
+'DOUBLE_LITERAL' { () } |
+'FLOAT_LITERAL'  { () }
 
 -- ************
 -- *          *
@@ -774,6 +811,16 @@ exp_member_reference:
     JavaParserActions.expMemberReference $8 $13
 }
 
+exp_switch:
+'{'
+    'kind' ':' 'SWITCH_EXPRESSION' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp optional_switch_cases ']'
+'}'
+{
+    $13
+}
+
 lambda_child:
 exp              { Just $1 } |
 parameter        { Nothing } |
@@ -835,6 +882,8 @@ binop_kind:
 'MULTIPLY'            { Ast.TIMES } |
 'DIVIDE'              { Ast.TIMES } |
 'AND'                 { Ast.PLUS  } |
+'LEFT_SHIFT'          { Ast.PLUS  } |
+'UNSIGNED_RIGHT_SHIFT' { Ast.PLUS  } |
 'CONDITIONAL_AND'     { Ast.PLUS  } |
 'CONDITIONAL_OR'      { Ast.PLUS  }
 
@@ -861,7 +910,8 @@ exp_ternary:
 exp_unop:
 exp_not               { $1 } |
 exp_postfix_increment { $1 } |
-exp_prefix_increment  { $1 }
+exp_prefix_increment  { $1 } |
+exp_unary_minus       { $1 }
 
 exp_not:
 '{'
@@ -875,13 +925,17 @@ exp_not:
 
 exp_postfix_increment:
 '{'
-    'kind' ':' 'POSTFIX_INCREMENT' ','
+    'kind' ':' postfix_update_kind ','
     'loc' ':' location ','
     'children' ':' '[' exp ']'
 '}'
 {
-    JavaParserActions.expUnop "postfix_increment" $8 $13
+    JavaParserActions.expUnop $4 $8 $13
 }
+
+postfix_update_kind:
+'POSTFIX_INCREMENT' { "postfix_increment" } |
+'POSTFIX_DECREMENT' { "postfix_decrement" }
 
 exp_prefix_increment:
 '{'
@@ -891,6 +945,16 @@ exp_prefix_increment:
 '}'
 {
     JavaParserActions.expUnop "prefix_increment" $8 $13
+}
+
+exp_unary_minus:
+'{'
+    'kind' ':' 'UNARY_MINUS' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    JavaParserActions.expUnop "unary_minus" $8 $13
 }
 
 -- *************
@@ -908,6 +972,7 @@ stmt_break        { $1 } |
 stmt_if           { $1 } |
 stmt_switch       { $1 } |
 stmt_while        { $1 } |
+stmt_do_while     { $1 } |
 stmt_vardec       { $1 } |
 stmt_enhanced_for { $1 } |
 stmt_for          { $1 } |
@@ -1084,6 +1149,21 @@ stmt_while:
     JavaParserActions.stmtWhile $8 $13 $15
 }
 
+-- *****************
+-- *               *
+-- * stmt_do_while *
+-- *               *
+-- *****************
+stmt_do_while:
+'{'
+    'kind' ':' 'DO_WHILE_LOOP' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_body ',' exp ']'
+'}'
+{
+    JavaParserActions.stmtWhile $8 $15 $13
+}
+
 -- *********************
 -- *                   *
 -- * stmt_enhanced_for *
@@ -1121,6 +1201,22 @@ stmt_for:
 '}'
 {
     JavaParserActions.stmtFor $8 $13 $15 $17 $19
+} |
+'{'
+    'kind' ':' 'FOR_LOOP' ','
+    'loc' ':' location ','
+    'children' ':' '[' stmt_for_init ',' exp ',' stmt_block ']'
+'}'
+{
+    JavaParserActions.stmtForNoUpdate $8 $13 $15 $17
+} |
+'{'
+    'kind' ':' 'FOR_LOOP' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' stmt_exp ',' stmt_body ']'
+'}'
+{
+    JavaParserActions.stmtForNoInit $8 $13 $15 $17
 }
 
 -- ************

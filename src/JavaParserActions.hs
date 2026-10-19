@@ -509,6 +509,18 @@ stmtFor loc initStmt cond updateStmt body = Ast.StmtBlock $ Ast.StmtBlockContent
     Ast.stmtBlockLocation = loc
 }
 
+stmtForNoUpdate :: Location -> Ast.Stmt -> Ast.Exp -> Ast.Stmt -> Ast.Stmt
+stmtForNoUpdate loc initStmt cond body = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ initStmt, Ast.StmtExp cond ] ++ unblock body,
+    Ast.stmtBlockLocation = loc
+}
+
+stmtForNoInit :: Location -> Ast.Exp -> Ast.Stmt -> Ast.Stmt -> Ast.Stmt
+stmtForNoInit loc cond updateStmt body = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ Ast.StmtExp cond, updateStmt ] ++ unblock body,
+    Ast.stmtBlockLocation = loc
+}
+
 -- ***********
 -- *         *
 -- * unblock *
