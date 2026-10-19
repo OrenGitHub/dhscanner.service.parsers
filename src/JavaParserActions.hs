@@ -126,11 +126,49 @@ subscriptVar loc lhs index = Ast.VarSubscript (Ast.VarSubscriptContent lhs index
 -- *           *
 -- *************
 stmtClass :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Var ] -> Maybe [ Ast.Stmt ] -> Ast.Stmt
-stmtClass loc name _annotations _supers _members = Ast.StmtClass $ Ast.StmtClassContent {
-    Ast.stmtClassName = Token.ClassName (Token.Named name loc),
-    Ast.stmtClassSupers = [],
+stmtClass loc name _annotations supers members = stmtClass' (Token.ClassName (Token.Named name loc)) (superify (fromMaybe [] supers)) [ m | Ast.StmtMethod m <- fromMaybe [] members ]
+
+stmtClass' :: Token.ClassName -> [ Token.SuperName ] -> [ Ast.StmtMethodContent ] -> Ast.Stmt
+stmtClass' className supers methods = Ast.StmtClass $ Ast.StmtClassContent {
+    Ast.stmtClassName = className,
+    Ast.stmtClassSupers = supers,
     Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-    Ast.stmtClassMethods = Ast.Methods Data.Map.empty
+    Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList [ (Ast.stmtMethodName m, m { Ast.hostingClassName = className, Ast.hostingClassSupers = supers }) | m <- methods ]
+}
+
+-- ************
+-- *          *
+-- * superify *
+-- *          *
+-- ************
+superify' :: Ast.Var -> Token.SuperName
+superify' (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName v))) = Token.SuperName v
+superify' v@(Ast.VarField (Ast.VarFieldContent _ (Token.FieldName (Token.Named _ l)) _)) = Token.SuperName (Token.Named (var2name' v) l)
+superify' (Ast.VarSubscript (Ast.VarSubscriptContent _ _ l)) = Token.SuperName (Token.Named "subscript" l)
+
+superify :: [ Ast.Var ] -> [ Token.SuperName ]
+superify = map superify'
+
+-- ********************
+-- *                  *
+-- * withSuperImports *
+-- *                  *
+-- ********************
+-- a qualified super ( class A extends java.io.Reader ) gets a synthetic
+-- import aliased to its dotted name ( from java.io import Reader as "java.io.Reader" ),
+-- so codegen resolves it like any imported name - no Java identifier contains a '.'
+withSuperImports :: [ Ast.Stmt ] -> [ Ast.Stmt ]
+withSuperImports stmts = [ superImport s | Ast.StmtClass c <- stmts, Token.SuperName s <- Ast.stmtClassSupers c, '.' `elem` Token.content s ] ++ stmts
+
+superImport :: Token.Named -> Ast.Stmt
+superImport (Token.Named qualified loc) = superImport' qualified (break (== '.') (reverse qualified)) loc
+
+superImport' :: String -> (String, String) -> Location -> Ast.Stmt
+superImport' qualified (specific, source) loc = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent (reverse (drop 1 source))),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific (reverse specific)),
+    Ast.stmtImportAlias = Just (Ast.ImportAlias qualified),
+    Ast.stmtImportLocation = loc
 }
 
 -- **************
@@ -163,13 +201,13 @@ parameter loc name typ = Ast.Param {
 -- * stmtCtor *
 -- *          *
 -- ************
-stmtCtor :: Location -> String -> Maybe [ Ast.Param ] -> Maybe Ast.Stmt -> Ast.Stmt
-stmtCtor loc name _params body = Ast.StmtMethod $ Ast.StmtMethodContent {
+stmtCtor :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Param ] -> Maybe Ast.Stmt -> Ast.Stmt
+stmtCtor loc name annotations _params body = Ast.StmtMethod $ Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName (Token.Named name loc),
     Ast.stmtMethodParams = [],
     Ast.stmtMethodBody = maybeToList body,
-    Ast.stmtMethodAnnotations = [],
+    Ast.stmtMethodAnnotations = fromMaybe [] annotations,
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
     Ast.hostingClassSupers = []
@@ -180,13 +218,13 @@ stmtCtor loc name _params body = Ast.StmtMethod $ Ast.StmtMethodContent {
 -- * stmtMethod *
 -- *            *
 -- **************
-stmtMethod :: Location -> String -> Maybe [ Ast.Param ] -> Ast.Var -> Maybe Ast.Stmt -> Ast.Stmt
-stmtMethod loc name _params _returnType body = Ast.StmtMethod $ Ast.StmtMethodContent {
+stmtMethod :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Param ] -> Ast.Var -> Maybe Ast.Stmt -> Ast.Stmt
+stmtMethod loc name annotations _params _returnType body = Ast.StmtMethod $ Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName (Token.Named name loc),
     Ast.stmtMethodParams = [],
     Ast.stmtMethodBody = maybeToList body,
-    Ast.stmtMethodAnnotations = [],
+    Ast.stmtMethodAnnotations = fromMaybe [] annotations,
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
     Ast.hostingClassSupers = []

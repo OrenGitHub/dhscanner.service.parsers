@@ -281,7 +281,7 @@ program:
     Ast.Root
     {
         Ast.filename = getFilename $1,
-        Ast.stmts = $13
+        Ast.stmts = JavaParserActions.withSuperImports $13
     }
 }
 
@@ -534,7 +534,7 @@ stmt_ctor:
     'body' ':' '[' optional(stmt_block) ']'
 '}'
 {
-    JavaParserActions.stmtCtor $8 $12 $23 $29
+    JavaParserActions.stmtCtor $8 $12 $17 $23 $29
 }
 
 -- ***************
@@ -553,7 +553,7 @@ stmt_method:
     'body' ':' '[' optional(stmt_block) ']'
 '}'
 {
-    JavaParserActions.stmtMethod $8 $12 $23 $28 $33
+    JavaParserActions.stmtMethod $8 $12 $17 $23 $28 $33
 }
 
 -- **************
@@ -1319,7 +1319,13 @@ ID                                      { tokIDValue $1 } |
 'body'                                  { "body" } |
 'returnType'                            { "returnType" } |
 'left'                                  { "left" } |
-'right'                                 { "right" }
+'right'                                 { "right" } |
+'CONTINUE'                              { "CONTINUE" } |
+'GREATER_THAN'                          { "GREATER_THAN" } |
+'LESS_THAN'                             { "LESS_THAN" } |
+'OTHER'                                 { "OTHER" } |
+'METHOD'                                { "METHOD" } |
+'OR'                                    { "OR" }
 
 -- ************
 -- *          *
