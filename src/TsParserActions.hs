@@ -394,7 +394,8 @@ stmtMethod loc name params maybeReturnType maybeBody = Just $ Ast.StmtMethod $ A
     Ast.stmtMethodAnnotations = [],
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
-    Ast.hostingClassSupers = []
+    Ast.hostingClassSupers = [],
+    Ast.hostingClassAnnotations = []
 }
 
 methodReturnType :: Location -> Maybe (Maybe Token.Named) -> Maybe Ast.Var

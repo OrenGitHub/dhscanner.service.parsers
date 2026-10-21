@@ -126,14 +126,14 @@ subscriptVar loc lhs index = Ast.VarSubscript (Ast.VarSubscriptContent lhs index
 -- *           *
 -- *************
 stmtClass :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Var ] -> Maybe [ Ast.Stmt ] -> Ast.Stmt
-stmtClass loc name _annotations supers members = stmtClass' (Token.ClassName (Token.Named name loc)) (superify (fromMaybe [] supers)) [ m | Ast.StmtMethod m <- fromMaybe [] members ]
+stmtClass loc name annotations supers members = stmtClass' (Token.ClassName (Token.Named name loc)) (superify (fromMaybe [] supers)) (fromMaybe [] annotations) [ m | Ast.StmtMethod m <- fromMaybe [] members ]
 
-stmtClass' :: Token.ClassName -> [ Token.SuperName ] -> [ Ast.StmtMethodContent ] -> Ast.Stmt
-stmtClass' className supers methods = Ast.StmtClass $ Ast.StmtClassContent {
+stmtClass' :: Token.ClassName -> [ Token.SuperName ] -> [ Ast.Exp ] -> [ Ast.StmtMethodContent ] -> Ast.Stmt
+stmtClass' className supers annotations methods = Ast.StmtClass $ Ast.StmtClassContent {
     Ast.stmtClassName = className,
     Ast.stmtClassSupers = supers,
     Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-    Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList [ (Ast.stmtMethodName m, m { Ast.hostingClassName = className, Ast.hostingClassSupers = supers }) | m <- methods ]
+    Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList [ (Ast.stmtMethodName m, m { Ast.hostingClassName = className, Ast.hostingClassSupers = supers, Ast.hostingClassAnnotations = annotations }) | m <- methods ]
 }
 
 -- ************
@@ -210,7 +210,8 @@ stmtCtor loc name annotations _params body = Ast.StmtMethod $ Ast.StmtMethodCont
     Ast.stmtMethodAnnotations = fromMaybe [] annotations,
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
-    Ast.hostingClassSupers = []
+    Ast.hostingClassSupers = [],
+    Ast.hostingClassAnnotations = []
 }
 
 -- **************
@@ -227,7 +228,8 @@ stmtMethod loc name annotations _params _returnType body = Ast.StmtMethod $ Ast.
     Ast.stmtMethodAnnotations = fromMaybe [] annotations,
     Ast.stmtMethodLocation = loc,
     Ast.hostingClassName = Token.ClassName (Token.Named "" loc),
-    Ast.hostingClassSupers = []
+    Ast.hostingClassSupers = [],
+    Ast.hostingClassAnnotations = []
 }
 
 -- *********************

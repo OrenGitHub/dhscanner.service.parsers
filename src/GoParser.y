@@ -1168,7 +1168,8 @@ stmt_func:
                      Ast.stmtMethodAnnotations = [],
                      Ast.stmtMethodLocation = Token.location $11,
                      Ast.hostingClassName = Token.ClassName $11,
-                     Ast.hostingClassSupers = []
+                     Ast.hostingClassSupers = [],
+                     Ast.hostingClassAnnotations = []
                  }
 }
 
@@ -1661,7 +1662,8 @@ methodFrom c (Ast.DataMember (Token.MemberName name) _ _ _) = Ast.StmtMethodCont
     Ast.stmtMethodAnnotations = [],
     Ast.stmtMethodLocation = (Token.location name),
     Ast.hostingClassName = c,
-    Ast.hostingClassSupers = []
+    Ast.hostingClassSupers = [],
+    Ast.hostingClassAnnotations = []
 }
 
 toMethodPair :: Token.ClassName -> (Token.MemberName, Ast.DataMember) -> (Token.MethodName, Ast.StmtMethodContent)

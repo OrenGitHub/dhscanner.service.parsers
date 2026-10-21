@@ -962,7 +962,8 @@ stmt_method:
         Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $2,
         Ast.hostingClassName = Token.ClassName (Token.Named "not_a_real_class_name" $2),
-        Ast.hostingClassSupers = []
+        Ast.hostingClassSupers = [],
+        Ast.hostingClassAnnotations = []
     }
 }
 
