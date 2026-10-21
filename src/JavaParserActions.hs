@@ -274,9 +274,20 @@ annotation :: Location -> [ Ast.Exp ] -> Ast.Exp
 annotation loc [] = Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName (Token.Named "" loc)))))
 annotation loc (callee:args) = Ast.ExpCall $ Ast.ExpCallContent {
     Ast.callee = callee,
-    Ast.args = args,
+    Ast.args = map annotationArg args,
     Ast.expCallLocation = loc
 }
+
+-- | annotation element-value pairs ( @RequestMapping( value = "/x" ) )
+-- arrive as plain assignments ; they are keyword args, not writes to a
+-- variable named `value`
+annotationArg :: Ast.Exp -> Ast.Exp
+annotationArg (Ast.ExpAssign (Ast.ExpAssignContent (Ast.VarSimple v) rhs loc)) = Ast.ExpKwArg $ Ast.ExpKwArgContent {
+    Ast.expKwArgName = Token.content (Token.getVarNameToken (Ast.varName v)),
+    Ast.expKwArgValue = rhs,
+    Ast.expKwArgLocation = loc
+}
+annotationArg arg = arg
 
 -- *************
 -- *           *
