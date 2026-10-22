@@ -547,10 +547,11 @@ parameter:
     'kind' ':' 'PARAMETER' ','
     'loc' ':' location ','
     'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
     'type' ':' type
 '}'
 {
-    JavaParserActions.parameter $8 $12 $16
+    JavaParserActions.parameter $8 $12 $17 $22
 }
 
 -- *************

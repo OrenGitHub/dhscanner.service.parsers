@@ -1626,7 +1626,8 @@ param:
             Token.location = $8 { Location.colEnd = (Location.colStart $8) + (fromIntegral (length $5)) }
         },
         Ast.paramNominalType = nominalTypeMe $7,
-        Ast.paramSerialIdx = 156
+        Ast.paramSerialIdx = 156,
+        Ast.paramAnnotations = []
     }
 }
 

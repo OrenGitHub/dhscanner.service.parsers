@@ -113,7 +113,8 @@ parameterChunk1 :: Token.Named -> Maybe (Maybe Token.Named) -> [Ast.Param]
 parameterChunk1 name maybeTypeHint = [Ast.Param {
     Ast.paramName = Token.ParamName name,
     Ast.paramNominalType = case maybeTypeHint of { Just (Just t) -> Just (varify t); _ -> Nothing },
-    Ast.paramSerialIdx = 156
+    Ast.paramSerialIdx = 156,
+    Ast.paramAnnotations = []
 }]
 
 -- ***************

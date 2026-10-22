@@ -498,7 +498,8 @@ param_1:
     {
         Ast.paramName = Token.ParamName $ Token.Named (unquote $8) $12,
         Ast.paramNominalType = Nothing,
-        Ast.paramSerialIdx = 156
+        Ast.paramSerialIdx = 156,
+        Ast.paramAnnotations = []
     }
 }
 
@@ -519,7 +520,8 @@ param_2:
     {
         Ast.paramName = Token.ParamName $8,
         Ast.paramNominalType = Just (varme (Token.Named "any" $16)),
-        Ast.paramSerialIdx = 0
+        Ast.paramSerialIdx = 0,
+        Ast.paramAnnotations = []
     }
 }
 
@@ -539,7 +541,8 @@ param_3:
     {
         Ast.paramName = Token.ParamName ( Token.Named "Moshe" $14),
         Ast.paramNominalType = Just (varme (Token.Named "any" $14)),
-        Ast.paramSerialIdx = 0
+        Ast.paramSerialIdx = 0,
+        Ast.paramAnnotations = []
     }
 }
 

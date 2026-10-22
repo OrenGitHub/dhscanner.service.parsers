@@ -1029,7 +1029,8 @@ property_signature_as_param:
     {
         Ast.paramName = Token.ParamName $4,
         Ast.paramNominalType = case $6 of { Just t -> Just (Actions.varify t); _ -> Nothing },
-        Ast.paramSerialIdx = 156
+        Ast.paramSerialIdx = 156,
+        Ast.paramAnnotations = []
     }
 }
 
@@ -2756,7 +2757,7 @@ lambdame' :: Ast.StmtMethodContent -> Ast.Exp
 lambdame' m = let
     p = Token.ParamName (Token.getMethodNameToken (Ast.stmtMethodName m))
     in Ast.ExpLambda $ Ast.ExpLambdaContent {
-        Ast.expLambdaParams = [(Ast.Param p Nothing 174)] ++ (Ast.stmtMethodParams m),
+        Ast.expLambdaParams = [(Ast.Param p Nothing 174 [])] ++ (Ast.stmtMethodParams m),
         Ast.expLambdaBody = Ast.stmtMethodBody m,
         Ast.expLambdaLocation = Ast.stmtMethodLocation m
     }

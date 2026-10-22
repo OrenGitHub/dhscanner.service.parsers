@@ -929,7 +929,8 @@ param:
     {
         Ast.paramName = Token.ParamName $ Token.Named $28 $24,
         Ast.paramNominalType = Just (varme (Token.Named "any" $24)),
-        paramSerialIdx = 15555
+        paramSerialIdx = 15555,
+        paramAnnotations = []
     }
 }
 

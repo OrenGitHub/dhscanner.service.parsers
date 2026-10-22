@@ -2449,7 +2449,7 @@ paramify :: Token.Named -> Ast.Param
 paramify token = let
     paramName = Token.ParamName token
     nominalType = Just (varme (Token.Named "any" (Token.location token)))
-    in Ast.Param paramName nominalType 156
+    in Ast.Param paramName nominalType 156 []
 
 nameify :: Ast.Var -> Token.Named
 nameify (Ast.VarSimple    v) = nameifyVarSimple    v

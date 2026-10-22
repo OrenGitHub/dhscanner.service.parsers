@@ -898,7 +898,8 @@ field_2:
     [Ast.Param {
         Ast.paramName = Token.ParamName (Token.Named "_" (Location "" 1 1 1 1)),
         Ast.paramNominalType = nameExp $11,
-        Ast.paramSerialIdx = 0
+        Ast.paramSerialIdx = 0,
+        Ast.paramAnnotations = []
     }]
 }
 
@@ -1579,14 +1580,16 @@ paramifySingleNoType :: Token.Named -> Ast.Param
 paramifySingleNoType name = Ast.Param {
     Ast.paramName = Token.ParamName name,
     Ast.paramNominalType = Just (varme (Token.Named "any" (Token.location name))),
-    Ast.paramSerialIdx = 0
+    Ast.paramSerialIdx = 0,
+    Ast.paramAnnotations = []
 }
 
 paramifySingleWithType :: Ast.Var -> Token.Named -> Ast.Param
 paramifySingleWithType t name = Ast.Param {
     Ast.paramName = Token.ParamName name,
     Ast.paramNominalType = Just t,
-    Ast.paramSerialIdx = 0
+    Ast.paramSerialIdx = 0,
+    Ast.paramAnnotations = []
 }
 
 nameExp :: Ast.Exp -> Maybe Ast.Var
@@ -1650,7 +1653,8 @@ paramFrom :: Token.Named -> Ast.Param
 paramFrom name = Ast.Param {
     Ast.paramName = Token.ParamName (Token.Named "json" (Token.location name)),
     Ast.paramNominalType = Just (varme (Token.Named "json" (Token.location name))),
-    Ast.paramSerialIdx = 0
+    Ast.paramSerialIdx = 0,
+    Ast.paramAnnotations = []
 }
 
 methodFrom :: Token.ClassName -> Ast.DataMember -> Ast.StmtMethodContent

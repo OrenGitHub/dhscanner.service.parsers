@@ -189,11 +189,12 @@ stmtVardec loc name typ initValue = Ast.StmtVardec $ Ast.StmtVardecContent {
 -- * parameter *
 -- *           *
 -- *************
-parameter :: Location -> String -> Ast.Var -> Ast.Param
-parameter loc name typ = Ast.Param {
+parameter :: Location -> String -> Maybe [ Ast.Exp ] -> Ast.Var -> Ast.Param
+parameter loc name annotations typ = Ast.Param {
     Ast.paramName = Token.ParamName (Token.Named name loc),
     Ast.paramNominalType = Just typ,
-    Ast.paramSerialIdx = 0
+    Ast.paramSerialIdx = 0,
+    Ast.paramAnnotations = fromMaybe [] annotations
 }
 
 -- | number the parameters in declaration order ( zero-based )
