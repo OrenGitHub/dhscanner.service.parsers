@@ -196,16 +196,20 @@ parameter loc name typ = Ast.Param {
     Ast.paramSerialIdx = 0
 }
 
+-- | number the parameters in declaration order ( zero-based )
+serialize :: Maybe [ Ast.Param ] -> [ Ast.Param ]
+serialize = zipWith (\i p -> p { Ast.paramSerialIdx = i }) [0..] . fromMaybe []
+
 -- ************
 -- *          *
 -- * stmtCtor *
 -- *          *
 -- ************
 stmtCtor :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Param ] -> Maybe Ast.Stmt -> Ast.Stmt
-stmtCtor loc name annotations _params body = Ast.StmtMethod $ Ast.StmtMethodContent {
+stmtCtor loc name annotations params body = Ast.StmtMethod $ Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName (Token.Named name loc),
-    Ast.stmtMethodParams = [],
+    Ast.stmtMethodParams = serialize params,
     Ast.stmtMethodBody = maybeToList body,
     Ast.stmtMethodAnnotations = fromMaybe [] annotations,
     Ast.stmtMethodLocation = loc,
@@ -220,10 +224,10 @@ stmtCtor loc name annotations _params body = Ast.StmtMethod $ Ast.StmtMethodCont
 -- *            *
 -- **************
 stmtMethod :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Param ] -> Ast.Var -> Maybe Ast.Stmt -> Ast.Stmt
-stmtMethod loc name annotations _params _returnType body = Ast.StmtMethod $ Ast.StmtMethodContent {
+stmtMethod loc name annotations params _returnType body = Ast.StmtMethod $ Ast.StmtMethodContent {
     Ast.stmtMethodReturnType = Nothing,
     Ast.stmtMethodName = Token.MethodName (Token.Named name loc),
-    Ast.stmtMethodParams = [],
+    Ast.stmtMethodParams = serialize params,
     Ast.stmtMethodBody = maybeToList body,
     Ast.stmtMethodAnnotations = fromMaybe [] annotations,
     Ast.stmtMethodLocation = loc,
