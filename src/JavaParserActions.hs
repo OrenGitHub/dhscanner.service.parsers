@@ -126,14 +126,28 @@ subscriptVar loc lhs index = Ast.VarSubscript (Ast.VarSubscriptContent lhs index
 -- *           *
 -- *************
 stmtClass :: Location -> String -> Maybe [ Ast.Exp ] -> Maybe [ Ast.Var ] -> Maybe [ Ast.Stmt ] -> Ast.Stmt
-stmtClass loc name annotations supers members = stmtClass' (Token.ClassName (Token.Named name loc)) (superify (fromMaybe [] supers)) (fromMaybe [] annotations) [ m | Ast.StmtMethod m <- fromMaybe [] members ]
+stmtClass loc name annotations supers members = stmtClass' (Token.ClassName (Token.Named name loc)) (superify (fromMaybe [] supers)) (fromMaybe [] annotations) [ d | Ast.StmtVardec d <- fromMaybe [] members ] [ m | Ast.StmtMethod m <- fromMaybe [] members ]
 
-stmtClass' :: Token.ClassName -> [ Token.SuperName ] -> [ Ast.Exp ] -> [ Ast.StmtMethodContent ] -> Ast.Stmt
-stmtClass' className supers annotations methods = Ast.StmtClass $ Ast.StmtClassContent {
+stmtClass' :: Token.ClassName -> [ Token.SuperName ] -> [ Ast.Exp ] -> [ Ast.StmtVardecContent ] -> [ Ast.StmtMethodContent ] -> Ast.Stmt
+stmtClass' className supers annotations fields methods = Ast.StmtClass $ Ast.StmtClassContent {
     Ast.stmtClassName = className,
     Ast.stmtClassSupers = supers,
-    Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
+    Ast.stmtClassDataMembers = Ast.DataMembers $ Data.Map.fromList [ (Ast.dataMemberName d, d) | d <- map dataMember fields ],
     Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList [ (Ast.stmtMethodName m, m { Ast.hostingClassName = className, Ast.hostingClassSupers = supers, Ast.hostingClassAnnotations = annotations }) | m <- methods ]
+}
+
+-- **************
+-- *            *
+-- * dataMember *
+-- *            *
+-- **************
+-- a class-level vardec ( field ) - codegen lifts it into the scope of the class methods
+dataMember :: Ast.StmtVardecContent -> Ast.DataMember
+dataMember d = Ast.DataMember {
+    Ast.dataMemberName = Token.MemberName (Token.getVarNameToken (Ast.stmtVardecName d)),
+    Ast.dataMemberNominalType = Ast.stmtVardecNominalType d,
+    Ast.dataMemberInitValue = Ast.stmtVardecInitValue d,
+    Ast.dataMemberAnnotations = []
 }
 
 -- ************
