@@ -7,6 +7,7 @@ module JavaParserActions where
 -- *******************
 import qualified Ast
 import qualified Token
+import qualified Common
 import Location
 
 -- *******************
@@ -184,6 +185,32 @@ superImport' qualified (specific, source) loc = Ast.StmtImport $ Ast.StmtImportC
     Ast.stmtImportAlias = Just (Ast.ImportAlias qualified),
     Ast.stmtImportLocation = loc
 }
+
+-- *************************
+-- *                       *
+-- * withFirstPartyImports *
+-- *                       *
+-- *************************
+-- the cli maps every resolvable import of a file ( package.Class ) to the repo
+-- file declaring it ( X-Path-Mappings, from = org.dspace.eperson.service.GroupService,
+-- to = dspace-api/src/main/java/org/dspace/eperson/service/GroupService.java ),
+-- so those imports become 1st party, everything else stays 3rd party
+withFirstPartyImports :: [ Common.PathMapping ] -> Ast.Root -> Ast.Root
+withFirstPartyImports [] root = root
+withFirstPartyImports mappings root = root { Ast.stmts = map (firstPartyImport known) (Ast.stmts root) }
+    where known = Data.Map.fromList [ (Common.path_mapping_from m, Common.path_mapping_to m) | m <- mappings ]
+
+firstPartyImport :: Data.Map.Map String FilePath -> Ast.Stmt -> Ast.Stmt
+firstPartyImport known (Ast.StmtImport i) = Ast.StmtImport (firstPartyImport' known i (Ast.stmtImportSource i) (Ast.stmtImportSpecific i))
+firstPartyImport _ stmt = stmt
+
+firstPartyImport' :: Data.Map.Map String FilePath -> Ast.StmtImportContent -> Ast.ImportSource -> Maybe Ast.ImportSpecific -> Ast.StmtImportContent
+firstPartyImport' known i (Ast.ImportThirdParty (Ast.ImportThirdPartyContent src)) (Just (Ast.ImportSpecific specific)) =
+    case Data.Map.lookup (src ++ "." ++ specific) known of {
+        Nothing -> i;
+        Just file -> i { Ast.stmtImportSource = Ast.ImportLocal (Ast.ImportLocalFile file) }
+    }
+firstPartyImport' _ i _ _ = i
 
 -- **************
 -- *            *

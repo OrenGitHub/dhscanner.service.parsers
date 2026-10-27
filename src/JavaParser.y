@@ -1565,5 +1565,6 @@ parseError t = alexError' (tokenLoc t)
 -- *              *
 -- ****************
 parseProgram :: Common.SourceCodeFilePath -> Common.SourceCodeContent -> Common.AdditionalRepoInfo -> Either String Ast.Root
-parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo = runAlex' parse fp additionalInfo content
+parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo =
+    JavaParserActions.withFirstPartyImports (Common.path_mappings additionalInfo) <$> runAlex' parse fp additionalInfo content
 }
