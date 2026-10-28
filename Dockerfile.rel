@@ -1,4 +1,3 @@
-FROM ubuntu
-COPY parsers.elf.x64 .
-RUN chmod +x parsers.elf.x64
-CMD ["./parsers.elf.x64"]
+FROM scratch
+COPY --chmod=755 parsers.elf.x64 /parsers.elf.x64
+CMD ["/parsers.elf.x64"]
