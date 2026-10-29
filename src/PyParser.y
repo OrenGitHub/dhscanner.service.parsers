@@ -109,6 +109,7 @@ import Data.Map ( fromList, empty )
 'Return'                    { AlexTokenTag AlexRawToken_STMT_RETURN     _ _ }
 'returns'                   { AlexTokenTag AlexRawToken_STMT_RETURN2    _ _ }
 'Yield'                     { AlexTokenTag AlexRawToken_STMT_YIELD      _ _ }
+'YieldFrom'                 { AlexTokenTag AlexRawToken_STMT_YIELDFROM  _ _ }
 'Raise'                     { AlexTokenTag AlexRawToken_STMT_RAISE      _ _ }
 'cause'                     { AlexTokenTag AlexRawToken_STMT_CAUSE      _ _ }
 'Del'                       { AlexTokenTag AlexRawToken_STMT_DEL        _ _ }
@@ -221,10 +222,13 @@ import Data.Map ( fromList, empty )
 'simple'                    { AlexTokenTag AlexRawToken_SIMPLE          _ _ }
 'Assign'                    { AlexTokenTag AlexRawToken_ASSIGN          _ _ }
 'Await'                     { AlexTokenTag AlexRawToken_AWAIT           _ _ }
+'NamedExpr'                 { AlexTokenTag AlexRawToken_NAMED_EXPR      _ _ }
 'Assert'                    { AlexTokenTag AlexRawToken_ASSERT          _ _ }
 'Lambda'                    { AlexTokenTag AlexRawToken_LAMBDA          _ _ }
 'AugAssign'                 { AlexTokenTag AlexRawToken_ASSIGN2         _ _ }
 'AnnAssign'                 { AlexTokenTag AlexRawToken_ASSIGN3         _ _ }
+'TypeAlias'                 { AlexTokenTag AlexRawToken_TYPE_ALIAS      _ _ }
+'TypeVar'                   { AlexTokenTag AlexRawToken_TYPE_VAR        _ _ }
 'annotation'                { AlexTokenTag AlexRawToken_ANNOTATION      _ _ }
 'Module'                    { AlexTokenTag AlexRawToken_MODULE          _ _ }
 'module'                    { AlexTokenTag AlexRawToken_MODULE2         _ _ }
@@ -1029,6 +1033,24 @@ exp_starred:
     $5
 }
 
+exp_namedexpr:
+'NamedExpr'
+'('
+    'target' '=' exp ','
+    'value' '=' exp ','
+    loc
+')'
+{
+    case $5 of
+        (Ast.ExpVar (Ast.ExpVarContent v)) -> Ast.ExpAssign $ Ast.ExpAssignContent
+            {
+                Ast.expAssignLhs = v,
+                Ast.expAssignRhs = $9,
+                Ast.expAssignLocation = $11
+            }
+        _ -> $9
+}
+
 exp_await:
 'Await'
 '('
@@ -1050,6 +1072,7 @@ exp_str       { $1 } |
 exp_int       { $1 } |
 exp_none      { $1 } |
 exp_yield     { $1 } |
+exp_yield_from { $1 } |
 exp_starred   { $1 } |
 exp_dict      { $1 } |
 exp_var       { $1 } |
@@ -1065,6 +1088,7 @@ exp_lambda    { $1 } |
 exp_unop      { $1 } |
 exp_slice     { $1 } |
 exp_relop     { $1 } |
+exp_namedexpr { $1 } |
 exp_await     { $1 } |
 exp_binop     { $1 } |
 exp_call      { Ast.ExpCall $1 } |
@@ -1284,16 +1308,16 @@ stmt_class:
     'keywords' '=' keywords ','
     'body' '=' stmts ','
     'decorator_list' '=' exps ','
-    'type_params' '=' '[' ']' ','
+    'type_params' '=' possibly_empty_listof(type_param) ','
     loc
 ')'
 {
     Ast.StmtClass $ Ast.StmtClassContent
     {
-        Ast.stmtClassName = Token.ClassName (Token.Named $5 $28),
+        Ast.stmtClassName = Token.ClassName (Token.Named $5 $27),
         Ast.stmtClassSupers = superify $9,
         Ast.stmtClassDataMembers = Ast.DataMembers empty,
-        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $ Token.Named $5 $28) $9 $17 
+        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $ Token.Named $5 $27) $9 $17 
     }
 }
 
@@ -1319,6 +1343,22 @@ stmt_ann_assign:
     {
         Ast.stmtReturnValue = Nothing,
         Ast.stmtReturnLocation = $13
+    }
+}
+
+stmt_typealias:
+'TypeAlias'
+'('
+    'name' '=' name ','
+    'type_params' '=' '[' ']' ','
+    'value' '=' exp ','
+    loc
+')'
+{
+    Ast.StmtAssign $ Ast.StmtAssignContent
+    {
+        Ast.stmtAssignLhs = Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $5,
+        Ast.stmtAssignRhs = $14
     }
 }
 
@@ -1421,6 +1461,16 @@ exp_yield:
 ')'
 {
     dummyExp $4
+}
+
+exp_yield_from:
+'YieldFrom'
+'('
+    'value' '=' exp ','
+    loc
+')'
+{
+    $5
 }
 
 -- ************
@@ -1596,6 +1646,7 @@ stmt_pass        { $1 } |
 stmt_continue    { $1 } |
 stmt_aug_assign  { $1 } |
 stmt_ann_assign  { $1 } |
+stmt_typealias    { $1 } |
 stmt_import_from { $1 }
 
 -- *************
@@ -1603,6 +1654,16 @@ stmt_import_from { $1 }
 -- * type_hint *
 -- *           *
 -- *************
+type_param:
+'TypeVar'
+'('
+    'name' '=' ID ','
+    loc
+')'
+{
+    Nothing
+}
+
 type_hint: 'annotation' '=' exp ',' { $3 }
 
 -- *********
@@ -1679,18 +1740,18 @@ function_def
     'body' '=' stmts ','
     'decorator_list' '=' exps ','
     optional(return_type_hint) 
-    'type_params' '=' '[' ']' ','
+    'type_params' '=' possibly_empty_listof(type_param) ','
     loc
 ')'
 {
     Ast.StmtFunc $ Ast.StmtFuncContent
     {
-        Ast.stmtFuncReturnType = Just (varme (Token.Named "any" $25)),
-        Ast.stmtFuncName = Token.FuncName (Token.Named (unquote (tokIDValue $5)) $25),
+        Ast.stmtFuncReturnType = Just (varme (Token.Named "any" $24)),
+        Ast.stmtFuncName = Token.FuncName (Token.Named (unquote (tokIDValue $5)) $24),
         Ast.stmtFuncParams = $9,
         Ast.stmtFuncBody = $13,
         Ast.stmtFuncAnnotations = $17,
-        Ast.stmtFuncLocation = $25
+        Ast.stmtFuncLocation = $24
     }
 }
 

@@ -162,11 +162,14 @@ import System.FilePath ( takeDirectory, (</>), (<.>) )
 @KW_FORMAT_SPEC     = format_spec
 @KW_ASSIGN          = Assign
 @KW_AWAIT           = Await
+@KW_NAMED_EXPR      = NamedExpr
 @KW_ASSERT          = Assert
 @KW_LAMBDA          = Lambda
 @KW_SIMPLE          = simple
 @KW_ASSIGN2         = AugAssign
 @KW_ASSIGN3         = AnnAssign
+@KW_TYPE_ALIAS      = TypeAlias
+@KW_TYPE_VAR       = TypeVar
 @KW_ANNOTATION      = annotation
 @KW_MODULE          = Module
 @KW_MODULE2         = module
@@ -234,6 +237,7 @@ import System.FilePath ( takeDirectory, (</>), (<.>) )
 @KW_STMT_BREAK    = Break
 @KW_STMT_PASS     = Pass
 @KW_STMT_YIELD    = Yield
+@KW_STMT_YIELDFROM = YieldFrom
 @KW_STMT_DEL      = Del
 @KW_STMT_DELETE   = Delete
 @KW_STMT_GLOBAL   = Global
@@ -418,11 +422,14 @@ tokens :-
 @KW_FORMAT_SPEC     { lex' AlexRawToken_FORMAT_SPEC     }
 @KW_ASSIGN          { lex' AlexRawToken_ASSIGN          }
 @KW_AWAIT           { lex' AlexRawToken_AWAIT           }
+@KW_NAMED_EXPR      { lex' AlexRawToken_NAMED_EXPR      }
 @KW_ASSERT          { lex' AlexRawToken_ASSERT          }
 @KW_LAMBDA          { lex' AlexRawToken_LAMBDA          }
 @KW_SIMPLE          { lex' AlexRawToken_SIMPLE          }
 @KW_ASSIGN2         { lex' AlexRawToken_ASSIGN2         }
 @KW_ASSIGN3         { lex' AlexRawToken_ASSIGN3         }
+@KW_TYPE_ALIAS      { lex' AlexRawToken_TYPE_ALIAS      }
+@KW_TYPE_VAR       { lex' AlexRawToken_TYPE_VAR       }
 @KW_ANNOTATION      { lex' AlexRawToken_ANNOTATION      }
 @KW_MODULE          { lex' AlexRawToken_MODULE          }
 @KW_MODULE2         { lex' AlexRawToken_MODULE2         }
@@ -477,6 +484,7 @@ tokens :-
 @KW_STMT_BREAK     { lex' AlexRawToken_STMT_BREAK     }
 @KW_STMT_PASS      { lex' AlexRawToken_STMT_PASS      }
 @KW_STMT_YIELD     { lex' AlexRawToken_STMT_YIELD     }
+@KW_STMT_YIELDFROM { lex' AlexRawToken_STMT_YIELDFROM }
 @KW_STMT_DELETE    { lex' AlexRawToken_STMT_DELETE    }
 @KW_STMT_GLOBAL    { lex' AlexRawToken_STMT_GLOBAL    }
 @KW_STMT_DEL       { lex' AlexRawToken_STMT_DEL       }
@@ -696,11 +704,14 @@ data AlexRawToken
      | AlexRawToken_FORMATTED_VAL   -- ^ Reserved Keyword
      | AlexRawToken_ASSIGN          -- ^ Reserved Keyword
      | AlexRawToken_AWAIT           -- ^ Reserved Keyword
+     | AlexRawToken_NAMED_EXPR      -- ^ Reserved Keyword
      | AlexRawToken_ASSERT          -- ^ Reserved Keyword
      | AlexRawToken_LAMBDA          -- ^ Reserved Keyword
      | AlexRawToken_SIMPLE          -- ^ Reserved Keyword
      | AlexRawToken_ASSIGN2         -- ^ Reserved Keyword
      | AlexRawToken_ASSIGN3         -- ^ Reserved Keyword
+     | AlexRawToken_TYPE_ALIAS      -- ^ Reserved Keyword
+     | AlexRawToken_TYPE_VAR        -- ^ Reserved Keyword
      | AlexRawToken_ANNOTATION      -- ^ Reserved Keyword
      | AlexRawToken_MODULE          -- ^ Reserved Keyword
      | AlexRawToken_MODULE2         -- ^ Reserved Keyword
@@ -827,6 +838,7 @@ data AlexRawToken
      | AlexRawToken_STMT_FOR        -- ^ Reserved Keyword
      | AlexRawToken_STMT_BLOCK      -- ^ Reserved Keyword
      | AlexRawToken_STMT_YIELD      -- ^ Reserved Keyword
+     | AlexRawToken_STMT_YIELDFROM  -- ^ Reserved Keyword
      | AlexRawToken_STMT_DEL        -- ^ Reserved Keyword
      | AlexRawToken_STMT_DELETE     -- ^ Reserved Keyword
      | AlexRawToken_STMT_GLOBAL     -- ^ Reserved Keyword
