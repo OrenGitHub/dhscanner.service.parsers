@@ -229,6 +229,25 @@ import Data.List ( map )
 'AnnAssign'                 { AlexTokenTag AlexRawToken_ASSIGN3         _ _ }
 'TypeAlias'                 { AlexTokenTag AlexRawToken_TYPE_ALIAS      _ _ }
 'TypeVar'                   { AlexTokenTag AlexRawToken_TYPE_VAR        _ _ }
+'Match'                     { AlexTokenTag AlexRawToken_MATCH           _ _ }
+'match_case'                { AlexTokenTag AlexRawToken_MATCH_CASE      _ _ }
+'MatchValue'                { AlexTokenTag AlexRawToken_MATCH_VALUE     _ _ }
+'MatchSingleton'            { AlexTokenTag AlexRawToken_MATCH_SINGLETON _ _ }
+'MatchSequence'             { AlexTokenTag AlexRawToken_MATCH_SEQUENCE  _ _ }
+'MatchMapping'              { AlexTokenTag AlexRawToken_MATCH_MAPPING   _ _ }
+'MatchClass'                { AlexTokenTag AlexRawToken_MATCH_CLASS     _ _ }
+'MatchStar'                 { AlexTokenTag AlexRawToken_MATCH_STAR      _ _ }
+'MatchAs'                   { AlexTokenTag AlexRawToken_MATCH_AS        _ _ }
+'MatchOr'                   { AlexTokenTag AlexRawToken_MATCH_OR        _ _ }
+'subject'                   { AlexTokenTag AlexRawToken_SUBJECT         _ _ }
+'cases'                     { AlexTokenTag AlexRawToken_CASES           _ _ }
+'pattern'                   { AlexTokenTag AlexRawToken_PATTERN         _ _ }
+'patterns'                  { AlexTokenTag AlexRawToken_PATTERNS        _ _ }
+'guard'                     { AlexTokenTag AlexRawToken_GUARD           _ _ }
+'cls'                       { AlexTokenTag AlexRawToken_CLS             _ _ }
+'kwd_attrs'                 { AlexTokenTag AlexRawToken_KWD_ATTRS       _ _ }
+'kwd_patterns'              { AlexTokenTag AlexRawToken_KWD_PATTERNS    _ _ }
+'rest'                      { AlexTokenTag AlexRawToken_REST            _ _ }
 'annotation'                { AlexTokenTag AlexRawToken_ANNOTATION      _ _ }
 'Module'                    { AlexTokenTag AlexRawToken_MODULE          _ _ }
 'module'                    { AlexTokenTag AlexRawToken_MODULE2         _ _ }
@@ -1295,6 +1314,91 @@ stmt_with:
     }
 }
 
+-- instrumented as dhscanner Ast.StmtBlock ( subject assignment + if / elif / else chain )
+stmtMatch:
+'Match'
+'('
+    'subject' '=' exp ','
+    'cases' '=' nonempty_listof(matchCase) ','
+    loc
+')'
+{
+    Actions.stmtMatch $11 $5 $9
+}
+
+matchGuard: 'guard' '=' exp ',' { $3 }
+
+matchCase:
+'match_case'
+'('
+    'pattern' '=' pattern ','
+    optional(matchGuard)
+    'body' '=' stmts
+')'
+{
+    Actions.MatchCase $5 $7 $10
+}
+
+patterns: possibly_empty_listof(pattern) { $1 }
+
+pattern:
+patternValue     { $1 } |
+patternSingleton { $1 } |
+patternSequence  { $1 } |
+patternMapping   { $1 } |
+patternClass     { $1 } |
+patternStar      { $1 } |
+patternAs        { $1 } |
+patternOr        { $1 }
+
+patternValue: 'MatchValue' '(' 'value' '=' exp ',' loc ')' { Actions.PatternValue $7 $5 }
+
+singleton:
+'None'  { Actions.expNone } |
+'True'  { Actions.expBool True } |
+'False' { Actions.expBool False }
+
+patternSingleton: 'MatchSingleton' '(' 'value' '=' singleton ',' loc ')' { Actions.PatternValue $7 ($5 $7) }
+
+patternSequence: 'MatchSequence' '(' 'patterns' '=' patterns ',' loc ')' { Actions.PatternSequence $7 $5 }
+
+patternRest: 'rest' '=' tokenID ',' { $3 }
+
+patternMapping:
+'MatchMapping'
+'('
+    'keys' '=' exps ','
+    'patterns' '=' patterns ','
+    optional(patternRest)
+    loc
+')'
+{
+    Actions.PatternMapping $12 (zip $5 $9) $11
+}
+
+patternClass:
+'MatchClass'
+'('
+    'cls' '=' exp ','
+    'patterns' '=' patterns ','
+    'kwd_attrs' '=' possibly_empty_listof(tokenID) ','
+    'kwd_patterns' '=' patterns ','
+    loc
+')'
+{
+    Actions.PatternClass $19 $5 $9 (zip $13 $17)
+}
+
+patternName: 'name' '=' tokenID ',' { $3 }
+
+patternStar: 'MatchStar' '(' optional(patternName) loc ')' { Actions.PatternStar $4 $3 }
+
+patternAsPattern: 'pattern' '=' pattern ',' { $3 }
+
+patternAs: 'MatchAs' '(' optional(patternAsPattern) optional(patternName) loc ')' { Actions.PatternAs $5 $3 $4 }
+
+patternOr: 'MatchOr' '(' 'patterns' '=' patterns ',' loc ')' { Actions.PatternOr $7 $5 }
+
 -- instrumented as dhscanner Ast.StmtClass ( + a [default-method] method )
 stmtClass:
 'ClassDef'
@@ -1637,6 +1741,7 @@ stmt_continue    { $1 } |
 stmt_aug_assign  { $1 } |
 stmt_ann_assign  { $1 } |
 stmt_typealias    { $1 } |
+stmtMatch        { $1 } |
 stmt_import_from { $1 }
 
 -- *************

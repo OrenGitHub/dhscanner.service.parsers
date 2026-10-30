@@ -170,6 +170,25 @@ import System.FilePath ( takeDirectory, (</>), (<.>) )
 @KW_ASSIGN3         = AnnAssign
 @KW_TYPE_ALIAS      = TypeAlias
 @KW_TYPE_VAR       = TypeVar
+@KW_MATCH          = Match
+@KW_MATCH_CASE     = match_case
+@KW_MATCH_VALUE    = MatchValue
+@KW_MATCH_SINGLETON= MatchSingleton
+@KW_MATCH_SEQUENCE = MatchSequence
+@KW_MATCH_MAPPING  = MatchMapping
+@KW_MATCH_CLASS    = MatchClass
+@KW_MATCH_STAR     = MatchStar
+@KW_MATCH_AS       = MatchAs
+@KW_MATCH_OR       = MatchOr
+@KW_SUBJECT        = subject
+@KW_CASES          = cases
+@KW_PATTERN        = pattern
+@KW_PATTERNS       = patterns
+@KW_GUARD          = guard
+@KW_CLS            = cls
+@KW_KWD_ATTRS      = kwd_attrs
+@KW_KWD_PATTERNS   = kwd_patterns
+@KW_REST           = rest
 @KW_ANNOTATION      = annotation
 @KW_MODULE          = Module
 @KW_MODULE2         = module
@@ -430,6 +449,25 @@ tokens :-
 @KW_ASSIGN3         { lex' AlexRawToken_ASSIGN3         }
 @KW_TYPE_ALIAS      { lex' AlexRawToken_TYPE_ALIAS      }
 @KW_TYPE_VAR       { lex' AlexRawToken_TYPE_VAR       }
+@KW_MATCH          { lex' AlexRawToken_MATCH           }
+@KW_MATCH_CASE     { lex' AlexRawToken_MATCH_CASE      }
+@KW_MATCH_VALUE    { lex' AlexRawToken_MATCH_VALUE     }
+@KW_MATCH_SINGLETON{ lex' AlexRawToken_MATCH_SINGLETON }
+@KW_MATCH_SEQUENCE { lex' AlexRawToken_MATCH_SEQUENCE  }
+@KW_MATCH_MAPPING  { lex' AlexRawToken_MATCH_MAPPING   }
+@KW_MATCH_CLASS    { lex' AlexRawToken_MATCH_CLASS     }
+@KW_MATCH_STAR     { lex' AlexRawToken_MATCH_STAR      }
+@KW_MATCH_AS       { lex' AlexRawToken_MATCH_AS        }
+@KW_MATCH_OR       { lex' AlexRawToken_MATCH_OR        }
+@KW_SUBJECT        { lex' AlexRawToken_SUBJECT         }
+@KW_CASES          { lex' AlexRawToken_CASES           }
+@KW_PATTERN        { lex' AlexRawToken_PATTERN         }
+@KW_PATTERNS       { lex' AlexRawToken_PATTERNS        }
+@KW_GUARD          { lex' AlexRawToken_GUARD           }
+@KW_CLS            { lex' AlexRawToken_CLS             }
+@KW_KWD_ATTRS      { lex' AlexRawToken_KWD_ATTRS       }
+@KW_KWD_PATTERNS   { lex' AlexRawToken_KWD_PATTERNS    }
+@KW_REST           { lex' AlexRawToken_REST            }
 @KW_ANNOTATION      { lex' AlexRawToken_ANNOTATION      }
 @KW_MODULE          { lex' AlexRawToken_MODULE          }
 @KW_MODULE2         { lex' AlexRawToken_MODULE2         }
@@ -712,6 +750,25 @@ data AlexRawToken
      | AlexRawToken_ASSIGN3         -- ^ Reserved Keyword
      | AlexRawToken_TYPE_ALIAS      -- ^ Reserved Keyword
      | AlexRawToken_TYPE_VAR        -- ^ Reserved Keyword
+     | AlexRawToken_MATCH          -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_CASE     -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_VALUE    -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_SINGLETON-- ^ Reserved Keyword
+     | AlexRawToken_MATCH_SEQUENCE -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_MAPPING  -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_CLASS    -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_STAR     -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_AS       -- ^ Reserved Keyword
+     | AlexRawToken_MATCH_OR       -- ^ Reserved Keyword
+     | AlexRawToken_SUBJECT        -- ^ Reserved Keyword
+     | AlexRawToken_CASES          -- ^ Reserved Keyword
+     | AlexRawToken_PATTERN        -- ^ Reserved Keyword
+     | AlexRawToken_PATTERNS       -- ^ Reserved Keyword
+     | AlexRawToken_GUARD          -- ^ Reserved Keyword
+     | AlexRawToken_CLS            -- ^ Reserved Keyword
+     | AlexRawToken_KWD_ATTRS      -- ^ Reserved Keyword
+     | AlexRawToken_KWD_PATTERNS   -- ^ Reserved Keyword
+     | AlexRawToken_REST           -- ^ Reserved Keyword
      | AlexRawToken_ANNOTATION      -- ^ Reserved Keyword
      | AlexRawToken_MODULE          -- ^ Reserved Keyword
      | AlexRawToken_MODULE2         -- ^ Reserved Keyword
