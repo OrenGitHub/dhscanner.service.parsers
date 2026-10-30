@@ -101,6 +101,7 @@ import System.FilePath ( takeDirectory, (</>), (<.>) )
 @KW_DIV             = Div
 @KW_SUB             = Sub
 @KW_USUB            = USub
+@KW_INVERT          = Invert
 @KW_MULT            = Mult
 @KW_ARG             = arg
 @KW_VARARG          = vararg
@@ -370,6 +371,7 @@ tokens :-
 @KW_DIV             { lex' AlexRawToken_DIV             }
 @KW_SUB             { lex' AlexRawToken_SUB             }
 @KW_USUB            { lex' AlexRawToken_USUB            }
+@KW_INVERT          { lex' AlexRawToken_INVERT          }
 @KW_MULT            { lex' AlexRawToken_MULT            }
 @KW_ARG             { lex' AlexRawToken_ARG             }
 @KW_VARARG          { lex' AlexRawToken_VARARG          }
@@ -668,6 +670,7 @@ data AlexRawToken
      | AlexRawToken_DIV             -- ^ Reserved Keyword
      | AlexRawToken_SUB             -- ^ Reserved Keyword
      | AlexRawToken_USUB            -- ^ Reserved Keyword
+     | AlexRawToken_INVERT          -- ^ Reserved Keyword
      | AlexRawToken_MULT            -- ^ Reserved Keyword
      | AlexRawToken_END             -- ^ Reserved Keyword
      | AlexRawToken_RAW             -- ^ Reserved Keyword

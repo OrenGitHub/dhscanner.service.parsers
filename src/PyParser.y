@@ -148,6 +148,7 @@ import Data.List ( map )
 'Div'                       { AlexTokenTag AlexRawToken_DIV             _ _ }
 'Sub'                       { AlexTokenTag AlexRawToken_SUB             _ _ }
 'USub'                      { AlexTokenTag AlexRawToken_USUB            _ _ }
+'Invert'                    { AlexTokenTag AlexRawToken_INVERT          _ _ }
 'Mult'                      { AlexTokenTag AlexRawToken_MULT            _ _ }
 'Eq'                        { AlexTokenTag AlexRawToken_EQ              _ _ }
 'Gt'                        { AlexTokenTag AlexRawToken_GT              _ _ }
@@ -428,6 +429,16 @@ exp_unop:
 ')'
 {
     $9
+} |
+'UnaryOp'
+'('
+    'op' '=' 'Invert' '(' ')' ','
+    'operand' '=' exp ','
+    loc
+')'
+{
+    -- ~x ( e.g. django's ~Q(...) ) -> <dhscanner-instrumentation>[invert](x)
+    Actions.instrumentationCall "invert" $13 [$11]
 }
 
 -- **************
