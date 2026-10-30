@@ -11,6 +11,7 @@ module PyParser( parseProgram ) where
 import Ast
 import PyLexer
 import Location
+import qualified PyParserActions as Actions
 import qualified Token
 import qualified Common
 
@@ -22,7 +23,6 @@ import qualified Common
 import Data.Maybe
 import Data.Either
 import Data.List ( map )
-import Data.Map ( fromList, empty )
 
 }
 
@@ -1295,12 +1295,8 @@ stmt_with:
     }
 }
 
--- **************
--- *            *
--- * stmt_class *
--- *            *
--- **************
-stmt_class:
+-- instrumented as dhscanner Ast.StmtClass ( + a [default-method] method )
+stmtClass:
 'ClassDef'
 '('
     'name' '=' tokenID ','
@@ -1312,13 +1308,7 @@ stmt_class:
     loc
 ')'
 {
-    Ast.StmtClass $ Ast.StmtClassContent
-    {
-        Ast.stmtClassName = Token.ClassName (Token.Named $5 $27),
-        Ast.stmtClassSupers = superify $9,
-        Ast.stmtClassDataMembers = Ast.DataMembers empty,
-        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $ Token.Named $5 $27) $9 $17 
-    }
+    Actions.stmtClass $27 $5 $9 $17
 }
 
 ann_assign_simple: 'simple' '=' INT ',' { Nothing }
@@ -1631,10 +1621,10 @@ stmt_try         { $1 } |
 stmt_exp         { $1 } |
 stmt_for         { $1 } |
 stmt_with        { $1 } |
-stmt_class       { $1 } |
+stmtClass        { $1 } |
 stmt_while       { $1 } |
 stmt_break       { $1 } |
-stmt_import      { $1 } |
+stmtImport       { $1 } |
 stmt_raise       { $1 } |
 stmt_delete      { $1 } |
 stmt_return      { $1 } |
@@ -1807,23 +1797,15 @@ stmt_assign:
     }
 }
 
--- ***************
--- *             *
--- * stmt_import *
--- *             *
--- ***************
-stmt_import:
+-- instrumented as dhscanner Ast.StmtBlock ( one Ast.StmtImport per imported name )
+stmtImport:
 'Import'
 '('
     'names' '=' '[' commalistof(alias) ']' ','
     loc
 ')'
 {
-    Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = simportify $9 $6,
-        Ast.stmtBlockLocation = $9
-    }
+    Actions.stmtImport $9 $6
 }
 
 import_from_module: 'module' '=' tokenID ',' { $3 }
@@ -1906,48 +1888,11 @@ loc:
 dummyExp :: Location -> Ast.Exp
 dummyExp loc = Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 888 loc
 
-methodify :: Token.ClassName -> [ Ast.Var ] -> [ Ast.Stmt ] -> [(Token.MethodName, Ast.StmtMethodContent)]
-methodify c vars stmts = catMaybes $ Data.List.map (methodify' c vars) stmts
-
-methodify' :: Token.ClassName -> [ Ast.Var ] -> Ast.Stmt -> Maybe (Token.MethodName, Ast.StmtMethodContent)
-methodify' c vars (Ast.StmtFunc f) = Just (methodify'' c vars f)
-methodify' _ _ _ = Nothing
-
-methodify'' :: Token.ClassName -> [ Ast.Var ] -> Ast.StmtFuncContent -> (Token.MethodName, Ast.StmtMethodContent)
-methodify'' c vars f = let m = Token.MethodName $ Token.getFuncNameToken (Ast.stmtFuncName f) in (m, Ast.StmtMethodContent {
-    Ast.stmtMethodReturnType = (Ast.stmtFuncReturnType f),
-    Ast.stmtMethodName = m,
-    Ast.stmtMethodParams = (Ast.stmtFuncParams f),
-    Ast.stmtMethodBody = (Ast.stmtFuncBody f),
-    Ast.stmtMethodAnnotations = (Ast.stmtFuncAnnotations f),
-    Ast.stmtMethodLocation = (Ast.stmtFuncLocation f),
-    Ast.hostingClassName = c,
-    Ast.hostingClassSupers = superify vars,
-    Ast.hostingClassAnnotations = []
-})
-
 expmyname :: Token.Named -> Ast.Exp
 expmyname = Ast.ExpVar . Ast.ExpVarContent . Ast.VarSimple . Ast.VarSimpleContent . Token.VarName
 
 unquote :: String -> String
 unquote s = let n = length s in take (n-2) (drop 1 s)
-
-simportify :: Location -> [(String, Maybe String)] -> [ Ast.Stmt ]
-simportify loc args = Data.List.map (simportify' loc) args
-
-simportify' :: Location -> (String, Maybe String) -> Ast.Stmt
-simportify' loc (src, Nothing) = Ast.StmtImport $ Ast.StmtImportContent {
-    Ast.stmtImportSource = ImportThirdParty (ImportThirdPartyContent src),
-    Ast.stmtImportSpecific = Nothing,
-    Ast.stmtImportAlias = Nothing,
-    Ast.stmtImportLocation = loc
-}
-simportify' loc (src, Just alias) = Ast.StmtImport $ Ast.StmtImportContent {
-    Ast.stmtImportSource = ImportThirdParty (ImportThirdPartyContent src),
-    Ast.stmtImportSpecific = Nothing,
-    Ast.stmtImportAlias = Just (Ast.ImportAlias alias),
-    Ast.stmtImportLocation = loc
-}
 
 importify :: Location -> (Maybe String) -> Bool -> Common.AdditionalRepoInfo -> [(String, Maybe String)] -> [ Ast.Stmt ]
 importify loc Nothing localImportLevel _ = Data.List.map (importify' loc localImportLevel)
@@ -1988,13 +1933,6 @@ nominalTypeMe _ = Nothing
 varme :: Token.Named -> Ast.Var
 varme = Ast.VarSimple . Ast.VarSimpleContent . Token.VarName
 
-superify' :: Ast.Var -> Token.SuperName
-superify' (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName v))) = Token.SuperName v
-superify' (Ast.VarField (Ast.VarFieldContent _ (Token.FieldName v) _)) = Token.SuperName v
-superify' (Ast.VarSubscript (Ast.VarSubscriptContent _ _ l)) = Token.SuperName (Token.Named "subscript" l)
-
-superify :: [ Ast.Var ] -> [ Token.SuperName ]
-superify = Data.List.map superify' 
 
 -- ***********
 -- *         *

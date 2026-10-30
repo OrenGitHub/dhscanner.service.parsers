@@ -46,6 +46,7 @@ executable parser
         TsParserActions,
         PyLexer,
         PyParser,
+        PyParserActions,
         RbLexer,
         RbParser,
         PhpLexer,
