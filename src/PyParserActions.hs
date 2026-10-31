@@ -172,6 +172,15 @@ data Pattern
 
 data MatchCase = MatchCase Pattern (Maybe Ast.Exp) [ Ast.Stmt ]
 
+-- | @try@ : the @except@ handler bodies, @else@ and @finally@ all go to the
+-- catch part for now ( reachability only needs them generated, not ordered )
+stmtTry :: Location -> [ Ast.Stmt ] -> [ [ Ast.Stmt ] ] -> [ Ast.Stmt ] -> [ Ast.Stmt ] -> Ast.Stmt
+stmtTry loc body handlers orelse finalbody = Ast.StmtTry $ Ast.StmtTryContent {
+    Ast.stmtTryPart = body,
+    Ast.stmtCatchPart = concat handlers ++ orelse ++ finalbody,
+    Ast.stmtTryLocation = loc
+}
+
 stmtMatch :: Location -> Ast.Exp -> [ MatchCase ] -> Ast.Stmt
 stmtMatch loc subject cases = Ast.StmtBlock $ Ast.StmtBlockContent {
     Ast.stmtBlockContent = assign subjectVar subject : matchCases (expVar subjectVar) cases,

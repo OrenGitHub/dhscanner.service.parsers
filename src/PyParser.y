@@ -1482,12 +1482,8 @@ exception_type: 'type' '=' exp ',' { $3 }
 -- ******************
 exception_name: 'name' '=' ID ',' { $3 }
 
--- *********************
--- *                   *
--- * exception_handler *
--- *                   *
--- *********************
-exception_handler:
+-- the handler body ( [ Ast.Stmt ] ), the exception type + name are dropped for now
+exceptionHandler:
 'ExceptHandler'
 '('
     optional(exception_type)
@@ -1496,36 +1492,23 @@ exception_handler:
     loc
 ')'
 {
-    Nothing
+    $7
 }
 
--- **********************
--- *                    *
--- * exception_handlers *
--- *                    *
--- **********************
-exception_handlers: possibly_empty_listof(exception_handler) { $1 }
+exceptionHandlers: possibly_empty_listof(exceptionHandler) { $1 }
 
--- ************
--- *          *
--- * stmt_try *
--- *          *
--- ************
-stmt_try:
+-- direct dhscanner subtree creation: Ast.StmtTry ( handlers ++ orelse ++ finalbody as the catch part )
+stmtTry:
 'Try'
 '('
     'body' '=' stmts ','
-    'handlers' '=' exception_handlers ','
+    'handlers' '=' exceptionHandlers ','
     'orelse' '=' stmts ','
     'finalbody' '=' stmts ','
     loc
 ')'
 {
-    Ast.StmtBlock $ Ast.StmtBlockContent
-    {
-        Ast.stmtBlockContent = $5,
-        Ast.stmtBlockLocation = $19
-    }
+    Actions.stmtTry $19 $5 $9 $13 $17
 }
 
 -- ************
@@ -1732,7 +1715,7 @@ stmt_global:
 -- ********
 stmt:
 stmt_if          { $1 } |
-stmt_try         { $1 } |
+stmtTry          { $1 } |
 stmt_exp         { $1 } |
 stmt_for         { $1 } |
 stmt_with        { $1 } |
