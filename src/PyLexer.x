@@ -1078,8 +1078,21 @@ resolveThirdParty src = Ast.ImportThirdParty (Ast.ImportThirdPartyContent src)
 -- *                                 *
 -- ***********************************
 resolve :: FilePath -> String -> Bool -> Common.AdditionalRepoInfo -> Ast.ImportSource
-resolve _ src False _ = resolveThirdParty src
+resolve _ src False repoInfo = resolveAbsolute src repoInfo
 resolve path src True repoInfo = resolveFirstParty path src repoInfo
+
+-- | `from weblate.trans.util import x` ( level 0 ) is 1st party when
+-- `weblate/trans/util.py` ( or `weblate/trans/util/__init__.py` ) is a
+-- scanned file, like python finds it ( runner #131 )
+resolveAbsolute :: String -> Common.AdditionalRepoInfo -> Ast.ImportSource
+resolveAbsolute src repoInfo = let
+    path = map dotToSlash src
+    files = Common.filenames repoInfo
+    in resolveFirstParty'' (elem (addPySuffix path) files) (elem (path </> "__init__.py") files) (addPySuffix path) path src
+
+dotToSlash :: Char -> Char
+dotToSlash '.' = '/'
+dotToSlash c = c
 
 -- ***************
 -- *             *
