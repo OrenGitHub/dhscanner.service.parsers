@@ -49,6 +49,7 @@ executable parser
         PyParserActions,
         RbLexer,
         RbParser,
+        RbParserActions,
         PhpLexer,
         PhpParser,
         JavaLexer,

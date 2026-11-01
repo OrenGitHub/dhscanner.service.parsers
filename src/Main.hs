@@ -130,8 +130,22 @@ postFailed :: String -> String -> Handler Value
 postFailed errorMsg _filename = do
     $logWarnS "(Parser)" (Data.Text.pack ("Failed: " ++ errorMsg))
     let defaultLoc = Location.Location _filename 1 1 1 1
-    let loc = case (readMaybe errorMsg :: Maybe Location.Location) of { Just l -> l; _ -> defaultLoc }
+    let loc = case (readMaybe errorMsg :: Maybe Location.Location) of
+            Just l -> l
+            _ -> case lexicalErrorLoc _filename errorMsg of { Just l -> l; _ -> defaultLoc }
     returnJson (Error "FAILED" loc)
+
+-- alex's own error, "lexical error at line L, column C", carries no Location
+lexicalErrorLoc :: String -> String -> Maybe Location.Location
+lexicalErrorLoc fn msg = case Prelude.words (Prelude.map commaToSpace msg) of
+    ("lexical" : "error" : "at" : "line" : l : "column" : c : _) -> do
+        line <- readMaybe l
+        col <- readMaybe c
+        Just (Location.Location fn line line col col)
+    _ -> Nothing
+    where
+        commaToSpace ',' = ' '
+        commaToSpace ch = ch
 
 postSucceeded :: Ast.Root -> Handler Value
 postSucceeded = returnJson

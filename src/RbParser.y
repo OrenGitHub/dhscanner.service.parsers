@@ -8,9 +8,10 @@ module RbParser( parseProgram ) where
 -- * project imports *
 -- *                 *
 -- *******************
-import Ast
+import qualified Ast
 import RbLexer
 import Location
+import qualified RbParserActions as Actions
 import qualified Token
 import qualified Common
 
@@ -19,10 +20,6 @@ import qualified Common
 -- * general imports *
 -- *                 *
 -- *******************
-import Data.Maybe
-import Data.Either
-import Data.List ( map, singleton, foldl', filter )
-import Data.Map ( fromList, empty, map )
 
 }
 
@@ -86,6 +83,7 @@ import Data.Map ( fromList, empty, map )
 'kw'                    { AlexTokenTag AlexRawToken_KW              _ }
 'id'                    { AlexTokenTag AlexRawToken_KWID            _ }
 'int'                   { AlexTokenTag AlexRawToken_KWINT           _ }
+'float'                 { AlexTokenTag AlexRawToken_FLOAT           _ }
 'op'                    { AlexTokenTag AlexRawToken_OP              _ }
 'end'                   { AlexTokenTag AlexRawToken_END             _ }
 'raw'                   { AlexTokenTag AlexRawToken_RAW             _ }
@@ -93,9 +91,15 @@ import Data.Map ( fromList, empty, map )
 'gvar'                  { AlexTokenTag AlexRawToken_GVAR            _ }
 'begin'                 { AlexTokenTag AlexRawToken_BEGIN           _ }
 'break'                 { AlexTokenTag AlexRawToken_BREAK           _ }
+'case'                  { AlexTokenTag AlexRawToken_CASE            _ }
+'when'                  { AlexTokenTag AlexRawToken_WHEN            _ }
+'keyword'               { AlexTokenTag AlexRawToken_KEYWORD         _ }
 'call'                  { AlexTokenTag AlexRawToken_CALL            _ }
 'vcall'                 { AlexTokenTag AlexRawToken_VCALL           _ }
+'defined'               { AlexTokenTag AlexRawToken_DEFINED         _ }
 'superclass'            { AlexTokenTag AlexRawToken_SUPER           _ }
+'super'                 { AlexTokenTag AlexRawToken_SUPER2         _ }
+'zsuper'                { AlexTokenTag AlexRawToken_ZSUPER         _ }
 'hash'                  { AlexTokenTag AlexRawToken_DICT2           _ }
 'bare_assoc_hash'       { AlexTokenTag AlexRawToken_DICT            _ }
 'assoc'                 { AlexTokenTag AlexRawToken_ASSOC           _ }
@@ -115,6 +119,7 @@ import Data.Map ( fromList, empty, map )
 'string_literal'        { AlexTokenTag AlexRawToken_STRING1         _ }
 'symbol_literal'        { AlexTokenTag AlexRawToken_STRING3         _ }
 'string_embexpr'        { AlexTokenTag AlexRawToken_STRING4         _ }
+'heredoc'               { AlexTokenTag AlexRawToken_HEREDOC         _ }
 'tstring_content'       { AlexTokenTag AlexRawToken_STRING2         _ }
 'class'                 { AlexTokenTag AlexRawToken_CLASS           _ }
 'sclass'                { AlexTokenTag AlexRawToken_SCLASS          _ }
@@ -151,6 +156,8 @@ import Data.Map ( fromList, empty, map )
 'arg_block'             { AlexTokenTag AlexRawToken_ARG_BLOCK       _ }
 'keyword_rest'          { AlexTokenTag AlexRawToken_REST            _ }
 'kwrest_param'          { AlexTokenTag AlexRawToken_REST2           _ }
+'rest'                  { AlexTokenTag AlexRawToken_REST3           _ }
+'rest_param'            { AlexTokenTag AlexRawToken_REST_PARAM      _ }
 'dyna_symbol'           { AlexTokenTag AlexRawToken_DYNA            _ }
 'exception'             { AlexTokenTag AlexRawToken_EXCEPTION       _ }
 'exceptions'            { AlexTokenTag AlexRawToken_EXCEPTIONS      _ }
@@ -167,6 +174,7 @@ import Data.Map ( fromList, empty, map )
 'body'                  { AlexTokenTag AlexRawToken_BODY            _ }
 'update'                { AlexTokenTag AlexRawToken_UPDATE          _ }
 'parts'                 { AlexTokenTag AlexRawToken_PARTS           _ }
+'elements'              { AlexTokenTag AlexRawToken_ELEMENTS        _ }
 'options'               { AlexTokenTag AlexRawToken_OPTIONS         _ }
 'range'                 { AlexTokenTag AlexRawToken_RANGE           _ }
 'index'                 { AlexTokenTag AlexRawToken_INDEX           _ }
@@ -179,7 +187,9 @@ import Data.Map ( fromList, empty, map )
 'value'                 { AlexTokenTag AlexRawToken_VALUE           _ }
 'right'                 { AlexTokenTag AlexRawToken_RIGHT           _ }
 'stmts'                 { AlexTokenTag AlexRawToken_STMTS           _ }
-'array'                 { AlexTokenTag AlexRawToken_ARRAY           _ }
+'array'                  { AlexTokenTag AlexRawToken_ARRAY           _ }
+'qwords'                 { AlexTokenTag AlexRawToken_QWORDS          _ }
+'qsymbols'               { AlexTokenTag AlexRawToken_QSYMBOLS        _ }
 'Param'                 { AlexTokenTag AlexRawToken_PARAM           _ }
 'object'                { AlexTokenTag AlexRawToken_OBJECT          _ }
 'prefix'                { AlexTokenTag AlexRawToken_PREFIX          _ }
@@ -264,14 +274,20 @@ import Data.Map ( fromList, empty, map )
 '>='  { AlexTokenTag AlexRawToken_OP_GEQ      _ }
 '<<'  { AlexTokenTag AlexRawToken_OP_SHL      _ }
 '=='  { AlexTokenTag AlexRawToken_OP_EQ       _ }
+'==='  { AlexTokenTag AlexRawToken_OP_EQ3      _ }
+'!='  { AlexTokenTag AlexRawToken_OP_NE       _ }
+'=~'  { AlexTokenTag AlexRawToken_OP_EQMATCH  _ }
 '+='  { AlexTokenTag AlexRawToken_OP_PLUSEQ   _ }
 '!~'  { AlexTokenTag AlexRawToken_OP_NEQ      _ }
 '!'   { AlexTokenTag AlexRawToken_OP_BANG     _ }
 '='   { AlexTokenTag AlexRawToken_OP_ASSIGN   _ }
 '.'   { AlexTokenTag AlexRawToken_OP_DOT      _ }
+'&.'  { AlexTokenTag AlexRawToken_OP_AMP_DOT  _ }
 '+'   { AlexTokenTag AlexRawToken_OP_PLUS     _ }
 '-'   { AlexTokenTag AlexRawToken_OP_MINUS    _ }
 '*'   { AlexTokenTag AlexRawToken_OP_TIMES    _ }
+'/'   { AlexTokenTag AlexRawToken_OP_DIV      _ }
+'**'  { AlexTokenTag AlexRawToken_OP_POW      _ }
 '..'  { AlexTokenTag AlexRawToken_OP_DOTDOT   _ }
 '::'  { AlexTokenTag AlexRawToken_OP_COLON2   _ }
 '%'   { AlexTokenTag AlexRawToken_OP_PERCENT  _ }
@@ -313,12 +329,8 @@ ornull(a):      a { Just $1 } | 'null' { Nothing }
 -- ******************
 optional(a): { Nothing } | a { Just $1 }
 
--- *********************
--- *                   *
--- * Ast root: program *
--- *                   *
--- *********************
-program:
+-- direct dhscanner subtree creation: Ast.Root
+root:
 '{'
     'type' ':' 'program' ','
     'location' ':' location ','
@@ -326,28 +338,13 @@ program:
     'comments' ':' comments
 '}'
 {
-    Ast.Root
-    {
-        Ast.filename = getFilename $1,
-        Ast.stmts = rights (catMaybes $12)
-    }
+    Actions.root (getFilename $1) $12
 }
 
--- ************
--- *          *
--- * location *
--- *          *
--- ************
+-- a Location
 location: '[' INT ',' INT ',' INT ',' INT ']'
 {
-    Location
-    {
-        Location.filename = getFilename $1,
-        lineStart = fromIntegral (tokIntValue $2),
-        colStart = fromIntegral (tokIntValue $4),
-        lineEnd = fromIntegral (tokIntValue $6),
-        colEnd = fromIntegral (tokIntValue $8)
-    }
+    Actions.mkLocation (getFilename $1) (tokIntValue $2) (tokIntValue $4) (tokIntValue $6) (tokIntValue $8)
 }
 
 -- ************
@@ -356,23 +353,38 @@ location: '[' INT ',' INT ',' INT ',' INT ']'
 -- *          *
 -- ************
 tokenID:
-ID        { unquote (tokIDValue $1) } |
+ID        { Actions.unquote (tokIDValue $1) } |
 'id'      { "id"                    } |
 'self'    { "self"                  } |
 'true'    { "true"                  } |
 'type'    { "type"                  } |
 'call'    { "call"                  } |
+'raw'     { "raw"                   } |
+'heredoc' { "heredoc"               } |
 'false'   { "false"                 } |
 'args'    { "args"                  } |
 'value'   { "value"                 } |
 'object'  { "object"                } |
+'rest'    { "rest"                  } |
 'binary'  { "binary"                } |
 'message' { "message"               } |
+'receiver' { "receiver"             } |
 'contents' { "contents"             } |
+'parent'  { "parent"                } |
 'name'    { "name"                  } |
+'case'    { "case"                  } |
+'when'    { "when"                  } |
+'else'    { "else"                  } |
+'keyword' { "keyword"               } |
+'defined' { "defined"               } |
 '.'       { "."                     } |
 '='       { "="                     } |
 '+'       { "+"                     } |
+'-'       { "-"                     } |
+'*'       { "*"                     } |
+'**'      { "**"                    } |
+'%'       { "%"                     } |
+'/'       { "/"                     } |
 'start'   { "start"                 } |
 'index'   { "index"                 } |
 'update'  { "update"                } |
@@ -380,7 +392,24 @@ ID        { unquote (tokIDValue $1) } |
 'label'   { "label"                 } |
 'block'   { "block"                 } |
 'options' { "options"               } |
-'class'   { "class"                 }
+'elements'              { "elements"             } |
+'qwords'  { "qwords"                } |
+'qsymbols' { "qsymbols"             } |
+'prefix'  { "prefix"               } |
+'key'     { "key"                  } |
+'target'  { "target"               } |
+'test'    { "test"                 } |
+'body'    { "body"                 } |
+'class'   { "class"                 } |
+'array'   { "array"                 } |
+'hash'    { "hash"                  } |
+'float'   { "float"                 } |
+'comment' { "comment"               } |
+'field'   { "field"                 } |
+'lambda'  { "lambda"                } |
+'range'   { "range"                 } |
+'arguments'            { "arguments"             } |
+'column'                { "column"                }
 
 -- *******************
 -- *                 *
@@ -394,11 +423,7 @@ identifier_type:
 'gvar'  { Nothing } |
 'kw'    { Nothing }
 
--- **************
--- *            *
--- * identifier *
--- *            *
--- **************
+-- a Token.Named
 identifier:
 '{'
     'type' ':' identifier_type ','
@@ -407,18 +432,10 @@ identifier:
     'comments' ':' comments 
 '}'
 {
-    Token.Named
-    {
-        Token.content = $12,
-        Token.location = $8
-    }
+    Actions.named $12 $8
 }
 
--- *********
--- *       *
--- * param *
--- *       *
--- *********
+-- a Token.Named
 param:
 '{'
     'type' ':' 'ident' ','
@@ -426,26 +443,17 @@ param:
     'location' ':' location
 '}'
 {
-    Token.Named
-    {
-        Token.content = $8,
-        Token.location = $12
-    } 
+    Actions.named $8 $12
 }
 
 -- ***********
 -- *         *
--- * exp_var *
--- *         *
--- ***********
-exp_var: var { Ast.ExpVar (Ast.ExpVarContent $1) }
+-- * expVar *
+-- direct dhscanner subtree creation: Ast.ExpVar
+expVar: var { Actions.expVar $1 }
 
--- *************
--- *           *
--- * exp_binop *
--- *           *
--- *************
-exp_binop:
+-- direct dhscanner subtree creation: Ast.ExpBinop
+expBinop:
 '{'
     'type' ':' 'binary' ','
     'location' ':' location ','
@@ -455,21 +463,11 @@ exp_binop:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpBinop $ Ast.ExpBinopContent
-    {
-       Ast.expBinopLeft = $12,
-       Ast.expBinopRight = $20,
-       Ast.expBinopOperator = $16,
-       Ast.expBinopLocation = $8
-    }
+    Actions.expBinop $8 $12 $16 $20
 }
 
--- ************
--- *          *
--- * exp_unop *
--- *          *
--- ************
-exp_unop:
+-- instrumented as dhscanner Ast.ExpBinop
+expUnop:
 '{'
     'type' ':' 'unary' ','
     'location' ':' location ','
@@ -478,13 +476,7 @@ exp_unop:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpBinop $ Ast.ExpBinopContent
-    {
-       Ast.expBinopLeft = $16,
-       Ast.expBinopRight = $16,
-       Ast.expBinopOperator = $12,
-       Ast.expBinopLocation = $8
-    }
+    Actions.expUnop $8 $12 $16
 }
 
 var_simple_type:
@@ -496,12 +488,8 @@ var_simple_content:
 'value'    { Nothing } |
 'constant' { Nothing }
 
--- **************
--- *            *
--- * var_simple *
--- *            *
--- **************
-var_simple:
+-- direct dhscanner subtree creation: Ast.VarSimple
+varSimple:
 '{'
     'type' ':' var_simple_type ','
     'location' ':' location ','
@@ -509,42 +497,29 @@ var_simple:
     'comments' ':' comments
 '}'
 {
-    Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $12
+    Actions.varSimple $12
 }
 
--- *************
--- *           *
--- * var_field *
--- *           *
--- *************
-var_field:
+-- direct dhscanner subtree creation: Ast.VarField
+varField:
 '{'
     'type' ':' 'field' ','
     'location' ':' location ','
-    'parent' ':' identifier_wrapper ','
+    'parent' ':' identifierWrapper ','
     'operator' ':' operator ','
     'name' ':' identifier ','
     'comments' ':' comments
 '}'
 {
-    Ast.VarField $ Ast.VarFieldContent
-    {
-        Ast.varFieldLhs = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $12,
-        Ast.varFieldName = Token.FieldName $20,
-        Ast.varFieldLocation = $8
-    }
+    Actions.varFieldOfName $8 $12 $20
 }
 
 var_subscript_type:
 'aref_field' { Nothing } |
 'aref'       { Nothing }
 
--- *****************
--- *               *
--- * var_subscript *
--- *               *
--- *****************
-var_subscript:
+-- direct dhscanner subtree creation: Ast.VarSubscript
+varSubscript:
 '{'
     'type' ':' var_subscript_type ','
     'location' ':' location ','
@@ -553,24 +528,15 @@ var_subscript:
     'comments' ':' comments
 '}'
 {
-    Ast.VarSubscript $ Ast.VarSubscriptContent
-    {
-        Ast.varSubscriptLhs = $12,
-        Ast.varSubscriptIdx = $16,
-        Ast.varSubscriptLocation = $8
-    }
+    Actions.varSubscript $8 $12 $16
 }
 
 var_parented_type:
 'const_path_ref' { Nothing } |
 'top_const_ref'  { Nothing }
 
--- ****************
--- *              *
--- * var_parented *
--- *              *
--- ****************
-var_parented:
+-- direct dhscanner subtree creation: Ast.VarField
+varParented:
 '{'
     'type' ':' var_parented_type ','
     'location' ':' location ','
@@ -579,13 +545,7 @@ var_parented:
     'comments' ':' comments
 '}'
 {
-    let e' = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $13 
-    in Ast.VarField $ Ast.VarFieldContent
-    {
-        Ast.varFieldLhs = case $10 of { Just e -> e; Nothing -> e' },
-        Ast.varFieldName = Token.FieldName $13,
-        Ast.varFieldLocation = $8
-    }
+    Actions.varParented $8 $10 $13
 }
 
 -- ************
@@ -594,17 +554,13 @@ var_parented:
 -- *          *
 -- ************
 var:
-var_simple    { $1 } |
-var_field     { $1 } |
-var_parented  { $1 } |
-var_subscript { $1 }
+varSimple    { $1 } |
+varField     { $1 } |
+varParented  { $1 } |
+varSubscript { $1 }
 
--- ***************
--- *             *
--- * string_part *
--- *             *
--- ***************
-string_part_type_1:
+-- direct dhscanner subtree creation: Ast.ExpStr
+stringPartContent:
 '{'
     'type' ':' 'tstring_content' ','
     'location' ':' location ','
@@ -612,19 +568,11 @@ string_part_type_1:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr
-    {
-        Token.constStrValue = $12,
-        Token.constStrLocation = $8
-    }
+    Actions.expStr $8 $12
 }
 
--- *******
--- *     *
--- * exp *
--- *     *
--- *******
-string_part_type_2:
+-- instrumented as dhscanner Ast.Exp ( the embedded expression )
+stringPartEmbexpr:
 '{'
     'type' ':' 'string_embexpr' ','
     'location' ':' location ','
@@ -632,11 +580,7 @@ string_part_type_2:
     'comments' ':' comments
 '}'
 {
-    case $12 of
-        [] -> Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 888 $8
-        (stmt:_) -> case stmt of
-            (Just (Right (Ast.StmtExp e))) -> e
-            _ -> Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 888 $8
+    Actions.stringEmbexpr $8 $12
 }
 
 -- *******
@@ -645,14 +589,10 @@ string_part_type_2:
 -- *     *
 -- *******
 string_part:
-string_part_type_1 { $1 } |
-string_part_type_2 { $1 }
+stringPartContent { $1 } |
+stringPartEmbexpr { $1 }
 
--- *************
--- *           *
--- * exp_str_1 *
--- *           *
--- *************
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `fstring` )
 fstring:
 '{'
     'type' ':' 'string_literal' ','
@@ -661,24 +601,23 @@ fstring:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named
-        {
-            Token.content = "fstring",
-            Token.location = $8
-        },
-        Ast.args = $12,
-        Ast.expCallLocation = $8
-    }
+    Actions.legacyNamedCall "fstring" $8 $12
 }
 
--- *************
--- *           *
--- * exp_str_2 *
--- *           *
--- *************
-exp_str:
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `fstring` )
+expHeredoc:
+'{'
+    'type' ':' 'heredoc' ','
+    'location' ':' location ','
+    'parts' ':' parts ','
+    'comments' ':' comments
+'}'
+{
+    Actions.legacyNamedCall "fstring" $8 $12
+}
+
+-- direct dhscanner subtree creation: Ast.ExpStr
+expSymbol:
 '{'
     'type' ':' 'symbol_literal' ','
     'location' ':' location ','
@@ -686,11 +625,7 @@ exp_str:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr
-    {
-        Token.constStrValue = (Token.content $12),
-        Token.constStrLocation = $8
-    }
+    Actions.expSymbol $8 $12
 }
 
 -- *******
@@ -766,16 +701,24 @@ assoc_type_2:
     Nothing
 }
 
+assoc_type_3:
+'{'
+    'type' ':' 'assoc' ','
+    'location' ':' location ','
+    'key' ':' key ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
 assoc:
 assoc_type_1 { Nothing } |
-assoc_type_2 { Nothing }
+assoc_type_2 { Nothing } |
+assoc_type_3 { Nothing }
 
--- ************
--- *          *
--- * exp_dict *
--- *          *
--- ************
-exp_dict_1:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expDictBare:
 '{'
     'type' ':' 'bare_assoc_hash' ','
     'location' ':' location ','
@@ -783,11 +726,7 @@ exp_dict_1:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 9999,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 9999 $8
 }
 
 -- **********
@@ -797,12 +736,8 @@ exp_dict_1:
 -- **********
 assocs: 'assocs' ':' '[' commalistof(assoc) ']' ',' { $4 }
 
--- ************
--- *          *
--- * exp_dict *
--- *          *
--- ************
-exp_dict_2:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expDictHash:
 '{'
     'type' ':' 'hash' ','
     'location' ':' location ','
@@ -810,11 +745,7 @@ exp_dict_2:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 9999,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 9999 $8
 }
 
 -- ************
@@ -823,8 +754,8 @@ exp_dict_2:
 -- *          *
 -- ************
 exp_dict:
-exp_dict_1 { $1 } |
-exp_dict_2 { $1 }
+expDictBare { $1 } |
+expDictHash { $1 }
 
 -- *********
 -- *       *
@@ -856,12 +787,8 @@ args:
 -- *****************
 array_content: args { $1 } | 'null' { [] }
 
--- *************
--- *           *
--- * exp_array *
--- *           *
--- *************
-exp_array:
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `listify` )
+expArray:
 '{'
     'type' ':' 'array' ','
     'location' ':' location ','
@@ -869,23 +796,65 @@ exp_array:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named
-        {
-            Token.content = "listify",
-            Token.location = $8
-        },
-        Ast.args = $12,
-        Ast.expCallLocation = $8
-    }
+    Actions.legacyNamedCall "listify" $8 $12
 }
 
--- *******
--- *     *
--- * exp *
--- *     *
--- *******
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `listify` )
+expQwordsNonEmpty:
+'{'
+    'type' ':' 'qwords' ','
+    'location' ':' location ','
+    'elements' ':' '[' commalistof(string_part) ']' ','
+    'comments' ':' comments
+'}'
+{
+    Actions.legacyNamedCall "listify" $8 $13
+}
+
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `listify` )
+expQwordsEmpty:
+'{'
+    'type' ':' 'qwords' ','
+    'location' ':' location ','
+    'elements' ':' '[' ']' ','
+    'comments' ':' comments
+'}'
+{
+    Actions.legacyNamedCall "listify" $8 []
+}
+
+exp_qwords:
+expQwordsNonEmpty { $1 } |
+expQwordsEmpty    { $1 }
+
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `listify` )
+expQsymbolsNonEmpty:
+'{'
+    'type' ':' 'qsymbols' ','
+    'location' ':' location ','
+    'elements' ':' '[' commalistof(string_part) ']' ','
+    'comments' ':' comments
+'}'
+{
+    Actions.legacyNamedCall "listify" $8 $13
+}
+
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `listify` )
+expQsymbolsEmpty:
+'{'
+    'type' ':' 'qsymbols' ','
+    'location' ':' location ','
+    'elements' ':' '[' ']' ','
+    'comments' ':' comments
+'}'
+{
+    Actions.legacyNamedCall "listify" $8 []
+}
+
+exp_qsymbols:
+expQsymbolsNonEmpty { $1 } |
+expQsymbolsEmpty    { $1 }
+
 arg_star:
 '{'
     'type' ':' 'arg_star' ','
@@ -897,12 +866,8 @@ arg_star:
     $12
 }
 
--- *******
--- *     *
--- * exp *
--- *     *
--- *******
-exp_vcall:
+-- direct dhscanner subtree creation: Ast.ExpVar
+expVcall:
 '{'
     'type' ':' 'vcall' ','
     'location' ':' location ','
@@ -910,15 +875,11 @@ exp_vcall:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $12
+    Actions.expvarify $12
 }
 
--- *********
--- *       *
--- * yield *
--- *       *
--- *********
-exp_yield:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expYield:
 '{'
     'type' ':' 'yield' ','
     'location' ':' location ','
@@ -926,19 +887,11 @@ exp_yield:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 555,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 555 $8
 }
 
--- *********
--- *       *
--- * paren *
--- *       *
--- *********
-exp_paren:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expParen:
 '{'
     'type' ':' 'paren' ','
     'location' ':' location ','
@@ -946,18 +899,10 @@ exp_paren:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 555,
-        Token.constIntLocation = $8
-    }  
+    Actions.placeholderInt 555 $8
 }
 
--- *************
--- *           *
--- * subscript *
--- *           *
--- *************
+-- direct dhscanner subtree creation: Ast.VarSubscript
 subscript:
 '{'
     'type' ':' 'aref' ','
@@ -967,20 +912,11 @@ subscript:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSubscript $ Ast.VarSubscriptContent
-    {
-        Ast.varSubscriptLhs = $12,
-        Ast.varSubscriptIdx = $16,
-        Ast.varSubscriptLocation = $8
-    }
+    Actions.expVar (Actions.varSubscript $8 $12 $16)
 }
 
--- ************
--- *          *
--- * exp_args *
--- *          *
--- ************
-exp_args:
+-- instrumented as dhscanner Ast.ExpCall ( legacy callee `expify` )
+expArgs:
 '{'
     'type' ':' 'args' ','
     'location' ':' location ','
@@ -988,24 +924,11 @@ exp_args:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named
-        {
-            Token.content = "expify",
-            Token.location = $8
-        },
-        Ast.args = $13,
-        Ast.expCallLocation = $8
-    }
+    Actions.legacyNamedCall "expify" $8 $13
 }
 
--- *************
--- *           *
--- * exp_regex *
--- *           *
--- *************
-exp_regex:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expRegex:
 '{'
     'type' ':' 'regexp_literal' ','
     'location' ':' location ','
@@ -1014,18 +937,10 @@ exp_regex:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 222,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 222 $8
 }
 
--- ***********
--- *         *
--- * backref *
--- *         *
--- ***********
+-- instrumented as dhscanner Ast.ExpInt placeholder
 backref:
 '{'
     'type' ':' 'backref' ','
@@ -1034,19 +949,11 @@ backref:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 333,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 333 $8
 }
 
--- ********
--- *      *
--- * gvar *
--- *      *
--- ********
-exp_gvar:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expGvar:
 '{'
     'type' ':' 'gvar' ','
     'location' ':' location ','
@@ -1054,19 +961,11 @@ exp_gvar:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 333,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 333 $8
 }
 
--- ********
--- *      *
--- * dyna *
--- *      *
--- ********
-exp_dyna:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expDyna:
 '{'
     'type' ':' 'dyna_symbol' ','
     'location' ':' location ','
@@ -1074,11 +973,7 @@ exp_dyna:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = 333,
-        Token.constIntLocation = $8
-    }
+    Actions.placeholderInt 333 $8
 }
 
 arg_block:
@@ -1092,12 +987,8 @@ arg_block:
     $12
 }
 
--- ***********
--- *         *
--- * exp_int *
--- *         *
--- ***********
-exp_int:
+-- direct dhscanner subtree creation: Ast.ExpInt
+expInt:
 '{'
     'type' ':' 'int' ','
     'location' ':' location ','
@@ -1105,11 +996,19 @@ exp_int:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt
-    {
-        Token.constIntValue = read (unquote (tokIDValue $12)),
-        Token.constIntLocation = $8
-    }
+    Actions.expInt $8 (tokIDValue $12)
+}
+
+-- direct dhscanner subtree creation: Ast.ExpInt
+expFloat:
+'{'
+    'type' ':' 'float' ','
+    'location' ':' location ','
+    'value' ':' ID ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expInt $8 (tokIDValue $12)
 }
 
 -- **********
@@ -1117,6 +1016,17 @@ exp_int:
 -- * exp_if *
 -- *        *
 -- **********
+expDefined:
+'{'
+    'type' ':' 'defined' ','
+    'location' ':' location ','
+    'value' ':' exp ','
+    'comments' ':' comments
+'}'
+{
+    $12
+}
+
 exp_if:
 '{'
     'type' ':' 'if_op' ','
@@ -1130,18 +1040,106 @@ exp_if:
     $12
 }
 
-exp_nil:
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expIf:
 '{'
-    'type' ':' 'kw' ','
+    'type' ':' 'if' ','
     'location' ':' location ','
-    'value' ':' ID ','
+    'predicate' ':' exp ','
+    'stmts' ':' stmts ','
+    optional(else_part)
     'comments' ':' comments
 '}'
 {
-    Ast.ExpNull $ Ast.ExpNullContent $ Token.ConstNull $8
+    Actions.placeholderInt 888 $8
 }
 
-str_concat:
+-- a generic keyword tag node we can ignore
+kw_tag:
+'{'
+    'type' ':' 'kw' ','
+    'location' ':' location ','
+    'value' ':' tokenID ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
+-- else branch within a case/when chain
+caseElse:
+'{'
+    'type' ':' 'else' ','
+    'location' ':' location ','
+    'keyword' ':' kw_tag ','
+    'stmts' ':' stmts ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+|
+'{'
+    'type' ':' 'else' ','
+    'location' ':' location ','
+    'stmts' ':' stmts ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
+when_consequent: 'consequent' ':' whenish ',' { Nothing }
+
+when_keyword: 'keyword' ':' kw_tag ',' { Nothing }
+
+whenish:
+whenNode { Nothing } |
+caseElse { Nothing }
+
+-- a when clause inside a case
+whenNode:
+'{'
+    'type' ':' 'when' ','
+    'location' ':' location ','
+    optional(when_keyword)
+    'arguments' ':' arguments ','
+    'stmts' ':' stmts ','
+    optional(when_consequent)
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expCase:
+'{'
+    'type' ':' 'case' ','
+    'location' ':' location ','
+    'keyword' ':' kw_tag ','
+    'value' ':' ornull(exp) ','
+    'consequent' ':' whenish ','
+    'comments' ':' comments
+'}'
+{
+    Actions.placeholderInt 777 $8
+}
+
+-- direct dhscanner subtree creation: Ast.ExpNull
+expNil:
+'{'
+    'type' ':' 'kw' ','
+    'location' ':' location ','
+    'value' ':' tokenID ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expNull $8
+}
+
+-- instrumented as dhscanner Ast.ExpBinop
+strConcat:
 '{'
     'type' ':' 'string_concat' ','
     'location' ':' location ','
@@ -1150,13 +1148,7 @@ str_concat:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpBinop $ Ast.ExpBinopContent
-    {
-        Ast.expBinopLeft = $12,
-        Ast.expBinopRight = $16,
-        Ast.expBinopOperator = Ast.PLUS,
-        Ast.expBinopLocation = $8
-    }
+    Actions.strConcat $8 $12 $16
 }
 
 -- *******
@@ -1165,32 +1157,42 @@ str_concat:
 -- *     *
 -- *******
 exp:
-str_concat { $1 } |
-exp_block  { $1 } |
-exp_str    { $1 } |
-exp_nil    { $1 } |
-exp_if     { $1 } |
-exp_int    { $1 } |
-backref    { $1 } |
-exp_regex  { $1 } |
-arg_block  { $1 } |
-exp_var    { $1 } |
-exp_gvar   { $1 } |
-exp_dyna   { $1 } |
-exp_call   { $1 } |
-exp_vcall  { $1 } |
-exp_dict   { $1 } |
-exp_array  { $1 } |
-fstring    { $1 } |
-exp_unop   { $1 } |
-exp_args   { $1 } |
-exp_binop  { $1 } |
-exp_paren  { $1 } |
-exp_yield  { $1 } |
-exp_cmd    { $1 } |
-arg_star   { $1 } |
-string_part {$1 } |
-exp_cmdcall {$1 }
+strConcat   { $1 } |
+exp_block   { $1 } |
+expSymbol   { $1 } |
+expNil      { $1 } |
+exp_if      { $1 } |
+expIf       { $1 } |
+expCase     { $1 } |
+expFloat   { $1 } |
+expInt      { $1 } |
+backref     { $1 } |
+expRegex    { $1 } |
+arg_block   { $1 } |
+expVar      { $1 } |
+expGvar     { $1 } |
+expDyna     { $1 } |
+exp_call    { $1 } |
+expVcall    { $1 } |
+exp_dict    { $1 } |
+expArray    { $1 } |
+exp_qwords  { $1 } |
+exp_qsymbols  { $1 } |
+fstring     { $1 } |
+expHeredoc  { $1 } |
+expLambda   { $1 } |
+expUnop     { $1 } |
+expDefined  { $1 } |
+expArgs     { $1 } |
+expBinop    { $1 } |
+expParen    { $1 } |
+expYield    { $1 } |
+expSuper   { $1 } |
+expZSuper  { $1 } |
+expCmd      { $1 } |
+arg_star    { $1 } |
+string_part { $1 } |
+exp_cmdcall { $1 }
 
 -- **************
 -- *            *
@@ -1237,6 +1239,9 @@ actual_op:
 '..'  { Ast.PLUS    } |
 '::'  { Ast.PLUS    } |
 '=='  { Ast.PLUS    } |
+'===' { Ast.PLUS    } |
+'!='  { Ast.PLUS    } |
+'=~'  { Ast.PLUS    } |
 'and' { Ast.PLUS    } |
 '+='  { Ast.PLUS    } |
 '&&'  { Ast.PLUS    } |
@@ -1244,6 +1249,8 @@ actual_op:
 '||=' { Ast.PLUS    } |
 '+'   { Ast.PLUS    } |
 '*'   { Ast.TIMES   } |
+'/'   { Ast.TIMES   } |
+'**'  { Ast.TIMES   } |
 '%'   { Ast.PERCENT } |
 '-'   { Ast.MINUS   } |
 '<'   { Ast.PLUS    } |
@@ -1253,6 +1260,7 @@ actual_op:
 '='   { Ast.PLUS    } |
 '!~'  { Ast.PLUS    } |
 '.'   { Ast.PLUS    } |
+'&.'  { Ast.PLUS    } |
 '!'   { Ast.PLUS    }
 
 -- ************
@@ -1363,12 +1371,8 @@ arguments_wrapper:
     $12
 }
 
--- ***************
--- *             *
--- * stmt_assign *
--- *             *
--- ***************
-stmt_assign_type_2:
+-- direct dhscanner subtree creation: Ast.StmtAssign
+stmtOpAssign:
 '{'
     'type' ':' 'opassign' ','
     'location' ':' location ','
@@ -1378,24 +1382,11 @@ stmt_assign_type_2:
     'comments' ':' comments 
 '}'
 {
-    Just $ Right $ Ast.StmtAssign $ Ast.StmtAssignContent
-    {
-        Ast.stmtAssignLhs = $12,
-        Ast.stmtAssignRhs = Ast.ExpBinop $ Ast.ExpBinopContent {
-            expBinopLeft = Ast.ExpVar (Ast.ExpVarContent $12),
-            expBinopRight = $20,
-            expBinopOperator = Ast.PLUS,
-            expBinopLocation = $8
-        }
-    }
+    Actions.stmtOpAssign $8 $12 $20
 }
 
--- ***************
--- *             *
--- * stmt_assign *
--- *             *
--- ***************
-stmt_assign_type_1:
+-- direct dhscanner subtree creation: Ast.StmtAssign
+stmtAssignPlain:
 '{'
     'type' ':' 'assign' ','
     'location' ':' location ','
@@ -1404,11 +1395,7 @@ stmt_assign_type_1:
     'comments' ':' comments 
 '}'
 {
-    Just $ Right $ Ast.StmtAssign $ Ast.StmtAssignContent
-    {
-        Ast.stmtAssignLhs = $12,
-        Ast.stmtAssignRhs = $16
-    }
+    Actions.stmtAssign $12 $16
 }
 
 mlhs:
@@ -1445,8 +1432,8 @@ stmt_assign_type_3:
 -- *             *
 -- ***************
 stmt_assign:
-stmt_assign_type_1 { $1 } |
-stmt_assign_type_2 { $1 } |
+stmtAssignPlain    { $1 } |
+stmtOpAssign       { $1 } |
 stmt_assign_type_3 { $1 }
 
 else_type:
@@ -1482,12 +1469,8 @@ stmt_else:
 -- ***********
 else_part: 'consequent' ':' stmt_else ',' { Nothing }
 
--- ***********
--- *         *
--- * stmt_if *
--- *         *
--- ***********
-stmt_if_type_1:
+-- direct dhscanner subtree creation: Ast.StmtIf
+stmtIfPlain:
 '{'
     'type' ':' 'if' ','
     'location' ':' location ','
@@ -1497,21 +1480,11 @@ stmt_if_type_1:
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtIf $ Ast.StmtIfContent
-    {
-        Ast.stmtIfCond = $12,
-        Ast.stmtIfBody = rights (catMaybes $16),
-        Ast.stmtElseBody = [],
-        Ast.stmtIfLocation = $8
-    }
+    Actions.stmtIf $8 $12 $16
 }
 
--- ***********
--- *         *
--- * stmt_if *
--- *         *
--- ***********
-stmt_if2:
+-- direct dhscanner subtree creation: Ast.StmtIf
+stmtIfAssign:
 '{'
     'type' ':' 'if' ','
     'location' ':' location ','
@@ -1520,13 +1493,7 @@ stmt_if2:
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtIf $ Ast.StmtIfContent
-    {
-        Ast.stmtIfCond = Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 888 $8,
-        Ast.stmtIfBody = rights (catMaybes $16),
-        Ast.stmtElseBody = [],
-        Ast.stmtIfLocation = $8
-    }
+    Actions.stmtIfAssign $8 $16
 }
 
 
@@ -1536,14 +1503,10 @@ stmt_if2:
 -- *         *
 -- ***********
 stmt_if:
-stmt_if_type_1 { $1 }
+stmtIfPlain { $1 }
 
--- ************
--- *          *
--- * exp_call *
--- *          *
--- ************
-exp_call_without_args:
+-- direct dhscanner subtree creation: Ast.VarField
+expFieldAccess:
 '{'
     'type' ':' 'call' ','
     'location' ':' location ','
@@ -1553,20 +1516,11 @@ exp_call_without_args:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarField $ Ast.VarFieldContent
-    {
-        Ast.varFieldLhs = $12,
-        Ast.varFieldName = Token.FieldName $20,
-        Ast.varFieldLocation = $8
-    }
+    Actions.fieldAccess $8 $12 $20
 }
 
--- ************
--- *          *
--- * exp_call *
--- *          *
--- ************
-exp_call_with_args:
+-- direct dhscanner subtree creation: Ast.ExpCall
+expMethodCall:
 '{'
     'type' ':' 'call' ','
     'location' ':' location ','
@@ -1577,31 +1531,11 @@ exp_call_with_args:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarField $ Ast.VarFieldContent
-        {
-            Ast.varFieldLhs = $12,
-            Ast.varFieldName = Token.FieldName $20,
-            Ast.varFieldLocation = Location {
-                Location.filename = Location.filename $8,
-                lineStart = Location.lineStart $8,
-                colStart = Location.colStart $8,
-                lineEnd = Location.lineEnd (Token.location $20),
-                colEnd = Location.colEnd (Token.location $20)
-            }
-        },
-        Ast.args = $24,
-        Ast.expCallLocation = $8
-    }
+    Actions.methodCall $8 $12 $20 $24
 }
 
--- ************
--- *          *
--- * exp_call *
--- *          *
--- ************
-exp_call_without_rcvr:
+-- direct dhscanner subtree creation: Ast.ExpCall
+expCallNoRcvr:
 '{'
     'type' ':' 'call' ','
     'location' ':' location ','
@@ -1612,12 +1546,7 @@ exp_call_without_rcvr:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpCall $ Ast.ExpCallContent
-    {
-        Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $20,
-        Ast.args = $24,
-        Ast.expCallLocation = $8
-    }
+    Actions.call $8 $20 $24
 }
 
 -- ************
@@ -1626,9 +1555,9 @@ exp_call_without_rcvr:
 -- *          *
 -- ************
 exp_call:
-exp_call_with_args    { $1 } |
-exp_call_without_rcvr { $1 } |
-exp_call_without_args { $1 }
+expMethodCall  { $1 } |
+expCallNoRcvr  { $1 } |
+expFieldAccess { $1 }
 
 -- ****************
 -- *              *
@@ -1662,6 +1591,7 @@ constant_or_value:
 identifier_wrapper_kind:
 'const_ref'      { Nothing } |
 'const_path_ref' { Nothing } |
+'top_const_ref'  { Nothing } |
 'var_ref'        { Nothing }
 
 -- **********
@@ -1671,12 +1601,8 @@ identifier_wrapper_kind:
 -- **********
 parent: 'parent' ':' exp ',' { $3 }
 
--- **********************
--- *                    *
--- * identifier_wrapper *
--- *                    *
--- **********************
-identifier_wrapper:
+-- a Token.Named
+identifierWrapper:
 '{'
     'type' ':' identifier_wrapper_kind ','
     'location' ':' location ','
@@ -1685,11 +1611,7 @@ identifier_wrapper:
     'comments' ':' comments
 '}'
 {
-    case $10 of
-        Nothing -> $13
-        Just exp -> case exp of
-            (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent v)))) -> Token.getVarNameToken v
-            _ -> $13
+    Actions.identifierWrapper $10 $13
 }
 
 -- **************
@@ -1697,14 +1619,23 @@ identifier_wrapper:
 -- * superclass *
 -- *            *
 -- **************
-superclass: 'superclass' ':' identifier_wrapper ',' { $3 }
+superclass: 'superclass' ':' identifierWrapper ',' { $3 } |
+            'superclass' ':' superclassArefValue ',' { $3 }
 
--- **************
--- *            *
--- * stmt_class *
--- *            *
--- **************
-stmt_class:
+superclassArefValue:
+'{'
+    'type' ':' 'aref' ','
+    'location' ':' location ','
+    'collection' ':' identifierWrapper ','
+    'index' ':' exp ','
+    'comments' ':' comments
+'}'
+{
+    $12
+}
+
+-- direct dhscanner subtree creation: Ast.StmtClass
+stmtClass:
 '{'
     'type' ':' 'class' ','
     'location' ':' location ','
@@ -1714,26 +1645,34 @@ stmt_class:
     'comments' ':' comments
 '}'
 {
-    let
-        allStmts = rights (catMaybes $17)
-        justFuncStmts = \d -> case d of { (Ast.StmtFunc f) -> Just f; _ -> Nothing }
-        funcStmts = catMaybes $ Data.List.map justFuncStmts allStmts
-        methods = Data.Map.fromList (methodify (Token.ClassName (nameify $12)) $14 funcStmts)
-    in Just $ Right $ Ast.StmtClass $ Ast.StmtClassContent
-    {
-        Ast.stmtClassName = Token.ClassName (nameify $12),
-        Ast.stmtClassSupers = case $14 of { Nothing -> [] ; Just oneSuper -> [ Token.SuperName oneSuper ] },
-        Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-        Ast.stmtClassMethods = Ast.Methods methods
-    }
+    Actions.stmtClass $12 $14 $17
 }
 
--- ***************
--- *             *
--- * exp_command *
--- *             *
--- ***************
-exp_cmd:
+-- direct dhscanner subtree creation: Ast.ExpCall
+expSuper:
+'{'
+    'type' ':' 'super' ','
+    'location' ':' location ','
+    'arguments' ':' arguments ','
+    'comments' ':' comments
+'}'
+{
+    Actions.superCall $8 $12
+}
+
+-- direct dhscanner subtree creation: Ast.ExpCall
+expZSuper:
+'{'
+    'type' ':' 'zsuper' ','
+    'location' ':' location ','
+    'comments' ':' comments
+'}'
+{
+    Actions.superCall $8 []
+}
+
+-- direct dhscanner subtree creation: Ast.ExpVar
+expCmd:
 '{'
     'type' ':' 'command' ','
     'location' ':' location ','
@@ -1742,7 +1681,7 @@ exp_cmd:
     'comments' ':' comments
 '}'
 {
-    Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $12
+    Actions.expvarify $12
 }
 
 -- ***************
@@ -1793,16 +1732,12 @@ exp_cmdcall:
 exp_cmdcall_1 { $1 } |
 exp_cmdcall_2 { $1 }
 
--- ***************
--- *             *
--- * stmt_method *
--- *             *
--- ***************
-stmt_method_type_1:
+-- direct dhscanner subtree creation: Ast.StmtFunc
+stmtMethodWithTarget:
 '{'
     'type' ':' 'def' ','
     'location' ':' location ','
-    'target' ':' exp_var ','
+    'target' ':' expVar ','
     'operator' ':' operator ','
     'name' ':' identifier ','
     'params' ':' params ','
@@ -1810,23 +1745,11 @@ stmt_method_type_1:
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtFunc $ Ast.StmtFuncContent
-    {
-        Ast.stmtFuncReturnType = Just (varme (Token.Named "any" $8)),
-        Ast.stmtFuncName = Token.FuncName $20,
-        Ast.stmtFuncParams = $24,
-        Ast.stmtFuncBody = rights (catMaybes $28),
-        Ast.stmtFuncLocation = $8,
-        Ast.stmtFuncAnnotations = []
-    }
+    Actions.stmtFunc $8 $20 $24 $28
 }
 
--- ***************
--- *             *
--- * stmt_method *
--- *             *
--- ***************
-stmt_method_type_2:
+-- direct dhscanner subtree creation: Ast.StmtFunc
+stmtMethodPlain:
 '{'
     'type' ':' 'def' ','
     'location' ':' location ','
@@ -1838,15 +1761,7 @@ stmt_method_type_2:
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtFunc $ Ast.StmtFuncContent
-    {
-        Ast.stmtFuncReturnType = Just (varme (Token.Named "any" $8)),
-        Ast.stmtFuncName = Token.FuncName $20,
-        Ast.stmtFuncParams = $24,
-        Ast.stmtFuncBody = rights (catMaybes $28),
-        Ast.stmtFuncLocation = $8,
-        Ast.stmtFuncAnnotations = []
-    }
+    Actions.stmtFunc $8 $20 $24 $28
 }
 
 -- ***************
@@ -1855,15 +1770,14 @@ stmt_method_type_2:
 -- *             *
 -- ***************
 stmt_method:
-stmt_method_type_1 { $1 } |
-stmt_method_type_2 { $1 }
+stmtMethodWithTarget { $1 } |
+stmtMethodPlain      { $1 }
 
 -- ************
 -- *          *
--- * stmt_exp *
--- *          *
--- ************
-stmt_exp: exp { Just $ Right (Ast.StmtExp $1) }
+-- * stmtExp *
+-- direct dhscanner subtree creation: Ast.StmtExp
+stmtExp: exp { Actions.stmtExp $1 }
 
 -- ***************
 -- *             *
@@ -1874,7 +1788,7 @@ stmt_sclass:
 '{'
     'type' ':' 'sclass' ','
     'location' ':' location ','
-    'target' ':' identifier_wrapper ','
+    'target' ':' identifierWrapper ','
     'bodystmt' ':' bodystmt ','
     'comments' ':' comments
 '}'
@@ -1967,27 +1881,17 @@ exp_block:
     $12
 }
 
--- ***************
--- *             *
--- * stmt_module *
--- *             *
--- ***************
-stmt_module:
+-- instrumented as dhscanner Ast.StmtIf
+stmtModule:
 '{'
     'type' ':' 'module' ','
     'location' ':' location ','
-    'constant' ':' identifier_wrapper ','
+    'constant' ':' identifierWrapper ','
     'bodystmt' ':' bodystmt ','
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtIf $ Ast.StmtIfContent
-    {
-        Ast.stmtIfCond = Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 999 $8,
-        Ast.stmtIfBody = modulize $12 (rights (catMaybes $16)),
-        Ast.stmtElseBody = [],
-        Ast.stmtIfLocation = $8
-    }
+    Actions.stmtModule $8 $12 $16
 }
 
 -- *************
@@ -2021,12 +1925,8 @@ stmt_next:
     Nothing
 }
 
--- **************
--- *            *
--- * stmt_begin *
--- *            *
--- **************
-stmt_begin:
+-- instrumented as dhscanner Ast.StmtIf
+stmtBegin:
 '{'
     'type' ':' 'begin' ','
     'location' ':' location ','
@@ -2034,13 +1934,7 @@ stmt_begin:
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtIf $ Ast.StmtIfContent
-    {
-        Ast.stmtIfCond = Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt 1 $8,
-        Ast.stmtIfBody = rights (catMaybes $12),
-        Ast.stmtElseBody = [],
-        Ast.stmtIfLocation = $8
-    }
+    Actions.stmtBegin $8 $12
 }
 
 -- **************
@@ -2080,6 +1974,15 @@ lambda_params_tag:
 {
     Nothing
 }
+|
+'{'
+    'type' ':' 'params' ','
+    'location' ':' location ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
 
 lambda_content:
 '{'
@@ -2103,7 +2006,21 @@ lambda_params:
     Nothing
 }
 
-stmt_lambda:
+-- direct dhscanner subtree creation: Ast.ExpLambda
+-- direct dhscanner subtree creation: Ast.ExpLambda
+expLambda:
+'{'
+    'type' ':' 'lambda' ','
+    'location' ':' location ','
+    'params' ':' lambda_content ','
+    'stmts' ':' stmts ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expLambda $8
+}
+
+stmtLambda:
 '{'
     'type' ':' 'lambda' ','
     'location' ':' location ','
@@ -2112,12 +2029,7 @@ stmt_lambda:
     'comments' ':' comments
 '}'
 {
-    Just $ Right $ Ast.StmtExp $ Ast.ExpLambda $ Ast.ExpLambdaContent
-    {
-        Ast.expLambdaParams = [],
-        Ast.expLambdaBody = [],
-        Ast.expLambdaLocation = $8
-    }
+    Actions.stmtLambda $8
 }
 
 -- ********
@@ -2126,20 +2038,20 @@ stmt_lambda:
 -- *      *
 -- ********
 stmt:
-stmt_lambda  { $1 } |
+stmtLambda   { $1 } |
 stmt_if      { $1 } |
-stmt_if2     { $1 } |
+stmtIfAssign { $1 } |
 stmt_for     { $1 } |
-stmt_exp     { $1 } |
+stmtExp      { $1 } |
 stmt_assign  { $1 } |
-stmt_begin   { $1 } |
+stmtBegin    { $1 } |
 stmt_break   { $1 } |
 stmt_void    { $1 } |
 stmt_next    { $1 } |
-stmt_class   { $1 } |
+stmtClass    { $1 } |
 stmt_sclass  { $1 } |
 stmt_method  { $1 } |
-stmt_module  { $1 } |
+stmtModule   { $1 } |
 stmt_return  { $1 } |
 stmt_unless  { $1 } |
 stmt_comment { $1 }
@@ -2174,11 +2086,16 @@ optional_pair: '[' identifier ',' exp ']' { $2 }
 -- *************
 optionals: 'optionals' ':' '[' commalistof(optional_pair) ']' ',' { $4 } 
 
-rest: 'keyword_rest' ':' rest_params ',' { Nothing }
+rest: 'keyword_rest' ':' rest_params ',' { Nothing } |
+      'rest'          ':' rest_params ',' { Nothing }
+
+rest_param_type:
+'kwrest_param' { Nothing } |
+'rest_param'   { Nothing }
 
 rest_params:
 '{'
-    'type' ':' 'kwrest_param' ','
+    'type' ':' rest_param_type ','
     'location' ':' location ','
     'name' ':' identifier ','
     'comments' ':' comments
@@ -2226,14 +2143,11 @@ keyword:
 keyword_1 { Nothing } |
 keyword_2 { Nothing }
 
+keyword_pair: '[' commalistof(ornull(keyword)) ']' { Nothing }
 
-keywords: 'keywords' ':' '[' '[' commalistof(ornull(keyword)) ']' ']' ',' { Nothing }
+keywords: 'keywords' ':' '[' commalistof(keyword_pair) ']' ',' { Nothing }
 
--- ************
--- *          *
--- * contents *
--- *          *
--- ************
+-- a list of Ast.Param
 contents:
 '{'
     'type' ':' 'params' ','
@@ -2246,12 +2160,7 @@ contents:
     'comments' ':' comments
 '}'
 {
-    let
-        params1 = case $10 of { Nothing -> [] ; Just ps -> ps }
-        params2 = case $12 of { Nothing -> [] ; Just ps -> ps }
-        params3 = params1 ++ params2
-    in
-        Data.List.map paramify params3
+    Actions.params $10 $12
 }
 
 -- **********
@@ -2299,20 +2208,18 @@ comments: '[' ']' { Nothing } | '[' commalistof(comment) ']' { Nothing }
 -- *************
 requireds: 'requireds' ':' '[' commalistof(identifier) ']' ',' { $4 }
 
--- **********
--- *        *
--- * params *
--- *        *
--- **********
-params_type_2:
+-- a list of Ast.Param
+paramsBare:
 '{'
     'type' ':' 'params' ','
     'location' ':' location ','
     optional(requireds)
+    optional(keywords)
+    optional(optionals)
     'comments' ':' comments
 '}'
 {
-    Data.List.map paramify (case $10 of { Nothing -> [] ; Just ps -> ps })
+    Actions.params $10 $12
 }
 
 -- **********
@@ -2322,7 +2229,7 @@ params_type_2:
 -- **********
 params:
 params_type_1 { $1 } |
-params_type_2 { $1 }
+paramsBare    { $1 }
 
 -- **********
 -- *        *
@@ -2444,84 +2351,6 @@ bodystmt_type_1 { $1 } |
 bodystmt_type_2 { $1 }
 
 {
-
-paramify :: Token.Named -> Ast.Param
-paramify token = let
-    paramName = Token.ParamName token
-    nominalType = Just (varme (Token.Named "any" (Token.location token)))
-    in Ast.Param paramName nominalType 156 []
-
-nameify :: Ast.Var -> Token.Named
-nameify (Ast.VarSimple    v) = nameifyVarSimple    v
-nameify (Ast.VarField     v) = nameifyVarField     v
-nameify (Ast.VarSubscript v) = nameifyVarSubscript v
-
-varme :: Token.Named -> Ast.Var
-varme = Ast.VarSimple . Ast.VarSimpleContent . Token.VarName
-
-nameifyVarSimple :: Ast.VarSimpleContent -> Token.Named
-nameifyVarSimple = Token.getVarNameToken . Ast.varName
-
-nameifyVarField :: Ast.VarFieldContent -> Token.Named
-nameifyVarField = Token.getFieldNameToken . Ast.varFieldName
-
-nameifyVarSubscript :: Ast.VarSubscriptContent -> Token.Named
-nameifyVarSubscript v = Token.Named "popo" (Ast.varSubscriptLocation v)
-
-modulize :: Token.Named -> [ Ast.Stmt ] -> [ Ast.Stmt ]
-modulize moduleName = Data.List.map (modulize' moduleName)
-
-modulize' :: Token.Named -> Ast.Stmt -> Ast.Stmt
-modulize' moduleName (Ast.StmtClass c) = modulizeStmtClass c moduleName
-modulize' moduleName (Ast.StmtFunc  f) = modulizeStmtFunc  f moduleName
-modulize' moduleName (Ast.StmtIf    s) = modulizeStmtIf    s moduleName
-modulize' moduleName stmt = stmt
-
-modulizeStmtIf :: Ast.StmtIfContent -> Token.Named -> Ast.Stmt
-modulizeStmtIf s moduleName = Ast.StmtIf (s { Ast.stmtIfBody = modulize moduleName (Ast.stmtIfBody s) })
-
-fixHostingClass :: String -> Ast.StmtMethodContent -> Ast.StmtMethodContent
-fixHostingClass moduleName method = let
-    c = Token.getClassNameToken (Ast.hostingClassName method)
-    hostingClassName' = c { Token.content = moduleName ++ "." ++ (Token.content c) }
-    in method { Ast.hostingClassName = Token.ClassName hostingClassName' }
-
-modulizeStmtClass :: Ast.StmtClassContent -> Token.Named -> Ast.Stmt
-modulizeStmtClass c (Token.Named moduleName _) = let
-    methods = Data.Map.map (fixHostingClass moduleName) (Ast.actualMethods (Ast.stmtClassMethods c))
-    in Ast.StmtClass $ c { Ast.stmtClassMethods = Ast.Methods methods }
-
-modulizeStmtFunc :: Ast.StmtFuncContent -> Token.Named -> Ast.Stmt
-modulizeStmtFunc f (Token.Named moduleName _) = let
-    token = Token.getFuncNameToken (Ast.stmtFuncName f)
-    location' = Token.location token
-    name' = Token.content token
-    name'' = moduleName ++ "." ++ name'
-    f' = Token.Named name'' location'
-    in Ast.StmtFunc $ f { Ast.stmtFuncName = Token.FuncName f' } 
-
-methodify :: Token.ClassName -> Maybe Token.Named -> [ Ast.StmtFuncContent ] -> [(Token.MethodName, Ast.StmtMethodContent)]
-methodify c Nothing = Data.List.map (methodify' c Nothing)
-methodify c (Just s) = Data.List.map (methodify' c (Just s))
-
-methodify' :: Token.ClassName -> Maybe Token.Named -> Ast.StmtFuncContent -> (Token.MethodName, Ast.StmtMethodContent)
-methodify' c s f = methodify'' c (case s of { Nothing -> Nothing; Just n -> Just (Token.SuperName n) }) f
-
-methodify'' :: Token.ClassName -> Maybe Token.SuperName -> Ast.StmtFuncContent -> (Token.MethodName, Ast.StmtMethodContent)
-methodify'' c s f = let m = Token.MethodName $ Token.getFuncNameToken (Ast.stmtFuncName f) in (m, Ast.StmtMethodContent {
-    Ast.stmtMethodReturnType = (Ast.stmtFuncReturnType f),
-    Ast.stmtMethodName = Token.MethodName $ Token.getFuncNameToken (Ast.stmtFuncName f),
-    Ast.stmtMethodParams = (Ast.stmtFuncParams f),
-    Ast.stmtMethodBody = (Ast.stmtFuncBody f),
-    Ast.stmtMethodAnnotations = (Ast.stmtFuncAnnotations f),
-    Ast.stmtMethodLocation = (Ast.stmtFuncLocation f),
-    Ast.hostingClassName = c,
-    Ast.hostingClassSupers = case s of { Nothing -> []; Just oneSuperClassName -> [ oneSuperClassName ] },
-    Ast.hostingClassAnnotations = []
-})
-
-unquote :: String -> String
-unquote s = let n = length s in take (n-2) (drop 1 s)
 
 -- ***********
 -- *         *

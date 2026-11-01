@@ -71,6 +71,7 @@ import Common
 @KW                 = \"kw\"
 @KW_ID              = \"id\"
 @KW_INT             = \"int\"
+@KW_FLOAT           = \"float\"
 @KW_OP              = \"op\"
 @KW_END             = \"end\"
 @KW_RAW             = \"raw\"
@@ -78,8 +79,12 @@ import Common
 @KW_GVAR            = \"gvar\"
 @KW_BEGIN           = \"begin\"
 @KW_BREAK           = \"break\"
+@KW_CASE            = \"case\"
+@KW_WHEN            = \"when\"
+@KW_KEYWORD         = \"keyword\"
 @KW_CALL            = \"call\"
 @KW_VCALL           = \"vcall\"
+@KW_DEFINED         = \"defined\"
 @KW_DICT            = \"bare_assoc_hash\"
 @KW_DICT2           = \"hash\"
 @KW_LABEL           = \"label\"
@@ -99,7 +104,10 @@ import Common
 @KW_STRING2         = \"tstring_content\"
 @KW_STRING3         = \"symbol_literal\"
 @KW_STRING4         = \"string_embexpr\"
+@KW_HEREDOC         = \"heredoc\"
 @KW_SUPER           = \"superclass\"
+@KW_SUPER2          = \"super\"
+@KW_ZSUPER          = \"zsuper\"
 @KW_CLASS           = \"class\"
 @KW_SCLASS          = \"sclass\"
 @KW_ASSIGN          = \"assign\"
@@ -136,6 +144,8 @@ import Common
 @KW_ARG_BLOCK       = \"arg_block\"
 @KW_REST            = \"keyword_rest\"
 @KW_REST2           = \"kwrest_param\"
+@KW_REST3           = \"rest\"
+@KW_REST_PARAM      = \"rest_param\"
 @KW_DYNA            = \"dyna_symbol\"
 @KW_EXCEPTION       = \"exception\"
 @KW_EXCEPTIONS      = \"exceptions\"
@@ -153,6 +163,7 @@ import Common
 @KW_UPDATE          = \"update\"
 @KW_INDEX           = \"index\"
 @KW_PARTS           = \"parts\"
+@KW_ELEMENTS        = \"elements\"
 @KW_OPTIONS         = \"options\"
 @KW_RANGE           = \"range\"
 @KW_PAREN           = \"paren\"
@@ -165,6 +176,8 @@ import Common
 @KW_RIGHT           = \"right\"
 @KW_STMTS           = \"statements\"
 @KW_ARRAY           = \"array\"
+@KW_QWORDS           = \"qwords\"
+@KW_QSYMBOLS         = \"qsymbols\"
 @KW_PARAM           = Param
 @KW_PARAMS          = \"params\"
 @KW_OBJECT          = \"object\"
@@ -250,6 +263,9 @@ import Common
 @KW_OP_GT       = \"\>\"
 @KW_OP_SHL      = \"\<\<\"
 @KW_OP_EQ       = \"==\"
+@KW_OP_EQ3      = \"===\"
+@KW_OP_NE       = \"!=\"
+@KW_OP_EQMATCH  = \"\=\~\"
 @KW_OP_PLUSEQ   = \"\+=\"
 @KW_OP_NEQ      = \"!\~\"
 @KW_OP_BANG     = \"!\"
@@ -259,9 +275,12 @@ import Common
 @KW_OP_OR2      = \"\|\|=\"
 @KW_OP_ASSIGN   = \"=\"
 @KW_OP_DOT      = \"\.\"
+@KW_OP_AMP_DOT  = \"&\.\"
 @KW_OP_PLUS     = \"\+\"
 @KW_OP_MINUS    = \"\-\"
 @KW_OP_TIMES    = \"\*\"
+@KW_OP_DIV      = \"\/\"
+@KW_OP_POW      = \"\*\*\"
 @KW_OP_PERCENT  = \"\%\"
 @KW_OP_DOTDOT   = \"\.\.\"
 @KW_OP_PLUSPLUS = \"\+\+\"
@@ -283,8 +302,11 @@ import Common
 @LETTER = [A-Za-z_]
 @LETTER_OR_DIGIT = @LETTER | @DIGIT
 @QUOTE = \"
-@NON_QUOTE = $printable # \"
-@ID = (@QUOTE)(@NON_QUOTE*)(@QUOTE)
+@BS    = \\
+@ESC   = @BS.
+@NON_QUOTE = $printable # [\"\\]
+@STRING_CHAR = (@NON_QUOTE)|(@ESC)
+@ID = (@QUOTE)(@STRING_CHAR*)(@QUOTE)
 
 -- ***************
 -- *             *
@@ -332,6 +354,7 @@ tokens :-
 @KW                 { lex' AlexRawToken_KW              }
 @KW_ID              { lex' AlexRawToken_KWID            }
 @KW_INT             { lex' AlexRawToken_KWINT           }
+@KW_FLOAT           { lex' AlexRawToken_FLOAT           }
 @KW_OP              { lex' AlexRawToken_OP              }
 @KW_END             { lex' AlexRawToken_END             }
 @KW_RAW             { lex' AlexRawToken_RAW             }
@@ -339,8 +362,12 @@ tokens :-
 @KW_GVAR            { lex' AlexRawToken_GVAR            }
 @KW_BEGIN           { lex' AlexRawToken_BEGIN           }
 @KW_BREAK           { lex' AlexRawToken_BREAK           }
+@KW_CASE            { lex' AlexRawToken_CASE            }
+@KW_WHEN            { lex' AlexRawToken_WHEN            }
+@KW_KEYWORD         { lex' AlexRawToken_KEYWORD         }
 @KW_CALL            { lex' AlexRawToken_CALL            }
 @KW_VCALL           { lex' AlexRawToken_VCALL           }
+@KW_DEFINED         { lex' AlexRawToken_DEFINED         }
 @KW_LOC             { lex' AlexRawToken_LOC             }
 @KW_DICT            { lex' AlexRawToken_DICT            }
 @KW_DICT2           { lex' AlexRawToken_DICT2           }
@@ -361,7 +388,10 @@ tokens :-
 @KW_STRING2         { lex' AlexRawToken_STRING2         }
 @KW_STRING3         { lex' AlexRawToken_STRING3         }
 @KW_STRING4         { lex' AlexRawToken_STRING4         }
+@KW_HEREDOC         { lex' AlexRawToken_HEREDOC         }
 @KW_SUPER           { lex' AlexRawToken_SUPER           }
+@KW_SUPER2          { lex' AlexRawToken_SUPER2          }
+@KW_ZSUPER          { lex' AlexRawToken_ZSUPER          }
 @KW_CLASS           { lex' AlexRawToken_CLASS           }
 @KW_SCLASS          { lex' AlexRawToken_SCLASS          }
 @KW_ASSIGN          { lex' AlexRawToken_ASSIGN          }
@@ -397,6 +427,8 @@ tokens :-
 @KW_ARG_BLOCK       { lex' AlexRawToken_ARG_BLOCK       }
 @KW_REST            { lex' AlexRawToken_REST            }
 @KW_REST2           { lex' AlexRawToken_REST2           }
+@KW_REST3           { lex' AlexRawToken_REST3           }
+@KW_REST_PARAM      { lex' AlexRawToken_REST_PARAM      }
 @KW_DYNA            { lex' AlexRawToken_DYNA            }
 @KW_EXCEPTION       { lex' AlexRawToken_EXCEPTION       }
 @KW_EXCEPTIONS      { lex' AlexRawToken_EXCEPTIONS      }
@@ -413,6 +445,7 @@ tokens :-
 @KW_BODY            { lex' AlexRawToken_BODY            }
 @KW_UPDATE          { lex' AlexRawToken_UPDATE          }
 @KW_PARTS           { lex' AlexRawToken_PARTS           }
+@KW_ELEMENTS        { lex' AlexRawToken_ELEMENTS        }
 @KW_OPTIONS         { lex' AlexRawToken_OPTIONS         }
 @KW_RANGE           { lex' AlexRawToken_RANGE           }
 @KW_INDEX           { lex' AlexRawToken_INDEX           }
@@ -426,6 +459,8 @@ tokens :-
 @KW_RIGHT           { lex' AlexRawToken_RIGHT           }
 @KW_STMTS           { lex' AlexRawToken_STMTS           }
 @KW_ARRAY           { lex' AlexRawToken_ARRAY           }
+@KW_QWORDS           { lex' AlexRawToken_QWORDS           }
+@KW_QSYMBOLS         { lex' AlexRawToken_QSYMBOLS         }
 @KW_PARAM           { lex' AlexRawToken_PARAM           }
 @KW_PARAMS          { lex' AlexRawToken_PARAMS          }
 @KW_OBJECT          { lex' AlexRawToken_OBJECT          }
@@ -512,6 +547,9 @@ tokens :-
 @KW_OP_GEQ      { lex' AlexRawToken_OP_GEQ      }
 @KW_OP_SHL      { lex' AlexRawToken_OP_SHL      }
 @KW_OP_EQ       { lex' AlexRawToken_OP_EQ       }
+@KW_OP_EQ3      { lex' AlexRawToken_OP_EQ3      }
+@KW_OP_NE       { lex' AlexRawToken_OP_NE       }
+@KW_OP_EQMATCH  { lex' AlexRawToken_OP_EQMATCH  }
 @KW_OP_PLUSEQ   { lex' AlexRawToken_OP_PLUSEQ   }
 @KW_OP_NEQ      { lex' AlexRawToken_OP_NEQ      }
 @KW_OP_BANG     { lex' AlexRawToken_OP_BANG     }
@@ -521,9 +559,12 @@ tokens :-
 @KW_OP_OR2      { lex' AlexRawToken_OP_OR2      }
 @KW_OP_ASSIGN   { lex' AlexRawToken_OP_ASSIGN   }
 @KW_OP_DOT      { lex' AlexRawToken_OP_DOT      }
+@KW_OP_AMP_DOT  { lex' AlexRawToken_OP_AMP_DOT  }
 @KW_OP_PLUS     { lex' AlexRawToken_OP_PLUS     }
 @KW_OP_MINUS    { lex' AlexRawToken_OP_MINUS    }
 @KW_OP_TIMES    { lex' AlexRawToken_OP_TIMES    }
+@KW_OP_DIV      { lex' AlexRawToken_OP_DIV      }
+@KW_OP_POW      { lex' AlexRawToken_OP_POW      }
 @KW_OP_DOTDOT   { lex' AlexRawToken_OP_DOTDOT   }
 @KW_OP_PERCENT  { lex' AlexRawToken_OP_PERCENT  }
 @KW_OP_PLUSPLUS { lex' AlexRawToken_OP_PLUSPLUS }
@@ -621,6 +662,7 @@ data AlexRawToken
      | AlexRawToken_KW              -- ^ Reserved Keyword
      | AlexRawToken_KWID            -- ^ Reserved Keyword
      | AlexRawToken_KWINT           -- ^ Reserved Keyword
+     | AlexRawToken_FLOAT          -- ^ Reserved Keyword
      | AlexRawToken_OP              -- ^ Reserved Keyword
      | AlexRawToken_END             -- ^ Reserved Keyword
      | AlexRawToken_RAW             -- ^ Reserved Keyword
@@ -628,8 +670,12 @@ data AlexRawToken
      | AlexRawToken_GVAR            -- ^ Reserved Keyword
      | AlexRawToken_BEGIN           -- ^ Reserved Keyword
      | AlexRawToken_BREAK           -- ^ Reserved Keyword
+     | AlexRawToken_CASE            -- ^ Reserved Keyword
+     | AlexRawToken_WHEN            -- ^ Reserved Keyword
+     | AlexRawToken_KEYWORD         -- ^ Reserved Keyword
      | AlexRawToken_CALL            -- ^ Reserved Keyword
      | AlexRawToken_VCALL           -- ^ Reserved Keyword
+     | AlexRawToken_DEFINED         -- ^ Reserved Keyword
      | AlexRawToken_LOC             -- ^ Reserved Keyword
      | AlexRawToken_CLASS           -- ^ Reserved Keyword
      | AlexRawToken_SCLASS          -- ^ Reserved Keyword
@@ -637,6 +683,8 @@ data AlexRawToken
      | AlexRawToken_ASSIGN2         -- ^ Reserved Keyword
      | AlexRawToken_ASSIGN3         -- ^ Reserved Keyword
      | AlexRawToken_SUPER           -- ^ Reserved Keyword
+     | AlexRawToken_SUPER2          -- ^ Reserved Keyword
+     | AlexRawToken_ZSUPER          -- ^ Reserved Keyword
      | AlexRawToken_DICT            -- ^ Reserved Keyword
      | AlexRawToken_DICT2           -- ^ Reserved Keyword
      | AlexRawToken_LABEL           -- ^ Reserved Keyword
@@ -656,6 +704,7 @@ data AlexRawToken
      | AlexRawToken_STRING2         -- ^ Reserved Keyword
      | AlexRawToken_STRING3         -- ^ Reserved Keyword
      | AlexRawToken_STRING4         -- ^ Reserved Keyword
+     | AlexRawToken_HEREDOC         -- ^ Reserved Keyword
      | AlexRawToken_COMMAND         -- ^ Reserved Keyword
      | AlexRawToken_COMMAND2        -- ^ Reserved Keyword
      | AlexRawToken_COMMENT         -- ^ Reserved Keyword
@@ -686,6 +735,8 @@ data AlexRawToken
      | AlexRawToken_ARG_BLOCK       -- ^ Reserved Keyword
      | AlexRawToken_REST            -- ^ Reserved Keyword
      | AlexRawToken_REST2           -- ^ Reserved Keyword
+     | AlexRawToken_REST3           -- ^ Reserved Keyword
+     | AlexRawToken_REST_PARAM      -- ^ Reserved Keyword
      | AlexRawToken_DYNA            -- ^ Reserved Keyword
      | AlexRawToken_EXCEPTION       -- ^ Reserved Keyword
      | AlexRawToken_EXCEPTIONS      -- ^ Reserved Keyword
@@ -703,6 +754,7 @@ data AlexRawToken
      | AlexRawToken_START           -- ^ Reserved Keyword
      | AlexRawToken_UPDATE          -- ^ Reserved Keyword
      | AlexRawToken_PARTS           -- ^ Reserved Keyword
+     | AlexRawToken_ELEMENTS      -- ^ Reserved Keyword
      | AlexRawToken_OPTIONS         -- ^ Reserved Keyword
      | AlexRawToken_RANGE           -- ^ Reserved Keyword
      | AlexRawToken_INDEX           -- ^ Reserved Keyword
@@ -715,6 +767,8 @@ data AlexRawToken
      | AlexRawToken_RIGHT           -- ^ Reserved Keyword
      | AlexRawToken_STMTS           -- ^ Reserved Keyword
      | AlexRawToken_ARRAY           -- ^ Reserved Keyword
+     | AlexRawToken_QWORDS        -- ^ Reserved Keyword
+     | AlexRawToken_QSYMBOLS      -- ^ Reserved Keyword
      | AlexRawToken_PARAM           -- ^ Reserved Keyword
      | AlexRawToken_OBJECT          -- ^ Reserved Keyword
      | AlexRawToken_PREFIX          -- ^ Reserved Keyword
@@ -774,6 +828,9 @@ data AlexRawToken
      | AlexRawToken_OP_GEQ          -- ^ Reserved Keyword
      | AlexRawToken_OP_SHL          -- ^ Reserved Keyword
      | AlexRawToken_OP_EQ           -- ^ Reserved Keyword
+     | AlexRawToken_OP_EQ3          -- ^ Reserved Keyword
+     | AlexRawToken_OP_NE           -- ^ Reserved Keyword
+     | AlexRawToken_OP_EQMATCH      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUSEQ       -- ^ Reserved Keyword
      | AlexRawToken_OP_NEQ          -- ^ Reserved Keyword
      | AlexRawToken_OP_BANG         -- ^ Reserved Keyword
@@ -783,9 +840,12 @@ data AlexRawToken
      | AlexRawToken_OP_OR2          -- ^ Reserved Keyword
      | AlexRawToken_OP_ASSIGN       -- ^ Reserved Keyword
      | AlexRawToken_OP_DOT          -- ^ Reserved Keyword
+     | AlexRawToken_OP_AMP_DOT      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUS         -- ^ Reserved Keyword
      | AlexRawToken_OP_MINUS        -- ^ Reserved Keyword
      | AlexRawToken_OP_TIMES        -- ^ Reserved Keyword
+     | AlexRawToken_OP_DIV          -- ^ Reserved Keyword
+     | AlexRawToken_OP_POW          -- ^ Reserved Keyword
      | AlexRawToken_OP_DOTDOT       -- ^ Reserved Keyword
      | AlexRawToken_OP_PERCENT      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUSPLUS     -- ^ Reserved Keyword
@@ -891,7 +951,7 @@ lex' = lex . const
 -- * alexError' *
 -- **************
 alexError' :: Location -> Alex a
-alexError' location = alexError $ "Error[ " ++ show location ++ " ]"
+alexError' location = alexError (show location)
 
 -- ************
 -- *          *
