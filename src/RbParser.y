@@ -30,6 +30,9 @@ import qualified Common
 -- ***********************
 %name parse
 
+-- any shift/reduce or reduce/reduce conflict fails the build
+%expect 0
+
 -- *************
 -- * tokentype *
 -- *************
@@ -153,6 +156,8 @@ import qualified Common
 'type'                  { AlexTokenTag AlexRawToken_TYPE            _ }
 'left'                  { AlexTokenTag AlexRawToken_LEFT            _ }
 'mlhs'                  { AlexTokenTag AlexRawToken_LEFT2           _ }
+'mlhs_paren'            { AlexTokenTag AlexRawToken_LEFT3           _ }
+'mrhs'                  { AlexTokenTag AlexRawToken_MRHS           _ }
 'arg_block'             { AlexTokenTag AlexRawToken_ARG_BLOCK       _ }
 'keyword_rest'          { AlexTokenTag AlexRawToken_REST            _ }
 'kwrest_param'          { AlexTokenTag AlexRawToken_REST2           _ }
@@ -164,6 +169,8 @@ import qualified Common
 'rescue'                { AlexTokenTag AlexRawToken_RESCUE          _ }
 'rescue_clause'         { AlexTokenTag AlexRawToken_RESCUE2         _ }
 'else_clause'           { AlexTokenTag AlexRawToken_RESCUE4         _ }
+'ensure'                { AlexTokenTag AlexRawToken_ENSURE          _ }
+'ensure_clause'         { AlexTokenTag AlexRawToken_ENSURE_CLAUSE   _ }
 'rescue_ex'             { AlexTokenTag AlexRawToken_RESCUE3         _ }
 'variable'              { AlexTokenTag AlexRawToken_VARIABLE        _ }
 'backref'               { AlexTokenTag AlexRawToken_BACKREF         _ }
@@ -226,6 +233,7 @@ import qualified Common
 'ident'                 { AlexTokenTag AlexRawToken_IDENTIFIER      _ }
 'yield'                 { AlexTokenTag AlexRawToken_YIELD           _ }
 'ivar'                  { AlexTokenTag AlexRawToken_IVAR            _ }
+'cvar'                  { AlexTokenTag AlexRawToken_CVAR            _ }
 'returnType'            { AlexTokenTag AlexRawToken_RETURN_TYPE     _ }
 'Stmt_Function'         { AlexTokenTag AlexRawToken_STMT_FUNCTION   _ }
 'def'                   { AlexTokenTag AlexRawToken_FUNCTION_DEC    _ }
@@ -257,6 +265,7 @@ import qualified Common
 'BlockStatement'      { AlexTokenTag AlexRawToken_STMT_BLOCK  _ }
 'return'              { AlexTokenTag AlexRawToken_STMT_RETURN _ }
 'unless'              { AlexTokenTag AlexRawToken_STMT_UNLESS _ }
+'while'               { AlexTokenTag AlexRawToken_STMT_WHILE  _ }
 'ExpressionStatement' { AlexTokenTag AlexRawToken_STMT_EXP    _ }
 'string_concat'       { AlexTokenTag AlexRawToken_string_concat _ }
 'lambda'              { AlexTokenTag AlexRawToken_lambda _ }
@@ -272,12 +281,14 @@ import qualified Common
 '<'   { AlexTokenTag AlexRawToken_OP_LT       _ }
 '>'   { AlexTokenTag AlexRawToken_OP_GT       _ }
 '>='  { AlexTokenTag AlexRawToken_OP_GEQ      _ }
+'<='  { AlexTokenTag AlexRawToken_OP_LEQ      _ }
 '<<'  { AlexTokenTag AlexRawToken_OP_SHL      _ }
 '=='  { AlexTokenTag AlexRawToken_OP_EQ       _ }
 '==='  { AlexTokenTag AlexRawToken_OP_EQ3      _ }
 '!='  { AlexTokenTag AlexRawToken_OP_NE       _ }
 '=~'  { AlexTokenTag AlexRawToken_OP_EQMATCH  _ }
 '+='  { AlexTokenTag AlexRawToken_OP_PLUSEQ   _ }
+'-='  { AlexTokenTag AlexRawToken_OP_MINUSEQ  _ }
 '!~'  { AlexTokenTag AlexRawToken_OP_NEQ      _ }
 '!'   { AlexTokenTag AlexRawToken_OP_BANG     _ }
 '='   { AlexTokenTag AlexRawToken_OP_ASSIGN   _ }
@@ -289,12 +300,16 @@ import qualified Common
 '/'   { AlexTokenTag AlexRawToken_OP_DIV      _ }
 '**'  { AlexTokenTag AlexRawToken_OP_POW      _ }
 '..'  { AlexTokenTag AlexRawToken_OP_DOTDOT   _ }
+'...' { AlexTokenTag AlexRawToken_OP_DOTDOTDOT _ }
 '::'  { AlexTokenTag AlexRawToken_OP_COLON2   _ }
 '%'   { AlexTokenTag AlexRawToken_OP_PERCENT  _ }
 '++'  { AlexTokenTag AlexRawToken_OP_PLUSPLUS _ }
 '||'  { AlexTokenTag AlexRawToken_OP_OR       _ }
+'|'   { AlexTokenTag AlexRawToken_OP_PIPE    _ }
+'&'   { AlexTokenTag AlexRawToken_OP_AMP     _ }
 '&&'  { AlexTokenTag AlexRawToken_OP_AND      _ }
 '||=' { AlexTokenTag AlexRawToken_OP_OR2      _ }
+'&='  { AlexTokenTag AlexRawToken_OP_AMP_EQ   _ }
 'and' { AlexTokenTag AlexRawToken_OP_AND2     _ }
 
 -- ****************************
@@ -356,6 +371,7 @@ tokenID:
 ID        { Actions.unquote (tokIDValue $1) } |
 'id'      { "id"                    } |
 'self'    { "self"                  } |
+'cvar'    { "cvar"                  } |
 'true'    { "true"                  } |
 'type'    { "type"                  } |
 'call'    { "call"                  } |
@@ -368,16 +384,26 @@ ID        { Actions.unquote (tokIDValue $1) } |
 'rest'    { "rest"                  } |
 'binary'  { "binary"                } |
 'message' { "message"               } |
+'command' { "command"               } |
 'receiver' { "receiver"             } |
+'operator' { "operator"               } |
 'contents' { "contents"             } |
 'parent'  { "parent"                } |
+'period'  { "period"                } |
 'name'    { "name"                  } |
 'case'    { "case"                  } |
+'begin'   { "begin"                } |
+'end'     { "end"                  } |
 'when'    { "when"                  } |
 'else'    { "else"                  } |
+'ensure'  { "ensure"                } |
 'keyword' { "keyword"               } |
+'keywords' { "keywords"             } |
 'defined' { "defined"               } |
 '.'       { "."                     } |
+'..'      { ".."                    } |
+'...'     { "..."                   } |
+'==='     { "==="                   } |
 '='       { "="                     } |
 '+'       { "+"                     } |
 '-'       { "-"                     } |
@@ -385,14 +411,24 @@ ID        { Actions.unquote (tokIDValue $1) } |
 '**'      { "**"                    } |
 '%'       { "%"                     } |
 '/'       { "/"                     } |
+'::'      { "::"                    } |
+'|'       { "|"                     } |
+'&'       { "&"                     } |
+'!'       { "!"                     } |
+'<'       { "<"                     } |
+'>'       { ">"                     } |
 'start'   { "start"                 } |
 'index'   { "index"                 } |
+'collection' { "collection"         } |
+'line'    { "line"                  } |
+'location' { "location"             } |
 'update'  { "update"                } |
 'params'  { "params"                } |
 'label'   { "label"                 } |
 'block'   { "block"                 } |
 'options' { "options"               } |
 'elements'              { "elements"             } |
+'parts'   { "parts"                 } |
 'qwords'  { "qwords"                } |
 'qsymbols' { "qsymbols"             } |
 'prefix'  { "prefix"               } |
@@ -403,13 +439,23 @@ ID        { Actions.unquote (tokIDValue $1) } |
 'class'   { "class"                 } |
 'array'   { "array"                 } |
 'hash'    { "hash"                  } |
+'int'     { "int"                   } |
 'float'   { "float"                 } |
 'comment' { "comment"               } |
 'field'   { "field"                 } |
 'lambda'  { "lambda"                } |
 'range'   { "range"                 } |
 'arguments'            { "arguments"             } |
-'column'                { "column"                }
+'column'                { "column"                } |
+'next'    { "next"                  } |
+'ForStatement' { "for"                  } |
+'argument' { "argument" } |
+'exception' { "exception" } |
+'async'    { "async"                 } |
+'assign'   { "assign"                } |
+'backref'  { "backref"               } |
+'constant' { "constant" } |
+'comments'              { "comments"              }
 
 -- *******************
 -- *                 *
@@ -420,8 +466,10 @@ identifier_type:
 'const' { Nothing } |
 'ident' { Nothing } |
 'ivar'  { Nothing } |
+'cvar'  { Nothing } |
 'gvar'  { Nothing } |
-'kw'    { Nothing }
+'kw'    { Nothing } |
+'op'    { Nothing }
 
 -- a Token.Named
 identifier:
@@ -505,13 +553,13 @@ varField:
 '{'
     'type' ':' 'field' ','
     'location' ':' location ','
-    'parent' ':' identifierWrapper ','
+    'parent' ':' exp ','
     'operator' ':' operator ','
     'name' ':' identifier ','
     'comments' ':' comments
 '}'
 {
-    Actions.varFieldOfName $8 $12 $20
+    Actions.varField $8 $12 $20
 }
 
 var_subscript_type:
@@ -635,7 +683,9 @@ expSymbol:
 -- *******
 key_type:
 'label'          { Nothing } |
-'string_literal' { Nothing }
+'string_literal' { Nothing } |
+'symbol_literal' { Nothing } |
+'dyna_symbol'    { Nothing }
 
 -- *******
 -- *     *
@@ -649,7 +699,9 @@ key_parts: 'parts' ':' '[' commalistof(string_part) ']' ',' { Nothing }
 -- * key *
 -- *     *
 -- *******
-key_value: 'value' ':' ID ',' { Nothing }
+key_value:
+'value' ':' ID ',' { Nothing } |
+'value' ':' identifier ',' { Nothing }
 
 -- *******
 -- *     *
@@ -668,6 +720,18 @@ key:
     Nothing
 }
 
+-- allow keys that are variable references (e.g., some_var => value)
+key_var_ref:
+'{'
+    'type' ':' 'var_ref' ','
+    'location' ':' location ','
+    'value' ':' identifier ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
 -- *********
 -- *       *
 -- * assoc *
@@ -678,6 +742,19 @@ assoc_type_1:
     'type' ':' 'assoc' ','
     'location' ':' location ','
     'key' ':' key ','
+    'value' ':' exp ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
+-- assoc with a var_ref key
+assoc_type_1_varref:
+'{'
+    'type' ':' 'assoc' ','
+    'location' ':' location ','
+    'key' ':' key_var_ref ','
     'value' ':' exp ','
     'comments' ':' comments
 '}'
@@ -714,6 +791,7 @@ assoc_type_3:
 
 assoc:
 assoc_type_1 { Nothing } |
+assoc_type_1_varref { Nothing } |
 assoc_type_2 { Nothing } |
 assoc_type_3 { Nothing }
 
@@ -884,6 +962,30 @@ expYield:
     'type' ':' 'yield' ','
     'location' ':' location ','
     'arguments' ':' 'null' ','
+    'comments' ':' comments
+'}'
+{
+    Actions.placeholderInt 555 $8
+}
+
+-- allow yield with arguments wrapped in a paren node
+yieldArgumentsParen:
+'{'
+    'type' ':' 'paren' ','
+    'location' ':' location ','
+    'contents' ':' arguments ','
+    'comments' ':' comments
+'}'
+{
+    $12
+}
+
+-- instrumented as dhscanner Ast.ExpInt placeholder (yield with args)
+expYieldArgs:
+'{'
+    'type' ':' 'yield' ','
+    'location' ':' location ','
+    'arguments' ':' yieldArgumentsParen ','
     'comments' ':' comments
 '}'
 {
@@ -1156,13 +1258,20 @@ strConcat:
 -- * exp *
 -- *     *
 -- *******
+-- every exp. stmtExp wraps expBase only : if / assign / begin as a
+-- statement go through their stmt twins ( stmtIfPlain, stmtAssignPlain, stmtBegin )
 exp:
+expBase   { $1 } |
+expIf     { $1 } |
+expAssign { $1 } |
+expBegin  { $1 }
+
+expBase:
 strConcat   { $1 } |
 exp_block   { $1 } |
 expSymbol   { $1 } |
 expNil      { $1 } |
 exp_if      { $1 } |
-expIf       { $1 } |
 expCase     { $1 } |
 expFloat   { $1 } |
 expInt      { $1 } |
@@ -1187,11 +1296,14 @@ expArgs     { $1 } |
 expBinop    { $1 } |
 expParen    { $1 } |
 expYield    { $1 } |
+expYieldArgs { $1 } |
 expSuper   { $1 } |
 expZSuper  { $1 } |
+expCmdWithBlock { $1 } |
 expCmd      { $1 } |
 arg_star    { $1 } |
 string_part { $1 } |
+expRange   { $1 } |
 exp_cmdcall { $1 }
 
 -- **************
@@ -1199,6 +1311,42 @@ exp_cmdcall { $1 }
 -- * collection *
 -- *            *
 -- **************
+-- instrumented as dhscanner Ast.ExpBinop
+expRange:
+'{'
+    'type' ':' 'range' ','
+    'location' ':' location ','
+    'left' ':' exp ','
+    'operator' ':' operator ','
+    'right' ':' exp ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expBinop $8 $12 $16 $20
+}
+|
+'{'
+    'type' ':' 'range' ','
+    'location' ':' location ','
+    'left' ':' exp ','
+    'operator' ':' operator ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expBinop $8 $12 $16 $12
+}
+|
+'{'
+    'type' ':' 'range' ','
+    'location' ':' location ','
+    'operator' ':' operator ','
+    'right' ':' exp ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expBinop $8 $16 $12 $16
+}
+
 collection:
 '{'
     'type' ':' 'range' ','
@@ -1237,6 +1385,7 @@ stmt_for:
 -- ************
 actual_op:
 '..'  { Ast.PLUS    } |
+'...' { Ast.PLUS    } |
 '::'  { Ast.PLUS    } |
 '=='  { Ast.PLUS    } |
 '===' { Ast.PLUS    } |
@@ -1244,9 +1393,13 @@ actual_op:
 '=~'  { Ast.PLUS    } |
 'and' { Ast.PLUS    } |
 '+='  { Ast.PLUS    } |
+'-='  { Ast.PLUS    } |
 '&&'  { Ast.PLUS    } |
 '||'  { Ast.PLUS    } |
+'|'   { Ast.PLUS    } |
+'&'   { Ast.PLUS    } |
 '||=' { Ast.PLUS    } |
+'&='  { Ast.PLUS    } |
 '+'   { Ast.PLUS    } |
 '*'   { Ast.TIMES   } |
 '/'   { Ast.TIMES   } |
@@ -1256,6 +1409,7 @@ actual_op:
 '<'   { Ast.PLUS    } |
 '>'   { Ast.PLUS    } |
 '>='  { Ast.PLUS    } |
+'<='  { Ast.PLUS    } |
 '<<'  { Ast.PLUS    } |
 '='   { Ast.PLUS    } |
 '!~'  { Ast.PLUS    } |
@@ -1285,7 +1439,7 @@ operator:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $12
 }
 
 -- *************
@@ -1398,6 +1552,19 @@ stmtAssignPlain:
     Actions.stmtAssign $12 $16
 }
 
+-- instrumented as dhscanner Ast.Exp ( assignment expression lowers to RHS )
+expAssign:
+'{'
+    'type' ':' 'assign' ','
+    'location' ':' location ','
+    'target' ':' var ','
+    'value' ':' exp ','
+    'comments' ':' comments 
+'}'
+{
+    $16
+}
+
 mlhs:
 '{'
     'type' ':' 'mlhs' ','
@@ -1407,6 +1574,18 @@ mlhs:
 '}'
 {
     Nothing
+}
+
+-- instrumented as dhscanner Ast.ExpInt placeholder (mrhs used as expression in mass assignment)
+expMrhs:
+'{'
+    'type' ':' 'mrhs' ','
+    'location' ':' location ','
+    'parts' ':' parts ','
+    'comments' ':' comments
+'}'
+{
+    Actions.placeholderInt 9999 $8
 }
 
 -- ***************
@@ -1420,6 +1599,17 @@ stmt_assign_type_3:
     'location' ':' location ','
     'target' ':' mlhs ','
     'value' ':' exp ','
+    'comments' ':' comments 
+'}'
+{
+    Nothing
+}
+|
+'{'
+    'type' ':' 'massign' ','
+    'location' ':' location ','
+    'target' ':' mlhs ','
+    'value' ':' expMrhs ','
     'comments' ':' comments 
 '}'
 {
@@ -1483,12 +1673,17 @@ stmtIfPlain:
     Actions.stmtIf $8 $12 $16
 }
 
+-- if / unless / while `x op= e` ( a plain `x = e` predicate is an exp : expAssign )
+assignPredicate:
+stmtOpAssign       { $1 } |
+stmt_assign_type_3 { $1 }
+
 -- direct dhscanner subtree creation: Ast.StmtIf
 stmtIfAssign:
 '{'
     'type' ':' 'if' ','
     'location' ':' location ','
-    'predicate' ':' stmt_assign ','
+    'predicate' ':' assignPredicate ','
     'stmts' ':' stmts ','
     'comments' ':' comments
 '}'
@@ -1684,6 +1879,20 @@ expCmd:
     Actions.expvarify $12
 }
 
+-- direct dhscanner subtree creation: Ast.ExpVar
+expCmdWithBlock:
+'{'
+    'type' ':' 'command' ','
+    'location' ':' location ','
+    'message' ':' identifier ','
+    'arguments' ':' arguments ','
+    'block' ':' block ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expvarify $12
+}
+
 -- ***************
 -- *             *
 -- * exp_cmdcall *
@@ -1777,7 +1986,7 @@ stmtMethodPlain      { $1 }
 -- *          *
 -- * stmtExp *
 -- direct dhscanner subtree creation: Ast.StmtExp
-stmtExp: exp { Actions.stmtExp $1 }
+stmtExp: expBase { Actions.stmtExp $1 }
 
 -- ***************
 -- *             *
@@ -1822,6 +2031,45 @@ stmt_unless:
     'type' ':' 'unless' ','
     'location' ':' location ','
     'predicate' ':' exp ','
+    'stmts' ':' stmts ',' 
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+|
+'{'
+    'type' ':' 'unless' ','
+    'location' ':' location ','
+    'predicate' ':' assignPredicate ','
+    'stmts' ':' stmts ',' 
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
+-- ***************
+-- *             *
+-- * stmt_while  *
+-- *             *
+-- ***************
+stmt_while:
+'{'
+    'type' ':' 'while' ','
+    'location' ':' location ','
+    'predicate' ':' exp ','
+    'stmts' ':' stmts ',' 
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+|
+'{'
+    'type' ':' 'while' ','
+    'location' ':' location ','
+    'predicate' ':' assignPredicate ','
     'stmts' ':' stmts ',' 
     'comments' ':' comments
 '}'
@@ -1937,6 +2185,18 @@ stmtBegin:
     Actions.stmtBegin $8 $12
 }
 
+-- instrumented as dhscanner Ast.ExpInt placeholder
+expBegin:
+'{'
+    'type' ':' 'begin' ','
+    'location' ':' location ','
+    'bodystmt' ':' bodystmt','
+    'comments' ':' comments
+'}'
+{
+    Actions.placeholderInt 1 $8
+}
+
 -- **************
 -- *            *
 -- * stmt_break *
@@ -1953,31 +2213,15 @@ stmt_break:
     Nothing
 }
 
-lambda_block:
-'{'
-    'type' ':' 'blockarg' ','
-    'location' ':' location ','
-    'name' ':' identifier ','
-    'comments' ':' comments
-'}'
-{
-    Nothing
-}
-
 lambda_params_tag:
 '{'
     'type' ':' 'params' ','
     'location' ':' location ','
-    'block' ':' lambda_block ','
-    'comments' ':' comments
-'}'
-{
-    Nothing
-}
-|
-'{'
-    'type' ':' 'params' ','
-    'location' ':' location ','
+    optional(requireds)
+    optional(keywords)
+    optional(optionals)
+    optional(rest)
+    optional(block_param)
     'comments' ':' comments
 '}'
 {
@@ -2013,24 +2257,24 @@ expLambda:
     'type' ':' 'lambda' ','
     'location' ':' location ','
     'params' ':' lambda_content ','
-    'stmts' ':' stmts ','
+    'stmts' ':' bodystmt ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expLambda $8
+}
+|
+'{'
+    'type' ':' 'lambda' ','
+    'location' ':' location ','
+    'params' ':' lambda_params ','
+    'stmts' ':' bodystmt ','
     'comments' ':' comments
 '}'
 {
     Actions.expLambda $8
 }
 
-stmtLambda:
-'{'
-    'type' ':' 'lambda' ','
-    'location' ':' location ','
-    'params' ':' lambda_params ','
-    'stmts' ':' stmts ','
-    'comments' ':' comments
-'}'
-{
-    Actions.stmtLambda $8
-}
 
 -- ********
 -- *      *
@@ -2038,7 +2282,6 @@ stmtLambda:
 -- *      *
 -- ********
 stmt:
-stmtLambda   { $1 } |
 stmt_if      { $1 } |
 stmtIfAssign { $1 } |
 stmt_for     { $1 } |
@@ -2054,6 +2297,7 @@ stmt_method  { $1 } |
 stmtModule   { $1 } |
 stmt_return  { $1 } |
 stmt_unless  { $1 } |
+stmt_while   { $1 } |
 stmt_comment { $1 }
 
 -- *********
@@ -2103,6 +2347,16 @@ rest_params:
 {
     Nothing
 }
+|
+'{'
+    'type' ':' rest_param_type ','
+    'location' ':' location ','
+    'name' ':' 'null' ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
 
 block_param:
 'block' ':'
@@ -2127,25 +2381,30 @@ keyword_1:
     Nothing
 }
 
-keyword_2:
-'{'
-    'type' ':' 'var_ref' ','
-    'location' ':' location ','
-    'value' ':' exp ','
-    'comments' ':' comments
-'}'
-{
-    Nothing
-}
 
+
+keyword_5:
+exp { Nothing }
 
 keyword:
 keyword_1 { Nothing } |
-keyword_2 { Nothing }
+keyword_5 { Nothing }
 
 keyword_pair: '[' commalistof(ornull(keyword)) ']' { Nothing }
 
 keywords: 'keywords' ':' '[' commalistof(keyword_pair) ']' ',' { Nothing }
+
+-- keywords and optionals, in either order ( each at most once ) : the optionals
+kwOpts:
+                               { Nothing } |
+keywords  optional(optionals)  { $2      } |
+optionals optional(keywords)   { Just $1 }
+
+-- zero, one or two of rest / keyword_rest
+rests:
+          { Nothing } |
+rest      { Nothing } |
+rest rest { Nothing }
 
 -- a list of Ast.Param
 contents:
@@ -2153,14 +2412,13 @@ contents:
     'type' ':' 'params' ','
     'location' ':' location ','
     optional(requireds)
-    optional(keywords)
-    optional(optionals)
-    optional(rest)
+    kwOpts
+    rests
     optional(block_param)
     'comments' ':' comments
 '}'
 {
-    Actions.params $10 $12
+    Actions.params $10 $11
 }
 
 -- **********
@@ -2206,7 +2464,32 @@ comments: '[' ']' { Nothing } | '[' commalistof(comment) ']' { Nothing }
 -- * requireds *
 -- *           *
 -- *************
-requireds: 'requireds' ':' '[' commalistof(identifier) ']' ',' { $4 }
+required_item: identifier { $1 } |
+               mlhs_paren_item { $1 }
+
+mlhs_idents:
+'{'
+    'type' ':' 'mlhs' ','
+    'location' ':' location ','
+    'parts' ':' '[' commalistof(identifier) ']' ','
+    'comments' ':' comments
+'}'
+{
+    $13
+}
+
+mlhs_paren_item:
+'{'
+    'type' ':' 'mlhs_paren' ','
+    'location' ':' location ','
+    'contents' ':' mlhs_idents ','
+    'comments' ':' comments
+'}'
+{
+    Actions.mlhsParenFirst $8 $12
+}
+
+requireds: 'requireds' ':' '[' commalistof(required_item) ']' ',' { $4 }
 
 -- a list of Ast.Param
 paramsBare:
@@ -2253,9 +2536,21 @@ variable:
 -- * exceptions *
 -- *            *
 -- **************
+exceptions_mrhs:
+'{'
+    'type' ':' 'mrhs' ','
+    'location' ':' location ','
+    'parts' ':' parts ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
 exceptions:
 'null' { Nothing } |
-exp    { Nothing }
+exp    { Nothing } |
+exceptions_mrhs { Nothing }
 
 -- **********
 -- *        *
@@ -2276,6 +2571,9 @@ exception:
 
 rescue_exception: 'exception' ':' exception ',' { Nothing }
 
+-- allow chained rescue clauses within a rescue node
+rescue_consequent: 'consequent' ':' rescue ',' { Nothing }
+
 -- **********
 -- *        *
 -- * rescue *
@@ -2287,6 +2585,7 @@ rescue:
     'location' ':' location ','
     optional(rescue_exception)
     'stmts' ':' stmts ','
+    optional(rescue_consequent)
     'comments' ':' comments
 '}'
 {
@@ -2307,6 +2606,29 @@ rescue_clause: 'rescue_clause' ':' rescue ',' { Nothing }
 -- *****************
 else_clause: 'else_clause' ':' stmts ',' { Nothing }
 
+-- **********
+-- *        *
+-- * ensure *
+-- *        *
+-- **********
+ensure:
+'{'
+    'type' ':' 'ensure' ','
+    'location' ':' location ','
+    'stmts' ':' stmts ','
+    'comments' ':' comments
+'}'
+{
+    Nothing
+}
+
+-- *****************
+-- *               *
+-- * ensure_clause *
+-- *               *
+-- *****************
+ensure_clause: 'ensure_clause' ':' ensure ',' { Nothing }
+
 -- ************
 -- *          *
 -- * bodystmt *
@@ -2319,6 +2641,7 @@ bodystmt_type_1:
     'stmts' ':' stmts ','
     optional(rescue_clause)
     optional(else_clause)
+    optional(ensure_clause)
     'comments' ':' comments
 '}'
 {

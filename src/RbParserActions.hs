@@ -342,6 +342,13 @@ paramify token = let
     nominalType = Just (varme (Token.Named "any" (Token.location token)))
     in Ast.Param paramName nominalType 156 []
 
+-- | pick the first identifier from an mlhs_paren destructuring; fallback to a
+-- placeholder when empty
+mlhsParenFirst :: Location -> [Token.Named] -> Token.Named
+mlhsParenFirst loc names = case names of
+  (n:_) -> n
+  _     -> Token.Named "any" loc
+
 -- ***********
 -- *         *
 -- * helpers *

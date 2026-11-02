@@ -731,10 +731,11 @@ Rules of the road:
      `*` `/` -> `Ast.TIMES`, everything else -> `Ast.PLUS`. Never write
      `Ast.AND`, `Ast.LT`, `Ast.MOD`, ... ( guaranteed build_failed ).
 
- 11. The grammar does not declare `%expect 0`, so a new conflict won't fail
-     the build, but a conflict that changes reductions on a passing file
-     will be rejected by the gate. Treat conflicts as a real risk. New
-     rules go BELOW `program`.
+ 11. The grammar declares `%expect 0` : ANY shift/reduce or reduce/reduce
+     conflict fails the build ( = rejected ). Never add a second rule for a
+     JSON shape an existing rule already matches ( eg a stmtX twin of an
+     expX, or an optional(...) sequence that can match the same input two
+     ways ) : widen the existing rule instead. New rules go BELOW `program`.
 
  12. Each edit is ( file, old_string, new_string ). `old_string` MUST
      appear EXACTLY ONCE in the current file content shown to you,

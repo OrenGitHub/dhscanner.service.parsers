@@ -141,6 +141,8 @@ import Common
 @KW_TYPE            = \"type\"
 @KW_LEFT            = \"left\"
 @KW_LEFT2           = \"mlhs\"
+@KW_LEFT3           = \"mlhs_paren\"
+@KW_MRHS           = \"mrhs\"
 @KW_ARG_BLOCK       = \"arg_block\"
 @KW_REST            = \"keyword_rest\"
 @KW_REST2           = \"kwrest_param\"
@@ -153,6 +155,8 @@ import Common
 @KW_RESCUE2         = \"rescue_clause\"
 @KW_RESCUE4         = \"else_clause\"
 @KW_RESCUE3         = \"rescue_ex\"
+@KW_ENSURE          = \"ensure\"
+@KW_ENSURE_CLAUSE   = \"ensure_clause\"
 @KW_VARIABLE        = \"variable\"
 @KW_BACKREF         = \"backref\"
 @KW_NEXT            = \"next\"
@@ -215,6 +219,7 @@ import Common
 @KW_IDENTIFIER      = \"ident\"
 @KW_YIELD           = \"yield\"
 @KW_IVAR            = \"ivar\"
+@KW_CVAR            = \"cvar\"
 @KW_RETURN_TYPE     = "returnType"
 @KW_STMT_FUNCTION   = "Stmt_Function"
 @KW_FUNCTION_DEC    = \"def\"
@@ -233,6 +238,7 @@ import Common
 @KW_STMT_BLOCK  = \"BlockStatement\"
 @KW_STMT_RETURN = \"return\"
 @KW_STMT_UNLESS = \"unless\"
+@KW_STMT_WHILE  = \"while\"
 @KW_STMT_EXP    = \"ExpressionStatement\"
 
 -- ***************
@@ -260,6 +266,7 @@ import Common
 
 @KW_OP_LT       = \"\<\"
 @KW_OP_GEQ      = \"\>=\"
+@KW_OP_LEQ      = \"\<=\"
 @KW_OP_GT       = \"\>\"
 @KW_OP_SHL      = \"\<\<\"
 @KW_OP_EQ       = \"==\"
@@ -267,14 +274,17 @@ import Common
 @KW_OP_NE       = \"!=\"
 @KW_OP_EQMATCH  = \"\=\~\"
 @KW_OP_PLUSEQ   = \"\+=\"
+@KW_OP_MINUSEQ  = \"\-=\"
 @KW_OP_NEQ      = \"!\~\"
 @KW_OP_BANG     = \"!\"
 @KW_OP_OR       = \"\|\|\"
 @KW_OP_AND      = \"&&\"
 @KW_OP_AND2     = \"and\"
 @KW_OP_OR2      = \"\|\|=\"
+@KW_OP_AMP_EQ   = \"\&\=\"
 @KW_OP_ASSIGN   = \"=\"
 @KW_OP_DOT      = \"\.\"
+@KW_OP_AMP      = \"\&\"
 @KW_OP_AMP_DOT  = \"&\.\"
 @KW_OP_PLUS     = \"\+\"
 @KW_OP_MINUS    = \"\-\"
@@ -283,7 +293,9 @@ import Common
 @KW_OP_POW      = \"\*\*\"
 @KW_OP_PERCENT  = \"\%\"
 @KW_OP_DOTDOT   = \"\.\.\"
+@KW_OP_DOTDOTDOT = \"\.\.\.\"
 @KW_OP_PLUSPLUS = \"\+\+\"
+@KW_OP_PIPE     = \"\|\"
 @KW_OP_COLON2   = \"::\"
 
 -- ************
@@ -424,6 +436,8 @@ tokens :-
 @KW_TYPE            { lex' AlexRawToken_TYPE            }
 @KW_LEFT            { lex' AlexRawToken_LEFT            }
 @KW_LEFT2           { lex' AlexRawToken_LEFT2           }
+@KW_LEFT3           { lex' AlexRawToken_LEFT3           }
+@KW_MRHS           { lex' AlexRawToken_MRHS           }
 @KW_ARG_BLOCK       { lex' AlexRawToken_ARG_BLOCK       }
 @KW_REST            { lex' AlexRawToken_REST            }
 @KW_REST2           { lex' AlexRawToken_REST2           }
@@ -436,6 +450,8 @@ tokens :-
 @KW_RESCUE2         { lex' AlexRawToken_RESCUE2         }
 @KW_RESCUE4         { lex' AlexRawToken_RESCUE4         }
 @KW_RESCUE3         { lex' AlexRawToken_RESCUE3         }
+@KW_ENSURE          { lex' AlexRawToken_ENSURE          }
+@KW_ENSURE_CLAUSE   { lex' AlexRawToken_ENSURE_CLAUSE   }
 @KW_VARIABLE        { lex' AlexRawToken_VARIABLE        }
 @KW_BACKREF         { lex' AlexRawToken_BACKREF         }
 @KW_NEXT            { lex' AlexRawToken_NEXT            }
@@ -494,6 +510,7 @@ tokens :-
 @KW_STMT_ELSE       { lex' AlexRawToken_STMT_ELSE       }
 @KW_STMT_ELSE2      { lex' AlexRawToken_STMT_ELSE2      }
 @KW_STMT_IF2        { lex' AlexRawToken_STMT_IF2        }
+@KW_STMT_WHILE      { lex' AlexRawToken_STMT_WHILE      }
 @KW_STMT_VOID       { lex' AlexRawToken_STMT_VOID       }
 @KW_EXPR_VAR        { lex' AlexRawToken_EXPR_VAR        }
 @KW_EXPR_SUBSCRIPT  { lex' AlexRawToken_EXPR_SUBSCRIPT  }
@@ -503,6 +520,7 @@ tokens :-
 @KW_IDENTIFIER      { lex' AlexRawToken_IDENTIFIER      }
 @KW_YIELD           { lex' AlexRawToken_YIELD           }
 @KW_IVAR            { lex' AlexRawToken_IVAR            }
+@KW_CVAR            { lex' AlexRawToken_CVAR            }
 @KW_RETURN_TYPE     { lex' AlexRawToken_RETURN_TYPE     }
 @KW_FUNCTION_DEC    { lex' AlexRawToken_FUNCTION_DEC    }
 
@@ -545,20 +563,24 @@ tokens :-
 @KW_OP_LT       { lex' AlexRawToken_OP_LT       }
 @KW_OP_GT       { lex' AlexRawToken_OP_GT       }
 @KW_OP_GEQ      { lex' AlexRawToken_OP_GEQ      }
+@KW_OP_LEQ      { lex' AlexRawToken_OP_LEQ      }
 @KW_OP_SHL      { lex' AlexRawToken_OP_SHL      }
 @KW_OP_EQ       { lex' AlexRawToken_OP_EQ       }
 @KW_OP_EQ3      { lex' AlexRawToken_OP_EQ3      }
 @KW_OP_NE       { lex' AlexRawToken_OP_NE       }
 @KW_OP_EQMATCH  { lex' AlexRawToken_OP_EQMATCH  }
 @KW_OP_PLUSEQ   { lex' AlexRawToken_OP_PLUSEQ   }
+@KW_OP_MINUSEQ  { lex' AlexRawToken_OP_MINUSEQ  }
 @KW_OP_NEQ      { lex' AlexRawToken_OP_NEQ      }
 @KW_OP_BANG     { lex' AlexRawToken_OP_BANG     }
 @KW_OP_OR       { lex' AlexRawToken_OP_OR       }
 @KW_OP_AND      { lex' AlexRawToken_OP_AND      }
 @KW_OP_AND2     { lex' AlexRawToken_OP_AND2     }
 @KW_OP_OR2      { lex' AlexRawToken_OP_OR2      }
+@KW_OP_AMP_EQ   { lex' AlexRawToken_OP_AMP_EQ   }
 @KW_OP_ASSIGN   { lex' AlexRawToken_OP_ASSIGN   }
 @KW_OP_DOT      { lex' AlexRawToken_OP_DOT      }
+@KW_OP_AMP      { lex' AlexRawToken_OP_AMP      }
 @KW_OP_AMP_DOT  { lex' AlexRawToken_OP_AMP_DOT  }
 @KW_OP_PLUS     { lex' AlexRawToken_OP_PLUS     }
 @KW_OP_MINUS    { lex' AlexRawToken_OP_MINUS    }
@@ -566,8 +588,10 @@ tokens :-
 @KW_OP_DIV      { lex' AlexRawToken_OP_DIV      }
 @KW_OP_POW      { lex' AlexRawToken_OP_POW      }
 @KW_OP_DOTDOT   { lex' AlexRawToken_OP_DOTDOT   }
+@KW_OP_DOTDOTDOT { lex' AlexRawToken_OP_DOTDOTDOT }
 @KW_OP_PERCENT  { lex' AlexRawToken_OP_PERCENT  }
 @KW_OP_PLUSPLUS { lex' AlexRawToken_OP_PLUSPLUS }
+@KW_OP_PIPE     { lex' AlexRawToken_OP_PIPE     }
 @KW_OP_COLON2   { lex' AlexRawToken_OP_COLON2   }
 
 -- ***************************
@@ -732,6 +756,8 @@ data AlexRawToken
      | AlexRawToken_TYPE            -- ^ Reserved Keyword
      | AlexRawToken_LEFT            -- ^ Reserved Keyword
      | AlexRawToken_LEFT2           -- ^ Reserved Keyword
+     | AlexRawToken_LEFT3           -- ^ Reserved Keyword
+     | AlexRawToken_MRHS           -- ^ Reserved Keyword
      | AlexRawToken_ARG_BLOCK       -- ^ Reserved Keyword
      | AlexRawToken_REST            -- ^ Reserved Keyword
      | AlexRawToken_REST2           -- ^ Reserved Keyword
@@ -744,6 +770,8 @@ data AlexRawToken
      | AlexRawToken_RESCUE2         -- ^ Reserved Keyword
      | AlexRawToken_RESCUE4         -- ^ Reserved Keyword
      | AlexRawToken_RESCUE3         -- ^ Reserved Keyword
+     | AlexRawToken_ENSURE          -- ^ Reserved Keyword
+     | AlexRawToken_ENSURE_CLAUSE   -- ^ Reserved Keyword
      | AlexRawToken_VARIABLE        -- ^ Reserved Keyword
      | AlexRawToken_BACKREF         -- ^ Reserved Keyword
      | AlexRawToken_NEXT            -- ^ Reserved Keyword
@@ -806,6 +834,7 @@ data AlexRawToken
      | AlexRawToken_IDENTIFIER      -- ^ Reserved Keyword
      | AlexRawToken_YIELD           -- ^ Reserved Keyword
      | AlexRawToken_IVAR            -- ^ Reserved Keyword
+     | AlexRawToken_CVAR            -- ^ Reserved Keyword
      | AlexRawToken_RETURN_TYPE     -- ^ Reserved Keyword
      | AlexRawToken_STMT_FUNCTION   -- ^ Reserved Keyword
      | AlexRawToken_FUNCTION_DEC    -- ^ Reserved Keyword
@@ -826,20 +855,24 @@ data AlexRawToken
      | AlexRawToken_OP_LT           -- ^ Reserved Keyword
      | AlexRawToken_OP_GT           -- ^ Reserved Keyword
      | AlexRawToken_OP_GEQ          -- ^ Reserved Keyword
+     | AlexRawToken_OP_LEQ          -- ^ Reserved Keyword
      | AlexRawToken_OP_SHL          -- ^ Reserved Keyword
      | AlexRawToken_OP_EQ           -- ^ Reserved Keyword
      | AlexRawToken_OP_EQ3          -- ^ Reserved Keyword
      | AlexRawToken_OP_NE           -- ^ Reserved Keyword
      | AlexRawToken_OP_EQMATCH      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUSEQ       -- ^ Reserved Keyword
+     | AlexRawToken_OP_MINUSEQ      -- ^ Reserved Keyword
      | AlexRawToken_OP_NEQ          -- ^ Reserved Keyword
      | AlexRawToken_OP_BANG         -- ^ Reserved Keyword
      | AlexRawToken_OP_OR           -- ^ Reserved Keyword
      | AlexRawToken_OP_AND          -- ^ Reserved Keyword
      | AlexRawToken_OP_AND2         -- ^ Reserved Keyword
      | AlexRawToken_OP_OR2          -- ^ Reserved Keyword
+     | AlexRawToken_OP_AMP_EQ       -- ^ Reserved Keyword
      | AlexRawToken_OP_ASSIGN       -- ^ Reserved Keyword
      | AlexRawToken_OP_DOT          -- ^ Reserved Keyword
+     | AlexRawToken_OP_AMP          -- ^ Reserved Keyword
      | AlexRawToken_OP_AMP_DOT      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUS         -- ^ Reserved Keyword
      | AlexRawToken_OP_MINUS        -- ^ Reserved Keyword
@@ -847,8 +880,10 @@ data AlexRawToken
      | AlexRawToken_OP_DIV          -- ^ Reserved Keyword
      | AlexRawToken_OP_POW          -- ^ Reserved Keyword
      | AlexRawToken_OP_DOTDOT       -- ^ Reserved Keyword
+     | AlexRawToken_OP_DOTDOTDOT    -- ^ Reserved Keyword
      | AlexRawToken_OP_PERCENT      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUSPLUS     -- ^ Reserved Keyword
+     | AlexRawToken_OP_PIPE         -- ^ Reserved Keyword
      | AlexRawToken_OP_COLON2       -- ^ Reserved Keyword
 
      -- ***************
@@ -878,6 +913,7 @@ data AlexRawToken
      | AlexRawToken_STMT_BLOCK      -- ^ Reserved Keyword
      | AlexRawToken_STMT_RETURN     -- ^ Reserved Keyword
      | AlexRawToken_STMT_UNLESS     -- ^ Reserved Keyword
+     | AlexRawToken_STMT_WHILE      -- ^ Reserved Keyword
      | AlexRawToken_STMT_EXP        -- ^ Reserved Keyword
 
      -- ***************
