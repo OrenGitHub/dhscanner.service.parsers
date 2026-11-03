@@ -19,7 +19,7 @@ import Location
 -- *                 *
 -- *******************
 import qualified Data.Map
-import Data.Maybe ( catMaybes, fromMaybe, mapMaybe )
+import Data.Maybe ( catMaybes, fromMaybe )
 import Text.Read ( readMaybe )
 
 -- ******************************************************************
@@ -254,6 +254,10 @@ stmtAssign lhs rhs = Just $ Ast.StmtAssign $ Ast.StmtAssignContent {
 stmtOpAssign :: Location -> Ast.Var -> Ast.Exp -> Maybe Ast.Stmt
 stmtOpAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) Ast.PLUS rhs)
 
+-- instrumented as dhscanner Ast.ExpBinop ( expression form of opassign )
+expOpAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Exp
+expOpAssign loc lhs rhs = expBinop loc (expVar lhs) Ast.PLUS rhs
+
 -- direct dhscanner subtree creation: Ast.StmtIf
 -- the else part is not kept yet.
 stmtIf :: Location -> Ast.Exp -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
@@ -320,12 +324,39 @@ stmtClass name super body = Just $ Ast.StmtClass $ Ast.StmtClassContent {
     Ast.stmtClassMethods = Ast.Methods methods
 } where
     className = Token.ClassName (nameify name)
-    funcs = mapMaybe funcOf (catMaybes body)
+    funcs = visibilityOf Nothing (catMaybes body)
     methods = Data.Map.fromList (methodify className super funcs)
 
-funcOf :: Ast.Stmt -> Maybe Ast.StmtFuncContent
-funcOf (Ast.StmtFunc f) = Just f
-funcOf _ = Nothing
+-- | the `def`s of a class body, in order. A bare `private` / `protected`
+-- ( a `vcall` ) makes every later `def` carry the annotation
+-- `<dhscanner-instrumentation>[private]` ( `[protected]` ) at its location,
+-- until a bare `public` ( runner #138 : a private helper of a Rails
+-- controller is not an action ).
+visibilityOf :: Maybe Ast.Exp -> [Ast.Stmt] -> [Ast.StmtFuncContent]
+visibilityOf _ [] = []
+visibilityOf current (Ast.StmtFunc f : rest) = annotate current f : visibilityOf current rest
+visibilityOf current (stmt : rest) = case visibilityMarker stmt of
+    Just (Token.Named "public" _) -> visibilityOf Nothing rest
+    Just (Token.Named v loc) -> visibilityOf (Just (instrumentationCall v loc [])) rest
+    Nothing -> visibilityOf current rest
+
+visibilityMarker :: Ast.Stmt -> Maybe Token.Named
+visibilityMarker (Ast.StmtExp (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName v))))))
+    | Token.content v `elem` [ "private", "protected", "public" ] = Just v
+visibilityMarker _ = Nothing
+
+annotate :: Maybe Ast.Exp -> Ast.StmtFuncContent -> Ast.StmtFuncContent
+annotate Nothing f = f
+annotate (Just a) f = f { Ast.stmtFuncAnnotations = a : Ast.stmtFuncAnnotations f }
+
+-- | the standard instrumented call : callee `<dhscanner-instrumentation>[<tag>]`
+-- ( the same shape as `TsParserActions.instrumentationCall` ).
+instrumentationCall :: String -> Location -> [Ast.Exp] -> Ast.Exp
+instrumentationCall tag loc callArgs = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = expvarify (Token.Named ("<dhscanner-instrumentation>[" ++ tag ++ "]") loc),
+    Ast.args = callArgs,
+    Ast.expCallLocation = loc
+}
 
 -- **********
 -- *        *

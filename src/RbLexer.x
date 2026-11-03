@@ -148,6 +148,7 @@ import Common
 @KW_REST2           = \"kwrest_param\"
 @KW_REST3           = \"rest\"
 @KW_REST_PARAM      = \"rest_param\"
+@KW_ARGS_FORWARD      = \"args_forward\"
 @KW_DYNA            = \"dyna_symbol\"
 @KW_EXCEPTION       = \"exception\"
 @KW_EXCEPTIONS      = \"exceptions\"
@@ -271,6 +272,7 @@ import Common
 @KW_OP_SHL      = \"\<\<\"
 @KW_OP_EQ       = \"==\"
 @KW_OP_EQ3      = \"===\"
+@KW_OP_CMP3     = \"\<\=\>\"
 @KW_OP_NE       = \"!=\"
 @KW_OP_EQMATCH  = \"\=\~\"
 @KW_OP_PLUSEQ   = \"\+=\"
@@ -280,8 +282,10 @@ import Common
 @KW_OP_OR       = \"\|\|\"
 @KW_OP_AND      = \"&&\"
 @KW_OP_AND2     = \"and\"
+@KW_OP_OR_WORD  = \"or\"
 @KW_OP_OR2      = \"\|\|=\"
 @KW_OP_AMP_EQ   = \"\&\=\"
+@KW_OP_PIPE_EQ  = \"\|\=\"
 @KW_OP_ASSIGN   = \"=\"
 @KW_OP_DOT      = \"\.\"
 @KW_OP_AMP      = \"\&\"
@@ -443,6 +447,7 @@ tokens :-
 @KW_REST2           { lex' AlexRawToken_REST2           }
 @KW_REST3           { lex' AlexRawToken_REST3           }
 @KW_REST_PARAM      { lex' AlexRawToken_REST_PARAM      }
+@KW_ARGS_FORWARD      { lex' AlexRawToken_ARGS_FORWARD      }
 @KW_DYNA            { lex' AlexRawToken_DYNA            }
 @KW_EXCEPTION       { lex' AlexRawToken_EXCEPTION       }
 @KW_EXCEPTIONS      { lex' AlexRawToken_EXCEPTIONS      }
@@ -567,6 +572,7 @@ tokens :-
 @KW_OP_SHL      { lex' AlexRawToken_OP_SHL      }
 @KW_OP_EQ       { lex' AlexRawToken_OP_EQ       }
 @KW_OP_EQ3      { lex' AlexRawToken_OP_EQ3      }
+@KW_OP_CMP3     { lex' AlexRawToken_OP_CMP3     }
 @KW_OP_NE       { lex' AlexRawToken_OP_NE       }
 @KW_OP_EQMATCH  { lex' AlexRawToken_OP_EQMATCH  }
 @KW_OP_PLUSEQ   { lex' AlexRawToken_OP_PLUSEQ   }
@@ -576,8 +582,10 @@ tokens :-
 @KW_OP_OR       { lex' AlexRawToken_OP_OR       }
 @KW_OP_AND      { lex' AlexRawToken_OP_AND      }
 @KW_OP_AND2     { lex' AlexRawToken_OP_AND2     }
+@KW_OP_OR_WORD  { lex' AlexRawToken_OP_OR_WORD  }
 @KW_OP_OR2      { lex' AlexRawToken_OP_OR2      }
 @KW_OP_AMP_EQ   { lex' AlexRawToken_OP_AMP_EQ   }
+@KW_OP_PIPE_EQ  { lex' AlexRawToken_OP_PIPE_EQ  }
 @KW_OP_ASSIGN   { lex' AlexRawToken_OP_ASSIGN   }
 @KW_OP_DOT      { lex' AlexRawToken_OP_DOT      }
 @KW_OP_AMP      { lex' AlexRawToken_OP_AMP      }
@@ -763,6 +771,7 @@ data AlexRawToken
      | AlexRawToken_REST2           -- ^ Reserved Keyword
      | AlexRawToken_REST3           -- ^ Reserved Keyword
      | AlexRawToken_REST_PARAM      -- ^ Reserved Keyword
+     | AlexRawToken_ARGS_FORWARD    -- ^ Reserved Keyword
      | AlexRawToken_DYNA            -- ^ Reserved Keyword
      | AlexRawToken_EXCEPTION       -- ^ Reserved Keyword
      | AlexRawToken_EXCEPTIONS      -- ^ Reserved Keyword
@@ -859,6 +868,7 @@ data AlexRawToken
      | AlexRawToken_OP_SHL          -- ^ Reserved Keyword
      | AlexRawToken_OP_EQ           -- ^ Reserved Keyword
      | AlexRawToken_OP_EQ3          -- ^ Reserved Keyword
+     | AlexRawToken_OP_CMP3         -- ^ Reserved Keyword
      | AlexRawToken_OP_NE           -- ^ Reserved Keyword
      | AlexRawToken_OP_EQMATCH      -- ^ Reserved Keyword
      | AlexRawToken_OP_PLUSEQ       -- ^ Reserved Keyword
@@ -868,8 +878,10 @@ data AlexRawToken
      | AlexRawToken_OP_OR           -- ^ Reserved Keyword
      | AlexRawToken_OP_AND          -- ^ Reserved Keyword
      | AlexRawToken_OP_AND2         -- ^ Reserved Keyword
+     | AlexRawToken_OP_OR_WORD      -- ^ Reserved Keyword
      | AlexRawToken_OP_OR2          -- ^ Reserved Keyword
      | AlexRawToken_OP_AMP_EQ       -- ^ Reserved Keyword
+     | AlexRawToken_OP_PIPE_EQ      -- ^ Reserved Keyword
      | AlexRawToken_OP_ASSIGN       -- ^ Reserved Keyword
      | AlexRawToken_OP_DOT          -- ^ Reserved Keyword
      | AlexRawToken_OP_AMP          -- ^ Reserved Keyword
