@@ -139,6 +139,7 @@ import qualified Common
 'aref_field'            { AlexTokenTag AlexRawToken_AREF_FIELD      _ }
 'const_path_ref'        { AlexTokenTag AlexRawToken_CONSTANT4       _ }
 'top_const_ref'         { AlexTokenTag AlexRawToken_CONSTANT5       _ }
+'top_const_field'       { AlexTokenTag AlexRawToken_CONSTANT6       _ }
 'const'                 { AlexTokenTag AlexRawToken_CONSTANT3       _ }
 'key'                   { AlexTokenTag AlexRawToken_KEY             _ }
 'var_field'             { AlexTokenTag AlexRawToken_VAR             _ }
@@ -267,6 +268,7 @@ import qualified Common
 'return'              { AlexTokenTag AlexRawToken_STMT_RETURN _ }
 'unless'              { AlexTokenTag AlexRawToken_STMT_UNLESS _ }
 'while'               { AlexTokenTag AlexRawToken_STMT_WHILE  _ }
+'until'               { AlexTokenTag AlexRawToken_STMT_UNTIL  _ }
 'ExpressionStatement' { AlexTokenTag AlexRawToken_STMT_EXP    _ }
 'string_concat'       { AlexTokenTag AlexRawToken_string_concat _ }
 'lambda'              { AlexTokenTag AlexRawToken_lambda _ }
@@ -375,6 +377,8 @@ tokenID:
 ID        { Actions.unquote (tokIDValue $1) } |
 'id'      { "id"                    } |
 'self'    { "self"                  } |
+'until'   { "until"                 } |
+'top_const_field' { "top_const_field" } |
 'cvar'    { "cvar"                  } |
 'ivar'    { "ivar"                  } |
 'true'    { "true"                  } |
@@ -621,7 +625,21 @@ var:
 varSimple    { $1 } |
 varField     { $1 } |
 varParented  { $1 } |
+varTopConst  { $1 } |
 varSubscript { $1 }
+
+-- direct dhscanner subtree creation: Ast.VarSimple
+-- `::Const = e` : the top level constant Const
+varTopConst:
+'{'
+    'type' ':' 'top_const_field' ','
+    'location' ':' location ','
+    'constant' ':' identifier ','
+    'comments' ':' comments
+'}'
+{
+    Actions.varSimple $12
+}
 
 -- direct dhscanner subtree creation: Ast.ExpStr
 stringPartContent:
@@ -1258,7 +1276,7 @@ caseElse:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $16
 }
 |
 '{'
@@ -1268,16 +1286,17 @@ caseElse:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $12
 }
 
-when_consequent: 'consequent' ':' whenish ',' { Nothing }
+when_consequent: 'consequent' ':' whenish ',' { $3 }
 
 when_keyword: 'keyword' ':' kw_tag ',' { Nothing }
 
+-- the rest of a case chain, as statements
 whenish:
-whenNode { Nothing } |
-caseElse { Nothing }
+whenNode { $1 } |
+caseElse { $1 }
 
 -- a when clause inside a case
 whenNode:
@@ -1291,7 +1310,7 @@ whenNode:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.whenClause $8 $13 $17 $19
 }
 
 -- instrumented as dhscanner Ast.ExpInt placeholder
@@ -1306,6 +1325,20 @@ expCase:
 '}'
 {
     Actions.placeholderInt 777 $8
+}
+
+-- direct dhscanner subtree creation: Ast.StmtIf ( a case statement is an if chain )
+stmtCase:
+'{'
+    'type' ':' 'case' ','
+    'location' ':' location ','
+    'keyword' ':' kw_tag ','
+    'value' ':' ornull(exp) ','
+    'consequent' ':' whenish ','
+    'comments' ':' comments
+'}'
+{
+    Actions.stmtCase $8 $16 $20
 }
 
 -- direct dhscanner subtree creation: Ast.ExpNull
@@ -1339,10 +1372,11 @@ strConcat:
 -- *     *
 -- *******
 -- every exp. stmtExp wraps expBase only : if / assign / begin as a
--- statement go through their stmt twins ( stmtIfPlain, stmtAssignPlain, stmtBegin )
+-- statement go through their stmt twins ( stmtIfPlain, stmtCase, stmtAssignPlain, stmtBegin )
 exp:
 expBase   { $1 } |
 expIf     { $1 } |
+expCase   { $1 } |
 expAssign { $1 } |
 expBegin  { $1 }
 
@@ -1352,7 +1386,6 @@ exp_block   { $1 } |
 expSymbol   { $1 } |
 expNil      { $1 } |
 exp_if      { $1 } |
-expCase     { $1 } |
 expFloat   { $1 } |
 expInt      { $1 } |
 backref     { $1 } |
@@ -1732,9 +1765,9 @@ else_type:
 'else' { Nothing } |
 'elif' { Nothing }
 
-predicate: 'predicate' ':' exp ',' { Nothing }
+predicate: 'predicate' ':' exp ',' { $3 }
 
-consequent: 'consequent' ':' stmt_else ',' { Nothing }
+consequent: 'consequent' ':' stmt_else ',' { $3 }
 
 -- *************
 -- *           *
@@ -1751,7 +1784,7 @@ stmt_else:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.elseBody $8 $10 $13 $15
 }
 
 -- ***********
@@ -1759,7 +1792,7 @@ stmt_else:
 -- * stmt_if *
 -- *         *
 -- ***********
-else_part: 'consequent' ':' stmt_else ',' { Nothing }
+else_part: 'consequent' ':' stmt_else ',' { $3 }
 
 -- direct dhscanner subtree creation: Ast.StmtIf
 stmtIfPlain:
@@ -1772,7 +1805,7 @@ stmtIfPlain:
     'comments' ':' comments
 '}'
 {
-    Actions.stmtIf $8 $12 $16
+    Actions.stmtIfElse $8 $12 $16 $18
 }
 
 -- if / unless / while `x op= e` ( a plain `x = e` predicate is an exp : expAssign )
@@ -1978,7 +2011,7 @@ expCmd:
     'comments' ':' comments
 '}'
 {
-    Actions.expvarify $12
+    Actions.call $8 $12 $16
 }
 
 -- direct dhscanner subtree creation: Ast.ExpVar
@@ -1992,7 +2025,7 @@ expCmdWithBlock:
     'comments' ':' comments
 '}'
 {
-    Actions.expvarify $12
+    Actions.call $8 $12 $16
 }
 
 -- ***************
@@ -2011,7 +2044,7 @@ exp_cmdcall_1:
     'comments' ':' comments
 '}'
 {
-    $12
+    Actions.methodCall $8 $12 $20 $24
 }
 
 -- ***************
@@ -2031,7 +2064,7 @@ exp_cmdcall_2:
     'comments' ':' comments
 '}'
 {
-    $12
+    Actions.methodCall $8 $12 $20 $24
 }
 
 -- ***************
@@ -2120,7 +2153,7 @@ stmt_return:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.stmtReturn $8 $12
 }
 
 -- ***************
@@ -2133,22 +2166,24 @@ stmt_unless:
     'type' ':' 'unless' ','
     'location' ':' location ','
     'predicate' ':' exp ','
-    'stmts' ':' stmts ',' 
+    'stmts' ':' stmts ','
+    optional(else_part)
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.stmtUnless $8 $12 $16 $18
 }
 |
 '{'
     'type' ':' 'unless' ','
     'location' ':' location ','
     'predicate' ':' assignPredicate ','
-    'stmts' ':' stmts ',' 
+    'stmts' ':' stmts ','
+    optional(else_part)
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.stmtUnlessAssign $8 $16 $18
 }
 
 -- ***************
@@ -2156,27 +2191,32 @@ stmt_unless:
 -- * stmt_while  *
 -- *             *
 -- ***************
+while_type:
+'while' { Nothing } |
+'until' { Nothing }
+
+-- direct dhscanner subtree creation: Ast.StmtWhile ( until : the condition is kept as is )
 stmt_while:
 '{'
-    'type' ':' 'while' ','
+    'type' ':' while_type ','
     'location' ':' location ','
     'predicate' ':' exp ','
-    'stmts' ':' stmts ',' 
+    'stmts' ':' stmts ','
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.stmtWhile $8 $12 $16
 }
 |
 '{'
-    'type' ':' 'while' ','
+    'type' ':' while_type ','
     'location' ':' location ','
     'predicate' ':' assignPredicate ','
-    'stmts' ':' stmts ',' 
+    'stmts' ':' stmts ','
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.stmtWhileAssign $8 $16
 }
 
 -- *************
@@ -2385,6 +2425,7 @@ expLambda:
 -- ********
 stmt:
 stmt_if      { $1 } |
+stmtCase     { $1 } |
 stmtIfAssign { $1 } |
 stmt_for     { $1 } |
 stmtExp      { $1 } |

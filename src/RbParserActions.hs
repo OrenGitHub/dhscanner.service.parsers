@@ -259,14 +259,67 @@ expOpAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Exp
 expOpAssign loc lhs rhs = expBinop loc (expVar lhs) Ast.PLUS rhs
 
 -- direct dhscanner subtree creation: Ast.StmtIf
--- the else part is not kept yet.
 stmtIf :: Location -> Ast.Exp -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
-stmtIf loc cond body = Just $ Ast.StmtIf $ Ast.StmtIfContent {
+stmtIf loc cond body = stmtIfElse loc cond body Nothing
+
+-- direct dhscanner subtree creation: Ast.StmtIf
+-- `if c ; a ; else b ; end` ( an `elsif` chain is a nested if in the else body )
+stmtIfElse :: Location -> Ast.Exp -> [Maybe Ast.Stmt] -> Maybe [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtIfElse loc cond body elseStmts = Just $ Ast.StmtIf $ Ast.StmtIfContent {
     Ast.stmtIfCond = cond,
     Ast.stmtIfBody = catMaybes body,
-    Ast.stmtElseBody = [],
+    Ast.stmtElseBody = catMaybes (fromMaybe [] elseStmts),
     Ast.stmtIfLocation = loc
 }
+
+-- | the else part of an if : `else b` is b, `elsif c ; b ...` is a nested if.
+elseBody :: Location -> Maybe Ast.Exp -> [Maybe Ast.Stmt] -> Maybe [Maybe Ast.Stmt] -> [Maybe Ast.Stmt]
+elseBody _ Nothing body _ = body
+elseBody loc (Just cond) body rest = [ stmtIfElse loc cond body rest ]
+
+-- direct dhscanner subtree creation: Ast.StmtIf
+-- `unless c ; a ; else b ; end` is `if c ; b ; else a ; end`.
+stmtUnless :: Location -> Ast.Exp -> [Maybe Ast.Stmt] -> Maybe [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtUnless loc cond body elseStmts = stmtIfElse loc cond (fromMaybe [] elseStmts) (Just body)
+
+-- | `unless x op= e` : the assignment predicate is not kept yet.
+stmtUnlessAssign :: Location -> [Maybe Ast.Stmt] -> Maybe [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtUnlessAssign loc = stmtUnless loc (placeholderInt 888 loc)
+
+-- direct dhscanner subtree creation: Ast.StmtWhile
+stmtWhile :: Location -> Ast.Exp -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtWhile loc cond body = Just $ Ast.StmtWhile $ Ast.StmtWhileContent {
+    Ast.stmtWhileCond = cond,
+    Ast.stmtWhileBody = catMaybes body,
+    Ast.stmtWhileLocation = loc
+}
+
+-- direct dhscanner subtree creation: Ast.StmtReturn
+-- `return a, b` returns an array : listify, like an array literal.
+stmtReturn :: Location -> [Ast.Exp] -> Maybe Ast.Stmt
+stmtReturn loc values = Just $ Ast.StmtReturn $ Ast.StmtReturnContent {
+    Ast.stmtReturnValue = case values of { [] -> Nothing; [v] -> Just v; vs -> Just (legacyNamedCall "listify" loc vs) },
+    Ast.stmtReturnLocation = loc
+}
+
+-- | `while x op= e` : the assignment predicate is not kept yet.
+stmtWhileAssign :: Location -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtWhileAssign loc = stmtWhile loc (placeholderInt 888 loc)
+
+-- instrumented as dhscanner Ast.StmtIf chain :
+-- `case v ; when a, b ; s1 ; when c ; s2 ; else s3 ; end` is `v` as a
+-- statement, then `if a ; s1 ; else if c ; s2 ; else s3`. Each condition
+-- is the first value of its `when` ( the comparison with v is not kept ).
+stmtCase :: Location -> Maybe Ast.Exp -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtCase loc value chain = Just $ Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = maybe [] (\v -> [ Ast.StmtExp v ]) value ++ catMaybes chain,
+    Ast.stmtBlockLocation = loc
+}
+
+-- | one `when a, b ; s` of a case chain, with the rest of the chain as its else.
+whenClause :: Location -> [Ast.Exp] -> [Maybe Ast.Stmt] -> Maybe [Maybe Ast.Stmt] -> [Maybe Ast.Stmt]
+whenClause loc values body rest = [ stmtIfElse loc cond body rest ] where
+    cond = case values of { (v:_) -> v; [] -> placeholderInt 777 loc }
 
 -- | `if x = e` : the assignment predicate is not kept yet.
 stmtIfAssign :: Location -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt

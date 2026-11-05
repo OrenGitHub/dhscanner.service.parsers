@@ -123,6 +123,7 @@ import Common
 @KW_AREF_FIELD      = \"aref_field\"
 @KW_CONSTANT4       = \"const_path_ref\"
 @KW_CONSTANT5       = \"top_const_ref\"
+@KW_CONSTANT6       = \"top_const_field\"
 @KW_CONSTANT3       = \"const\"
 @KW_KEY             = \"key\"
 @KW_ARG             = "Arg"
@@ -240,6 +241,7 @@ import Common
 @KW_STMT_RETURN = \"return\"
 @KW_STMT_UNLESS = \"unless\"
 @KW_STMT_WHILE  = \"while\"
+@KW_STMT_UNTIL  = \"until\"
 @KW_STMT_EXP    = \"ExpressionStatement\"
 
 -- ***************
@@ -423,6 +425,7 @@ tokens :-
 @KW_AREF_FIELD      { lex' AlexRawToken_AREF_FIELD      }
 @KW_CONSTANT4       { lex' AlexRawToken_CONSTANT4       }
 @KW_CONSTANT5       { lex' AlexRawToken_CONSTANT5       }
+@KW_CONSTANT6       { lex' AlexRawToken_CONSTANT6       }
 @KW_ARG             { lex' AlexRawToken_ARG             }
 @KW_KEY             { lex' AlexRawToken_KEY             }
 @KW_VAR             { lex' AlexRawToken_VAR             }
@@ -516,6 +519,7 @@ tokens :-
 @KW_STMT_ELSE2      { lex' AlexRawToken_STMT_ELSE2      }
 @KW_STMT_IF2        { lex' AlexRawToken_STMT_IF2        }
 @KW_STMT_WHILE      { lex' AlexRawToken_STMT_WHILE      }
+@KW_STMT_UNTIL      { lex' AlexRawToken_STMT_UNTIL      }
 @KW_STMT_VOID       { lex' AlexRawToken_STMT_VOID       }
 @KW_EXPR_VAR        { lex' AlexRawToken_EXPR_VAR        }
 @KW_EXPR_SUBSCRIPT  { lex' AlexRawToken_EXPR_SUBSCRIPT  }
@@ -746,6 +750,7 @@ data AlexRawToken
      | AlexRawToken_CONSTANT3       -- ^ Reserved Keyword
      | AlexRawToken_CONSTANT4       -- ^ Reserved Keyword
      | AlexRawToken_CONSTANT5       -- ^ Reserved Keyword
+     | AlexRawToken_CONSTANT6       -- ^ Reserved Keyword
      | AlexRawToken_AREF_FIELD      -- ^ Reserved Keyword
      | AlexRawToken_ARG             -- ^ Reserved Keyword
      | AlexRawToken_KEY             -- ^ Reserved Keyword
@@ -926,6 +931,7 @@ data AlexRawToken
      | AlexRawToken_STMT_RETURN     -- ^ Reserved Keyword
      | AlexRawToken_STMT_UNLESS     -- ^ Reserved Keyword
      | AlexRawToken_STMT_WHILE      -- ^ Reserved Keyword
+     | AlexRawToken_STMT_UNTIL      -- ^ Reserved Keyword
      | AlexRawToken_STMT_EXP        -- ^ Reserved Keyword
 
      -- ***************
