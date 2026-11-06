@@ -1388,7 +1388,7 @@ expBegin  { $1 }
 
 expBase:
 strConcat   { $1 } |
-exp_block   { $1 } |
+expCallWithBlock { $1 } |
 expSymbol   { $1 } |
 expNil      { $1 } |
 exp_if      { $1 } |
@@ -2045,7 +2045,7 @@ expCmdWithBlock:
     'comments' ':' comments
 '}'
 {
-    Actions.call $8 $12 $16
+    Actions.call $8 $12 ($16 ++ [$20])
 }
 
 -- ***************
@@ -2084,7 +2084,7 @@ exp_cmdcall_2:
     'comments' ':' comments
 '}'
 {
-    Actions.methodCall $8 $12 $20 $24
+    Actions.methodCall $8 $12 $20 ($24 ++ [$28])
 }
 
 -- ***************
@@ -2252,7 +2252,7 @@ block_var:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $12
 }
 
 -- *********************
@@ -2267,6 +2267,8 @@ block_var_wrapper: 'block_var' ':' block_var ',' { $3 }
 -- * block *
 -- *       *
 -- *********
+-- direct dhscanner subtree creation: Ast.ExpLambda
+-- `do |x| ... end` / `{ |x| ... }` : params and body kept
 block:
 '{'
     'type' ':' 'block' ','
@@ -2276,10 +2278,12 @@ block:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.block $8 $10 $13
 }
 
-exp_block:
+-- direct dhscanner subtree creation: Ast.ExpCall
+-- `call do |x| ... end` : the block is the call's last arg, an Ast.ExpLambda
+expCallWithBlock:
 '{'
     'type' ':' 'method_add_block' ','
     'location' ':' location ','
@@ -2288,7 +2292,7 @@ exp_block:
     'comments' ':' comments
 '}'
 {
-    $12
+    Actions.callWithBlock $8 $12 $16
 }
 
 -- instrumented as dhscanner Ast.StmtIf
@@ -2432,7 +2436,7 @@ lambda_params_tag:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.params $10 $12
 }
 
 lambda_content:
@@ -2443,7 +2447,7 @@ lambda_content:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $12
 }
 
 lambda_params:
@@ -2454,11 +2458,11 @@ lambda_params:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $12
 }
 
 -- direct dhscanner subtree creation: Ast.ExpLambda
--- direct dhscanner subtree creation: Ast.ExpLambda
+-- `->(x) { ... }` : params and body kept
 expLambda:
 '{'
     'type' ':' 'lambda' ','
@@ -2468,7 +2472,7 @@ expLambda:
     'comments' ':' comments
 '}'
 {
-    Actions.expLambda $8
+    Actions.expLambda $8 $12 $16
 }
 |
 '{'
@@ -2479,7 +2483,7 @@ expLambda:
     'comments' ':' comments
 '}'
 {
-    Actions.expLambda $8
+    Actions.expLambda $8 $12 $16
 }
 
 

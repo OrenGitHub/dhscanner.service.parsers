@@ -390,13 +390,32 @@ stmtModule loc moduleName body = Just $ Ast.StmtIf $ Ast.StmtIfContent {
 }
 
 -- direct dhscanner subtree creation: Ast.ExpLambda
--- params and body are not kept yet.
--- direct dhscanner subtree creation: Ast.ExpLambda
-expLambda :: Location -> Ast.Exp
-expLambda loc = Ast.ExpLambda $ Ast.ExpLambdaContent {
-    Ast.expLambdaParams = [],
-    Ast.expLambdaBody = [],
+-- `->(x) { ... }` and every block ( `do |x| ... end`, `{ |x| ... }` ).
+-- keyword / rest / block params are not kept yet ( like `params` ).
+expLambda :: Location -> [Ast.Param] -> [Maybe Ast.Stmt] -> Ast.Exp
+expLambda loc lambdaParams body = Ast.ExpLambda $ Ast.ExpLambdaContent {
+    Ast.expLambdaParams = lambdaParams,
+    Ast.expLambdaBody = catMaybes body,
     Ast.expLambdaLocation = loc
+}
+
+-- direct dhscanner subtree creation: Ast.ExpLambda
+-- a block without `|params|` has none.
+block :: Location -> Maybe [Ast.Param] -> [Maybe Ast.Stmt] -> Ast.Exp
+block loc blockParams = expLambda loc (fromMaybe [] blockParams)
+
+-- direct dhscanner subtree creation: Ast.ExpCall
+-- `call do |x| ... end` : the block is the call's last arg. The block body
+-- runs when the callee yields, so it is kept as a lambda arg, the way a
+-- js callback is ( runner : Ruby block bodies were dropped ).
+-- A bare name ( `loop do ... end` ) or any other callee exp becomes a call
+-- of that exp.
+callWithBlock :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+callWithBlock _ (Ast.ExpCall c) lambda = Ast.ExpCall $ c { Ast.args = Ast.args c ++ [lambda] }
+callWithBlock loc callee lambda = Ast.ExpCall $ Ast.ExpCallContent {
+    Ast.callee = callee,
+    Ast.args = [lambda],
+    Ast.expCallLocation = loc
 }
 
 stmtLambda :: Location -> Maybe Ast.Stmt
