@@ -124,6 +124,9 @@ import Common
 @KW_CONSTANT4       = \"const_path_ref\"
 @KW_CONSTANT5       = \"top_const_ref\"
 @KW_CONSTANT6       = \"top_const_field\"
+@KW_DHSCANNER_IMPORT = \"dhscanner_import\"
+@KW_DHSCANNER_CLASS = \"dhscanner_class\"
+@KW_DHSCANNER_GEM = \"dhscanner_gem\"
 @KW_CONSTANT3       = \"const\"
 @KW_KEY             = \"key\"
 @KW_ARG             = "Arg"
@@ -426,6 +429,9 @@ tokens :-
 @KW_CONSTANT4       { lex' AlexRawToken_CONSTANT4       }
 @KW_CONSTANT5       { lex' AlexRawToken_CONSTANT5       }
 @KW_CONSTANT6       { lex' AlexRawToken_CONSTANT6       }
+@KW_DHSCANNER_IMPORT { lex' AlexRawToken_DHSCANNER_IMPORT }
+@KW_DHSCANNER_CLASS { lex' AlexRawToken_DHSCANNER_CLASS }
+@KW_DHSCANNER_GEM { lex' AlexRawToken_DHSCANNER_GEM }
 @KW_ARG             { lex' AlexRawToken_ARG             }
 @KW_KEY             { lex' AlexRawToken_KEY             }
 @KW_VAR             { lex' AlexRawToken_VAR             }
@@ -751,6 +757,9 @@ data AlexRawToken
      | AlexRawToken_CONSTANT4       -- ^ Reserved Keyword
      | AlexRawToken_CONSTANT5       -- ^ Reserved Keyword
      | AlexRawToken_CONSTANT6       -- ^ Reserved Keyword
+     | AlexRawToken_DHSCANNER_IMPORT -- ^ synthetic node of the native front ( runner #146 )
+     | AlexRawToken_DHSCANNER_CLASS -- ^ synthetic node of the native front ( runner #146 )
+     | AlexRawToken_DHSCANNER_GEM -- ^ synthetic node of the native front ( runner #146 )
      | AlexRawToken_AREF_FIELD      -- ^ Reserved Keyword
      | AlexRawToken_ARG             -- ^ Reserved Keyword
      | AlexRawToken_KEY             -- ^ Reserved Keyword

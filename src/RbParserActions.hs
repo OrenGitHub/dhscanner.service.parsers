@@ -97,6 +97,22 @@ identifierWrapper :: Maybe Ast.Exp -> Token.Named -> Token.Named
 identifierWrapper (Just (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent v))))) _ = Token.getVarNameToken v
 identifierWrapper _ name = name
 
+-- | `A::B::C` as one dotted name `A.B.C`, located at `C` ; a parent that is
+-- not a constant path ( `foo()::C` ) is dropped, like 'identifierWrapper'.
+constantPath :: Maybe Ast.Exp -> Token.Named -> Token.Named
+constantPath parent name = case parent >>= dotted of
+    Nothing -> name
+    Just prefix -> name { Token.content = prefix ++ "." ++ Token.content name }
+
+-- | the dotted name of a constant path expression, if it is one
+dotted :: Ast.Exp -> Maybe String
+dotted (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent v)))) = Just (Token.content (Token.getVarNameToken v))
+dotted (Ast.ExpVar (Ast.ExpVarContent (Ast.VarField f))) = do
+    prefix <- dotted (Ast.varFieldLhs f)
+    let Token.FieldName field = Ast.varFieldName f
+    Just (prefix ++ "." ++ Token.content field)
+dotted _ = Nothing
+
 -- ********
 -- *      *
 -- * root *
@@ -130,10 +146,11 @@ varField loc lhs name = Ast.VarField $ Ast.VarFieldContent {
 varFieldOfName :: Location -> Token.Named -> Token.Named -> Ast.Var
 varFieldOfName loc parentName = varField loc (expvarify parentName)
 
--- | `Foo::Bar` / `::Bar` : without a parent, the constant is its own lhs.
+-- | `Foo::Bar` is a field of `Foo`, `::Bar` is the top level `Bar` itself
+-- ( it was `Bar.Bar` ; runner #146 ).
 varParented :: Location -> Maybe Ast.Exp -> Token.Named -> Ast.Var
 varParented loc (Just parentExp) name = varField loc parentExp name
-varParented loc Nothing name = varField loc (expvarify name) name
+varParented _ Nothing name = varme name
 
 -- direct dhscanner subtree creation: Ast.VarSubscript
 varSubscript :: Location -> Ast.Exp -> Ast.Exp -> Ast.Var
@@ -200,9 +217,10 @@ expInt loc quoted = Ast.ExpInt $ Ast.ExpIntContent $ Token.ConstInt {
 expNull :: Location -> Ast.Exp
 expNull loc = Ast.ExpNull $ Ast.ExpNullContent $ Token.ConstNull loc
 
--- | `recv.name` without arguments : a field access.
+-- | `recv.name` without arguments : a call too, ruby objects expose no
+-- fields ( `MiniSqlMultisiteConnection.instance`, runner #146 ).
 fieldAccess :: Location -> Ast.Exp -> Token.Named -> Ast.Exp
-fieldAccess loc rcvr name = expVar (varField loc rcvr name)
+fieldAccess loc rcvr name = methodCall loc rcvr name []
 
 -- direct dhscanner subtree creation: Ast.ExpCall
 -- `recv.name(args)` : the callee field spans from the receiver to the name.
@@ -292,6 +310,38 @@ stmtWhile loc cond body = Just $ Ast.StmtWhile $ Ast.StmtWhileContent {
     Ast.stmtWhileCond = cond,
     Ast.stmtWhileBody = catMaybes body,
     Ast.stmtWhileLocation = loc
+}
+
+-- direct dhscanner subtree creation: Ast.StmtImport
+-- the synthetic `dhscanner_import` node of the native front : the global
+-- `name` ( `DB`, `$redis` ) is defined in the scanned `file`, so it binds
+-- like a 1st party python `from <file> import DB` ( runner #146 ).
+stmtImport :: Location -> String -> FilePath -> Maybe Ast.Stmt
+stmtImport loc name file = Just $ Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportLocal (Ast.ImportLocalFile file),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific name),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = loc
+}
+
+-- | `import MiniSql`, a 3rd party constant
+stmtImportGem :: Location -> String -> Maybe Ast.Stmt
+stmtImportGem loc name = Just $ Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent name),
+    Ast.stmtImportSpecific = Nothing,
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = loc
+}
+
+-- | an empty class `name`, located at its definition in `file`, so a call
+-- on it is a method of that class ( `kb_call_method_of_class` ). Nothing
+-- else comes out of it : the facts of a class come from its methods.
+stmtClassDefinedElsewhere :: Location -> String -> FilePath -> Maybe Ast.Stmt
+stmtClassDefinedElsewhere loc name file = Just $ Ast.StmtClass $ Ast.StmtClassContent {
+    Ast.stmtClassName = Token.ClassName (Token.Named name (loc { Location.filename = file })),
+    Ast.stmtClassSupers = [],
+    Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
+    Ast.stmtClassMethods = Ast.Methods Data.Map.empty
 }
 
 -- direct dhscanner subtree creation: Ast.StmtReturn

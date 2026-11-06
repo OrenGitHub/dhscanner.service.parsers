@@ -140,6 +140,9 @@ import qualified Common
 'const_path_ref'        { AlexTokenTag AlexRawToken_CONSTANT4       _ }
 'top_const_ref'         { AlexTokenTag AlexRawToken_CONSTANT5       _ }
 'top_const_field'       { AlexTokenTag AlexRawToken_CONSTANT6       _ }
+'dhscanner_import'      { AlexTokenTag AlexRawToken_DHSCANNER_IMPORT _ }
+'dhscanner_class'       { AlexTokenTag AlexRawToken_DHSCANNER_CLASS _ }
+'dhscanner_gem'         { AlexTokenTag AlexRawToken_DHSCANNER_GEM _ }
 'const'                 { AlexTokenTag AlexRawToken_CONSTANT3       _ }
 'key'                   { AlexTokenTag AlexRawToken_KEY             _ }
 'var_field'             { AlexTokenTag AlexRawToken_VAR             _ }
@@ -379,6 +382,9 @@ ID        { Actions.unquote (tokIDValue $1) } |
 'self'    { "self"                  } |
 'until'   { "until"                 } |
 'top_const_field' { "top_const_field" } |
+'dhscanner_import' { "dhscanner_import" } |
+'dhscanner_class' { "dhscanner_class" } |
+'dhscanner_gem' { "dhscanner_gem" } |
 'cvar'    { "cvar"                  } |
 'ivar'    { "ivar"                  } |
 'true'    { "true"                  } |
@@ -1835,7 +1841,7 @@ stmtIfAssign:
 stmt_if:
 stmtIfPlain { $1 }
 
--- direct dhscanner subtree creation: Ast.VarField
+-- direct dhscanner subtree creation: Ast.ExpCall
 expFieldAccess:
 '{'
     'type' ':' 'call' ','
@@ -1944,12 +1950,26 @@ identifierWrapper:
     Actions.identifierWrapper $10 $13
 }
 
+-- a Token.Named : the whole `A::B::C` constant path, dotted ( `A.B.C` ), so
+-- a 3rd party super keeps its qualified name ( runner #146 )
+constantPath:
+'{'
+    'type' ':' identifier_wrapper_kind ','
+    'location' ':' location ','
+    optional(parent)
+    constant_or_value ':' identifier ','
+    'comments' ':' comments
+'}'
+{
+    Actions.constantPath $10 $13
+}
+
 -- **************
 -- *            *
 -- * superclass *
 -- *            *
 -- **************
-superclass: 'superclass' ':' identifierWrapper ',' { $3 } |
+superclass: 'superclass' ':' constantPath ',' { $3 } |
             'superclass' ':' superclassArefValue ',' { $3 }
 
 superclassArefValue:
@@ -2289,6 +2309,51 @@ stmtModule:
 -- * stmt_void *
 -- *           *
 -- *************
+-- direct dhscanner subtree creation: Ast.StmtImport
+-- a synthetic node of the native front : the global `name` ( `DB` ) is
+-- defined in the scanned file `value` ( runner #146 )
+stmtImport:
+'{'
+    'type' ':' 'dhscanner_import' ','
+    'location' ':' location ','
+    'name' ':' tokenID ','
+    'value' ':' tokenID ','
+    'comments' ':' comments
+'}'
+{
+    Actions.stmtImport $8 $12 $16
+}
+
+-- direct dhscanner subtree creation: Ast.StmtImport
+-- a synthetic node of the native front : the constant `name` ( `MiniSql` )
+-- is defined by no scanned file, a 3rd party one ( runner #146 )
+stmtImportGem:
+'{'
+    'type' ':' 'dhscanner_gem' ','
+    'location' ':' location ','
+    'name' ':' tokenID ','
+    'value' ':' tokenID ','
+    'comments' ':' comments
+'}'
+{
+    Actions.stmtImportGem $8 $12
+}
+
+-- direct dhscanner subtree creation: Ast.StmtClass
+-- a synthetic node of the native front : the top level class `name` is
+-- defined in the scanned file `value`, at `location` ( runner #146 )
+stmtClassDefinedElsewhere:
+'{'
+    'type' ':' 'dhscanner_class' ','
+    'location' ':' location ','
+    'name' ':' tokenID ','
+    'value' ':' tokenID ','
+    'comments' ':' comments
+'}'
+{
+    Actions.stmtClassDefinedElsewhere $8 $12 $16
+}
+
 stmt_void:
 '{'
     'type' ':' 'void_stmt' ','
@@ -2424,6 +2489,9 @@ expLambda:
 -- *      *
 -- ********
 stmt:
+stmtImport   { $1 } |
+stmtClassDefinedElsewhere { $1 } |
+stmtImportGem { $1 } |
 stmt_if      { $1 } |
 stmtCase     { $1 } |
 stmtIfAssign { $1 } |
