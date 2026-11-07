@@ -732,7 +732,7 @@ key_type:
 -- * key *
 -- *     *
 -- *******
-key_parts: 'parts' ':' '[' commalistof(string_part) ']' ',' { Nothing }
+key_parts: 'parts' ':' '[' commalistof(string_part) ']' ',' { $4 }
 
 -- *******
 -- *     *
@@ -740,14 +740,15 @@ key_parts: 'parts' ':' '[' commalistof(string_part) ']' ',' { Nothing }
 -- *     *
 -- *******
 key_value:
-'value' ':' ID ',' { Nothing } |
-'value' ':' identifier ',' { Nothing }
+'value' ':' ID ',' { Actions.unquote (tokIDValue $3) } |
+'value' ':' identifier ',' { Actions.nameOf $3 }
 
 -- *******
 -- *     *
 -- * key *
 -- *     *
 -- *******
+-- direct dhscanner subtree creation: Ast.ExpStr ( the key's name )
 key:
 '{'
     'type' ':' key_type ','
@@ -757,7 +758,7 @@ key:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.assocKey $8 $10 $11
 }
 
 -- allow keys that are variable references (e.g., some_var => value)
@@ -769,7 +770,7 @@ key_var_ref:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.expvarify $12
 }
 
 -- *********
@@ -786,7 +787,7 @@ assoc_type_1:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.kv $8 $12 $16
 }
 
 -- assoc with a var_ref key
@@ -799,7 +800,7 @@ assoc_type_1_varref:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.kv $8 $12 $16
 }
 
 -- assoc with a call expression key
@@ -812,7 +813,7 @@ assoc_type_1_callkey:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.kv $8 $12 $16
 }
 
 -- *********
@@ -830,7 +831,7 @@ assoc_type_1_constkey:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.kv $8 (Actions.expVar $12) $16
 }
 
 assoc_type_2:
@@ -841,7 +842,7 @@ assoc_type_2:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.assocSplat $8 $12
 }
 
 assoc_type_3:
@@ -852,18 +853,18 @@ assoc_type_3:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.kvShorthand $8 $12
 }
 
 assoc:
-assoc_type_1 { Nothing } |
-assoc_type_1_varref { Nothing } |
-assoc_type_1_callkey { Nothing } |
-assoc_type_1_constkey { Nothing } |
-assoc_type_2 { Nothing } |
-assoc_type_3 { Nothing }
+assoc_type_1 { $1 } |
+assoc_type_1_varref { $1 } |
+assoc_type_1_callkey { $1 } |
+assoc_type_1_constkey { $1 } |
+assoc_type_2 { $1 } |
+assoc_type_3 { $1 }
 
--- instrumented as dhscanner Ast.ExpInt placeholder
+-- instrumented as dhscanner Ast.ExpCall ( `<dhscanner-instrumentation>[dictify]` of `[kv]` pairs )
 expDictBare:
 '{'
     'type' ':' 'bare_assoc_hash' ','
@@ -872,7 +873,7 @@ expDictBare:
     'comments' ':' comments
 '}'
 {
-    Actions.placeholderInt 9999 $8
+    Actions.dictify $8 $13
 }
 
 -- **********
@@ -882,7 +883,7 @@ expDictBare:
 -- **********
 assocs: 'assocs' ':' '[' commalistof(assoc) ']' ',' { $4 }
 
--- instrumented as dhscanner Ast.ExpInt placeholder
+-- instrumented as dhscanner Ast.ExpCall ( `<dhscanner-instrumentation>[dictify]` of `[kv]` pairs )
 expDictHash:
 '{'
     'type' ':' 'hash' ','
@@ -891,7 +892,7 @@ expDictHash:
     'comments' ':' comments
 '}'
 {
-    Actions.placeholderInt 9999 $8
+    Actions.dictifyMaybe $8 $10
 }
 
 -- ************
@@ -1017,7 +1018,7 @@ arg_star:
     $12
 }
 
--- direct dhscanner subtree creation: Ast.ExpVar
+-- direct dhscanner subtree creation: Ast.ExpCall ( a receiverless, argless call : `params` ; a local is a var_ref )
 expVcall:
 '{'
     'type' ':' 'vcall' ','
@@ -1026,7 +1027,7 @@ expVcall:
     'comments' ':' comments
 '}'
 {
-    Actions.expvarify $12
+    Actions.call $8 $12 []
 }
 
 -- instrumented as dhscanner Ast.ExpInt placeholder
@@ -1972,11 +1973,13 @@ constantPath:
 superclass: 'superclass' ':' constantPath ',' { $3 } |
             'superclass' ':' superclassArefValue ',' { $3 }
 
+-- `< ActiveRecord::Migration[7.0]` : the whole path too, `ActiveRecord.Migration`
+-- ( was `ActiveRecord`, the 1st party module of lib/freedom_patches, runner #152 )
 superclassArefValue:
 '{'
     'type' ':' 'aref' ','
     'location' ':' location ','
-    'collection' ':' identifierWrapper ','
+    'collection' ':' constantPath ','
     'index' ':' exp ','
     'comments' ':' comments
 '}'
@@ -1995,7 +1998,7 @@ stmtClass:
     'comments' ':' comments
 '}'
 {
-    Actions.stmtClass $12 $14 $17
+    Actions.stmtClass $8 $12 $14 $17
 }
 
 -- direct dhscanner subtree creation: Ast.ExpCall
@@ -2300,7 +2303,7 @@ stmtModule:
 '{'
     'type' ':' 'module' ','
     'location' ':' location ','
-    'constant' ':' identifierWrapper ','
+    'constant' ':' constantPath ','
     'bodystmt' ':' bodystmt ','
     'comments' ':' comments
 '}'

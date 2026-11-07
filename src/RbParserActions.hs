@@ -437,17 +437,45 @@ stmtFunc loc name funcParams body = Just $ Ast.StmtFunc $ Ast.StmtFuncContent {
 }
 
 -- direct dhscanner subtree creation: Ast.StmtClass
--- the `def`s of the body become its methods.
-stmtClass :: Ast.Var -> Maybe Token.Named -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
-stmtClass name super body = Just $ Ast.StmtClass $ Ast.StmtClassContent {
+-- the `def`s of the body become its methods. The name keeps its whole
+-- constant path, dotted like a super : `class Admin::UsersController` is
+-- `Admin.UsersController` ( was `UsersController` ), so it matches the super
+-- `< Admin::UsersController` of a subclass ( runner #152 ). A body with no
+-- `def` gets one instrumented method ( `classMarker` ) : the class and its
+-- super are facts of its methods, so `class Admin::StaffController <
+-- ApplicationController` with only `before_action`s was not in the kb.
+stmtClass :: Location -> Ast.Var -> Maybe Token.Named -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
+stmtClass loc name super body = Just $ Ast.StmtClass $ Ast.StmtClassContent {
     Ast.stmtClassName = className,
     Ast.stmtClassSupers = maybe [] ((: []) . Token.SuperName) super,
     Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
     Ast.stmtClassMethods = Ast.Methods methods
 } where
-    className = Token.ClassName (nameify name)
-    funcs = visibilityOf Nothing (catMaybes body)
+    className = Token.ClassName (classNameOf name)
+    funcs = case visibilityOf Nothing (catMaybes body) of
+        [] -> [ classMarker loc ]
+        fs -> fs
     methods = Data.Map.fromList (methodify className super funcs)
+
+-- | the dotted constant path of a class name ( `A::B::C` -> `A.B.C` ),
+-- located at its last part
+classNameOf :: Ast.Var -> Token.Named
+classNameOf name@(Ast.VarField _) = case dotted (Ast.ExpVar (Ast.ExpVarContent name)) of
+    Just full -> (nameify name) { Token.content = full }
+    Nothing -> nameify name
+classNameOf name = nameify name
+
+-- | the one method of a class body with no `def` : no params, no body,
+-- annotated `[private]` so no catalog takes it for an action / handler
+classMarker :: Location -> Ast.StmtFuncContent
+classMarker loc = Ast.StmtFuncContent {
+    Ast.stmtFuncReturnType = Nothing,
+    Ast.stmtFuncName = Token.FuncName (Token.Named "<dhscanner-instrumentation>[class]" loc),
+    Ast.stmtFuncParams = [],
+    Ast.stmtFuncBody = [],
+    Ast.stmtFuncAnnotations = [ instrumentationCall "private" loc [] ],
+    Ast.stmtFuncLocation = loc
+}
 
 -- | the `def`s of a class body, in order. A bare `private` / `protected`
 -- ( a `vcall` ) makes every later `def` carry the annotation
@@ -465,6 +493,9 @@ visibilityOf current (stmt : rest) = case visibilityMarker stmt of
 visibilityMarker :: Ast.Stmt -> Maybe Token.Named
 visibilityMarker (Ast.StmtExp (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName v))))))
     | Token.content v `elem` [ "private", "protected", "public" ] = Just v
+-- a `vcall` is a 0 arg call ( runner #152 )
+visibilityMarker (Ast.StmtExp (Ast.ExpCall Ast.ExpCallContent { Ast.callee = Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName v)))), Ast.args = [] }))
+    | Token.content v `elem` [ "private", "protected", "public" ] = Just v
 visibilityMarker _ = Nothing
 
 annotate :: Maybe Ast.Exp -> Ast.StmtFuncContent -> Ast.StmtFuncContent
@@ -479,6 +510,61 @@ instrumentationCall tag loc callArgs = Ast.ExpCall $ Ast.ExpCallContent {
     Ast.args = callArgs,
     Ast.expCallLocation = loc
 }
+
+-- *********
+-- *       *
+-- * hashes *
+-- *       *
+-- *********
+-- instrumented as dhscanner Ast.ExpCall `<dhscanner-instrumentation>[dictify]`
+-- | `{ a: 1, b: x }` and the bare `f(a: 1, b: x)` : one arg per pair, each a
+-- `[kv]` ( runner #152 : was the placeholder `9999`, so every value was lost ).
+dictify :: Location -> [Ast.Exp] -> Ast.Exp
+dictify = instrumentationCall "dictify"
+
+dictifyMaybe :: Location -> Maybe [Ast.Exp] -> Ast.Exp
+dictifyMaybe loc = dictify loc . fromMaybe []
+
+-- instrumented as dhscanner Ast.ExpCall `<dhscanner-instrumentation>[kv]`
+-- | one pair `key => value` / `key: value`, args `[ key, value ]` ( the same
+-- shape as `TsParserActions.property` ).
+kv :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+kv loc keyExp valueExp = instrumentationCall "kv" loc [ keyExp, valueExp ]
+
+-- | the shorthand `f(user_id:)` ( ruby 3.1 ) means `f(user_id: user_id)` :
+-- the value is the name, as a var ( a local, or a 0 arg method ).
+kvShorthand :: Location -> Ast.Exp -> Ast.Exp
+kvShorthand loc keyExp@(Ast.ExpStr (Ast.ExpStrContent s)) =
+    kv loc keyExp (expvarify (Token.Named (Token.constStrValue s) (Token.constStrLocation s)))
+kvShorthand loc keyExp = kv loc keyExp keyExp
+
+-- instrumented as dhscanner Ast.ExpCall `<dhscanner-instrumentation>[assoc_splat]`
+-- | `**opts` inside a hash : its pairs are not known, the value flows on.
+assocSplat :: Location -> Ast.Exp -> Ast.Exp
+assocSplat loc valueExp = instrumentationCall "assoc_splat" loc [ valueExp ]
+
+-- direct dhscanner subtree creation: Ast.ExpStr
+-- | a pair's key : a label `user_id:` / a symbol, or a string whose parts
+-- are all const ( `"Content-Type" =>` ), as the string `user_id`. A key with
+-- interpolation ( `"a#{x}" =>` ) has no const name :
+-- `<dhscanner-instrumentation>[dynamic_key]` of its parts, so the embedded
+-- expressions still flow.
+assocKey :: Location -> Maybe [Ast.Exp] -> Maybe String -> Ast.Exp
+assocKey loc _ (Just name) = expStr loc (stripLabelColon name)
+assocKey loc parts Nothing = case mapM constStr (fromMaybe [] parts) of
+    Just strs -> expStr loc (concat strs)
+    Nothing -> instrumentationCall "dynamic_key" loc (fromMaybe [] parts)
+  where
+    constStr (Ast.ExpStr (Ast.ExpStrContent s)) = Just (Token.constStrValue s)
+    constStr _ = Nothing
+
+stripLabelColon :: String -> String
+stripLabelColon name = case reverse name of
+    (':' : rest) -> reverse rest
+    _ -> name
+
+nameOf :: Token.Named -> String
+nameOf = Token.content
 
 -- **********
 -- *        *
