@@ -352,6 +352,13 @@ stmtReturn loc values = Just $ Ast.StmtReturn $ Ast.StmtReturnContent {
     Ast.stmtReturnLocation = loc
 }
 
+-- instrumented as dhscanner Ast.ExpCall `<dhscanner-instrumentation>[return]`
+-- | a `return` that is an operand, not a statement : `render_404 && return`,
+-- `head :forbidden and return` ( Rails' halt idiom ). The ast has no return
+-- expression, so it is a call whose args are the returned values.
+expReturn :: Location -> [Ast.Exp] -> Ast.Exp
+expReturn = instrumentationCall "return"
+
 -- | `while x op= e` : the assignment predicate is not kept yet.
 stmtWhileAssign :: Location -> [Maybe Ast.Stmt] -> Maybe Ast.Stmt
 stmtWhileAssign loc = stmtWhile loc (placeholderInt 888 loc)
@@ -431,10 +438,21 @@ stmtFunc loc name funcParams body = Just $ Ast.StmtFunc $ Ast.StmtFuncContent {
     Ast.stmtFuncReturnType = Just (varme (Token.Named "any" loc)),
     Ast.stmtFuncName = Token.FuncName name,
     Ast.stmtFuncParams = funcParams,
-    Ast.stmtFuncBody = catMaybes body,
+    Ast.stmtFuncBody = implicitReturn loc (catMaybes body),
     Ast.stmtFuncLocation = loc,
     Ast.stmtFuncAnnotations = []
 }
+
+-- | a method returns its last expression ( runner #154 ) : a trailing
+-- `StmtExp e` is `return e`. Any other last statement is left as is.
+implicitReturn :: Location -> [Ast.Stmt] -> [Ast.Stmt]
+implicitReturn loc stmts = case reverse stmts of
+    (Ast.StmtExp e : rest) -> reverse (returned : rest) where
+        returned = Ast.StmtReturn $ Ast.StmtReturnContent {
+            Ast.stmtReturnValue = Just e,
+            Ast.stmtReturnLocation = case e of { Ast.ExpCall c -> Ast.expCallLocation c; _ -> loc }
+        }
+    _ -> stmts
 
 -- direct dhscanner subtree creation: Ast.StmtClass
 -- the `def`s of the body become its methods. The name keeps its whole

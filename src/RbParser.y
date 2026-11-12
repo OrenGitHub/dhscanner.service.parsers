@@ -1385,7 +1385,26 @@ expBase   { $1 } |
 expIf     { $1 } |
 expCase   { $1 } |
 expAssign { $1 } |
-expBegin  { $1 }
+expBegin  { $1 } |
+exp_return { $1 }
+
+-- a `return` where an exp is expected ( `x && return`, `x ? return : 1`,
+-- `foo rescue return` ). As a statement it is stmt_return ( stmtExp wraps
+-- expBase only ). Syntax first, the proper semantics gradually.
+exp_return:
+exp_return_1 { $1 }
+
+-- instrumented as dhscanner Ast.ExpCall
+exp_return_1:
+'{'
+    'type' ':' 'return' ','
+    'location' ':' location ','
+    'arguments' ':' arguments ','
+    'comments' ':' comments
+'}'
+{
+    Actions.expReturn $8 $12
+}
 
 expBase:
 strConcat   { $1 } |
