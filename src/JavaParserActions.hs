@@ -443,10 +443,22 @@ expBinop loc lhs rhs op = Ast.ExpBinop $ Ast.ExpBinopContent {
 expCall :: Location -> [ Ast.Exp ] -> Ast.Exp
 expCall loc [] = Ast.ExpNull $ Ast.ExpNullContent (Token.ConstNull loc)
 expCall loc (callee:args) = Ast.ExpCall $ Ast.ExpCallContent {
-    Ast.callee = callee,
+    Ast.callee = thisless callee,
     Ast.args = args,
     Ast.expCallLocation = loc
 }
+
+-- | `this.m(..)` is the bare call `m(..)`, like ruby's receiverless call :
+-- codegen resolves it as a method of the hosting class ( MethodOfClass ),
+-- `this` itself is no variable ( runner #157 : it was 'Unknown.m' ).
+thisless :: Ast.Exp -> Ast.Exp
+thisless (Ast.ExpVar (Ast.ExpVarContent (Ast.VarField (Ast.VarFieldContent lhs (Token.FieldName m) _))))
+    | isThis lhs = expvarify m
+thisless callee = callee
+
+isThis :: Ast.Exp -> Bool
+isThis (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName (Token.Named "this" _)))))) = True
+isThis _ = False
 
 -- *************
 -- *           *
