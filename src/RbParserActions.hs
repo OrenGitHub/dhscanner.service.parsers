@@ -39,8 +39,8 @@ import Text.Read ( readMaybe )
 -- exact output the grammar had when the actions moved here, so the move
 -- itself is behavior-preserving. TODO : migrate both to the convention.
 
--- | a call to a bare magic name : `listify` ( arrays, `%w[]` ), `fstring`
--- ( string literals ), `expify` ( bare `args` nodes ).
+-- | a call to a bare magic name : `listify` ( arrays, `%w[]` ), `expify`
+-- ( bare `args` nodes ). String literals moved to `fstring` ( runner #158 ).
 legacyNamedCall :: String -> Location -> [Ast.Exp] -> Ast.Exp
 legacyNamedCall name loc callArgs = Ast.ExpCall $ Ast.ExpCallContent {
     Ast.callee = expvarify (Token.Named name loc),
@@ -196,6 +196,22 @@ expStr loc value = Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr {
 -- | `:sym` : the symbol's name as a string.
 expSymbol :: Location -> Token.Named -> Ast.Exp
 expSymbol loc name = expStr loc (Token.content name)
+
+-- | a string literal ( `"..."`, heredoc ) from its parts ( `tstring_content`
+-- as `Ast.ExpStr`, `#{..}` as the embedded exp ), OrenGitHub/dhscanner.runner#158 :
+--
+--   * no `#{..}` part : a constant, one `Ast.ExpStr` of the parts' text
+--     ( `""` for no parts ), never an fstring.
+--   * else : `<dhscanner-instrumentation>[fstring]` of the parts, in source
+--     order, so `"#{base}/slack/#{params[:t]}.png"` is
+--     `[fstring]( base, '/slack/', params()[..], '.png' )`.
+fstring :: Location -> [Ast.Exp] -> Ast.Exp
+fstring loc parts = case mapM constStr parts of
+    Just values -> expStr loc (concat values)
+    Nothing -> instrumentationCall "fstring" loc parts
+    where
+        constStr (Ast.ExpStr (Ast.ExpStrContent s)) = Just (Token.constStrValue s)
+        constStr _ = Nothing
 
 -- | `"#{...}"` : the embedded expression when it is a single expression
 -- statement, a placeholder otherwise.
@@ -450,7 +466,7 @@ implicitReturn loc stmts = case reverse stmts of
     (Ast.StmtExp e : rest) -> reverse (returned : rest) where
         returned = Ast.StmtReturn $ Ast.StmtReturnContent {
             Ast.stmtReturnValue = Just e,
-            Ast.stmtReturnLocation = case e of { Ast.ExpCall c -> Ast.expCallLocation c; _ -> loc }
+            Ast.stmtReturnLocation = case e of { Ast.ExpCall c -> Ast.expCallLocation c; Ast.ExpStr (Ast.ExpStrContent c) -> Token.constStrLocation c; _ -> loc }
         }
     _ -> stmts
 

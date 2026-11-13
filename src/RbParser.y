@@ -680,7 +680,7 @@ string_part:
 stringPartContent { $1 } |
 stringPartEmbexpr { $1 }
 
--- instrumented as dhscanner Ast.ExpCall ( legacy callee `fstring` )
+-- instrumented as <dhscanner-instrumentation>[fstring] when interpolated, else Ast.ExpStr ( runner #158 )
 fstring:
 '{'
     'type' ':' 'string_literal' ','
@@ -689,10 +689,10 @@ fstring:
     'comments' ':' comments
 '}'
 {
-    Actions.legacyNamedCall "fstring" $8 $12
+    Actions.fstring $8 $12
 }
 
--- instrumented as dhscanner Ast.ExpCall ( legacy callee `fstring` )
+-- instrumented as <dhscanner-instrumentation>[fstring] when interpolated, else Ast.ExpStr ( runner #158 )
 expHeredoc:
 '{'
     'type' ':' 'heredoc' ','
@@ -701,7 +701,7 @@ expHeredoc:
     'comments' ':' comments
 '}'
 {
-    Actions.legacyNamedCall "fstring" $8 $12
+    Actions.fstring $8 $12
 }
 
 -- direct dhscanner subtree creation: Ast.ExpStr
