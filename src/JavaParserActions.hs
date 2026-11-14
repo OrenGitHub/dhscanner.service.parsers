@@ -194,11 +194,31 @@ superImport' qualified (specific, source) loc = Ast.StmtImport $ Ast.StmtImportC
 -- the cli maps every resolvable import of a file ( package.Class ) to the repo
 -- file declaring it ( X-Path-Mappings, from = org.dspace.eperson.service.GroupService,
 -- to = dspace-api/src/main/java/org/dspace/eperson/service/GroupService.java ),
--- so those imports become 1st party, everything else stays 3rd party
+-- so those imports become 1st party, everything else stays 3rd party.
+-- the cli also maps the classes of the file's own package that it names
+-- ( java imports them implicitly ) : a mapping no explicit import uses
+-- becomes a synthetic 1st party import, unless an explicit import already
+-- takes its simple name ( a single type import shadows the package )
 withFirstPartyImports :: [ Common.PathMapping ] -> Ast.Root -> Ast.Root
 withFirstPartyImports [] root = root
-withFirstPartyImports mappings root = root { Ast.stmts = map (firstPartyImport known) (Ast.stmts root) }
-    where known = Data.Map.fromList [ (Common.path_mapping_from m, Common.path_mapping_to m) | m <- mappings ]
+withFirstPartyImports mappings root = root { Ast.stmts = samePackage ++ map (firstPartyImport known) (Ast.stmts root) }
+    where
+        known = Data.Map.fromList [ (Common.path_mapping_from m, Common.path_mapping_to m) | m <- mappings ]
+        explicit = [ (src, specific) | Ast.StmtImport i <- Ast.stmts root, Ast.ImportThirdParty (Ast.ImportThirdPartyContent src) <- [ Ast.stmtImportSource i ], Just (Ast.ImportSpecific specific) <- [ Ast.stmtImportSpecific i ] ]
+        explicitQualified = [ src ++ "." ++ specific | (src, specific) <- explicit ]
+        explicitNames = map snd explicit
+        samePackage = [ samePackageImport (Ast.filename root) from file | (from, file) <- Data.Map.toList known, from `notElem` explicitQualified, simpleName from `notElem` explicitNames ]
+
+simpleName :: String -> String
+simpleName = reverse . takeWhile (/= '.') . reverse
+
+samePackageImport :: FilePath -> String -> FilePath -> Ast.Stmt
+samePackageImport fp from file = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportLocal (Ast.ImportLocalFile file),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific (simpleName from)),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = Location fp 1 1 1 1
+}
 
 firstPartyImport :: Data.Map.Map String FilePath -> Ast.Stmt -> Ast.Stmt
 firstPartyImport known (Ast.StmtImport i) = Ast.StmtImport (firstPartyImport' known i (Ast.stmtImportSource i) (Ast.stmtImportSpecific i))
