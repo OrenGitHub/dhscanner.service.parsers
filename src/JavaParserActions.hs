@@ -558,6 +558,17 @@ stmtWhile loc cond body = Ast.StmtBlock $ Ast.StmtBlockContent {
     Ast.stmtBlockLocation = loc
 }
 
+-- ********************
+-- *                  *
+-- * stmtSynchronized *
+-- *                  *
+-- ********************
+stmtSynchronized :: Location -> Ast.Exp -> Ast.Stmt -> Ast.Stmt
+stmtSynchronized loc lock body = Ast.StmtBlock $ Ast.StmtBlockContent {
+    Ast.stmtBlockContent = [ Ast.StmtExp lock ] ++ unblock body,
+    Ast.stmtBlockLocation = loc
+}
+
 -- *******************
 -- *                 *
 -- * stmtEnhancedFor *

@@ -61,6 +61,25 @@ import System.FilePath
 -- ***************************************************
 %error { parseError }
 
+-- ***************************************************************
+-- *                                                             *
+-- * Zero-tolerance conflict guardrail                            *
+-- *                                                             *
+-- * Tell Happy we expect EXACTLY 0 shift/reduce conflicts (and  *
+-- * 0 reduce/reduce conflicts -- those are always errors). If   *
+-- * the actual count differs, Happy aborts with a non-zero exit *
+-- * code, which fails `cabal build` (and therefore the docker   *
+-- * compose build of the `parsers` service used by              *
+-- * java_agent_loop.py). This guarantees that no grammar edit   *
+-- * can silently introduce ambiguity -- a shift/reduce conflict *
+-- * means an existing input may now reduce differently than it  *
+-- * did before, which would invalidate the per-iteration        *
+-- * strict-progress gate's assumption that previously-passing   *
+-- * files still parse the same way.                             *
+-- *                                                             *
+-- ***************************************************************
+%expect 0
+
 %token 
 
 -- ***************
@@ -291,6 +310,8 @@ stmt_import    { $1 } |
 stmt_class     { $1 } |
 stmt_interface { $1 } |
 stmt_enum      { $1 } |
+stmt_record    { $1 } |
+stmt_annotation_type { $1 } |
 stmt_empty     { $1 }
 
 -- ****************
@@ -362,6 +383,46 @@ stmt_enum:
     JavaParserActions.stmtClass $8 $12 $17 $23 $29
 }
 
+-- ***************
+-- *             *
+-- * stmt_record *
+-- *             *
+-- ***************
+-- record components arrive as the leading VARIABLE children ( no init ),
+-- so a record lowers exactly like a class whose fields are its components
+stmt_record:
+'{'
+    'kind' ':' 'RECORD' ','
+    'loc' ':' location ','
+    'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'supers' ':' '[' optional(commalistof(type)) ']' ','
+    'children' ':' '[' optional(commalistof(attribute)) ']'
+'}'
+{
+    JavaParserActions.stmtClass $8 $12 $17 $23 $29
+}
+
+-- ************************
+-- *                      *
+-- * stmt_annotation_type *
+-- *                      *
+-- ************************
+-- `@interface A { .. }` : lowers like an interface ( its elements are
+-- body-less methods, default values are not printed )
+stmt_annotation_type:
+'{'
+    'kind' ':' 'ANNOTATION_TYPE' ','
+    'loc' ':' location ','
+    'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+    'supers' ':' '[' optional(commalistof(type)) ']' ','
+    'children' ':' '[' optional(commalistof(attribute)) ']'
+'}'
+{
+    JavaParserActions.stmtClass $8 $12 $17 $23 $29
+}
+
 -- *************
 -- *           *
 -- * attribute *
@@ -373,6 +434,9 @@ stmt_ctor   { $1 } |
 stmt_method { $1 } |
 stmt_class  { $1 } |
 stmt_enum   { $1 } |
+stmt_record { $1 } |
+stmt_interface { $1 } |
+stmt_annotation_type { $1 } |
 stmt_block  { $1 }
 
 stmt_vardec:
@@ -623,7 +687,8 @@ exp_unop          { $1 } |
 exp_lambda        { $1 } |
 exp_instanceof    { $1 } |
 exp_switch        { $1 } |
-exp_member_reference { $1 }
+exp_member_reference { $1 } |
+annotation        { $1 }
 
 -- ***********
 -- *         *
@@ -853,6 +918,40 @@ exp_instanceof:
 {
     JavaParserActions.expBinop $8 $13 (Ast.ExpVar (Ast.ExpVarContent $15)) Ast.EQ
 }
+|
+'{'
+    'kind' ':' 'INSTANCE_OF' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' binding_pattern ']'
+'}'
+{
+    JavaParserActions.expBinop $8 $13 (Ast.ExpVar (Ast.ExpVarContent $15)) Ast.EQ
+}
+
+-- *******************
+-- *                 *
+-- * binding_pattern *
+-- *                 *
+-- *******************
+-- `x instanceof T v` : the pattern lowers to its type T ( same as the
+-- plain `x instanceof T` ). The binding name is dropped for now.
+binding_pattern:
+'{'
+    'kind' ':' 'BINDING_PATTERN' ','
+    'loc' ':' location ','
+    'children' ':' '['
+    '{'
+        'kind' ':' 'VARIABLE' ','
+        'loc' ':' location ','
+        'text' ':' tokenID ','
+        'annotations' ':' '[' optional(commalistof(annotation)) ']' ','
+        'type' ':' type
+    '}'
+    ']'
+'}'
+{
+    $34
+}
 
 -- *************
 -- *           *
@@ -973,6 +1072,8 @@ stmt_break        { $1 } |
 stmt_if           { $1 } |
 stmt_switch       { $1 } |
 stmt_while        { $1 } |
+stmt_synchronized { $1 } |
+stmt_yield        { $1 } |
 stmt_do_while     { $1 } |
 stmt_vardec       { $1 } |
 stmt_enhanced_for { $1 } |
@@ -1174,10 +1275,58 @@ stmt_enhanced_for:
 '{'
     'kind' ':' 'ENHANCED_FOR_LOOP' ','
     'loc' ':' location ','
-    'children' ':' '[' stmt_vardec ',' exp ',' stmt_body ']'
+    'children' ':' '[' for_each_var ',' exp ',' stmt_body ']'
 '}'
 {
     JavaParserActions.stmtEnhancedFor $8 $13 $15 $17
+}
+
+-- `for (var x : xs)` : javac prints the inferred loop variable with
+-- neither `type` nor `init` ; it gets the same `var` type as an
+-- inferred local ( stmt_vardec_inferred_init )
+for_each_var:
+stmt_vardec { $1 } |
+'{'
+    'kind' ':' 'VARIABLE' ','
+    'loc' ':' location ','
+    'text' ':' tokenID ','
+    'annotations' ':' '[' optional(commalistof(annotation)) ']'
+'}'
+{
+    JavaParserActions.stmtVardec $8 $12 (JavaParserActions.primitiveType $8 "var") Nothing
+}
+
+-- **************
+-- *            *
+-- * stmt_yield *
+-- *            *
+-- **************
+-- `yield v;` ends a switch-expression arm. Not a method return, so it
+-- lowers to the value as an expression statement ( calls stay visible )
+stmt_yield:
+'{'
+    'kind' ':' 'YIELD' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Ast.StmtExp $13
+}
+
+-- *********************
+-- *                   *
+-- * stmt_synchronized *
+-- *                   *
+-- *********************
+-- `synchronized (lock) { .. }` : the lock expression, then the block
+stmt_synchronized:
+'{'
+    'kind' ':' 'SYNCHRONIZED' ','
+    'loc' ':' location ','
+    'children' ':' '[' exp ',' stmt_block ']'
+'}'
+{
+    JavaParserActions.stmtSynchronized $8 $13 $15
 }
 
 -- *****************
@@ -1422,7 +1571,121 @@ ID                                      { tokIDValue $1 } |
 'LESS_THAN'                             { "LESS_THAN" } |
 'OTHER'                                 { "OTHER" } |
 'METHOD'                                { "METHOD" } |
-'OR'                                    { "OR" }
+'OR'                                    { "OR" } |
+'COMPILATION_UNIT'                      { "COMPILATION_UNIT" } |
+'PACKAGE'                               { "PACKAGE" } |
+'IMPORT'                                { "IMPORT" } |
+'MEMBER_SELECT'                         { "MEMBER_SELECT" } |
+'CLASS'                                 { "CLASS" } |
+'INTERFACE'                             { "INTERFACE" } |
+'ENUM'                                  { "ENUM" } |
+'NEW_CLASS'                             { "NEW_CLASS" } |
+'ANNOTATION'                            { "ANNOTATION" } |
+'ASSIGNMENT'                            { "ASSIGNMENT" } |
+'STRING_LITERAL'                        { "STRING_LITERAL" } |
+'VARIABLE'                              { "VARIABLE" } |
+'PARAMETER'                             { "PARAMETER" } |
+'PARAMETERIZED_TYPE'                    { "PARAMETERIZED_TYPE" } |
+'PRIMITIVE_TYPE'                        { "PRIMITIVE_TYPE" } |
+'INT_LITERAL'                           { "INT_LITERAL" } |
+'NULL_LITERAL'                          { "NULL_LITERAL" } |
+'BOOLEAN_LITERAL'                       { "BOOLEAN_LITERAL" } |
+'BLOCK'                                 { "BLOCK" } |
+'RETURN'                                { "RETURN" } |
+'CONSTRUCTOR'                           { "CONSTRUCTOR" } |
+'IF'                                    { "IF" } |
+'METHOD_INVOCATION'                     { "METHOD_INVOCATION" } |
+'EQUAL_TO'                              { "EQUAL_TO" } |
+'PLUS'                                  { "PLUS" } |
+'MULTIPLY'                              { "MULTIPLY" } |
+'LOGICAL_COMPLEMENT'                    { "LOGICAL_COMPLEMENT" } |
+'EXPRESSION_STATEMENT'                  { "EXPRESSION_STATEMENT" } |
+'TRY'                                   { "TRY" } |
+'CATCH'                                 { "CATCH" } |
+'CONDITIONAL_EXPRESSION'                { "CONDITIONAL_EXPRESSION" } |
+'IDENTIFIER'                            { "IDENTIFIER" } |
+'ANNOTATED_TYPE'                        { "ANNOTATED_TYPE" } |
+'TYPE_ANNOTATION'                       { "TYPE_ANNOTATION" } |
+'ARRAY_ACCESS'                          { "ARRAY_ACCESS" } |
+'ARRAY_TYPE'                            { "ARRAY_TYPE" } |
+'ASSERT'                                { "ASSERT" } |
+'BREAK'                                 { "BREAK" } |
+'CASE'                                  { "CASE" } |
+'DO_WHILE_LOOP'                         { "DO_WHILE_LOOP" } |
+'ENHANCED_FOR_LOOP'                     { "ENHANCED_FOR_LOOP" } |
+'MEMBER_REFERENCE'                      { "MEMBER_REFERENCE" } |
+'FOR_LOOP'                              { "FOR_LOOP" } |
+'INSTANCE_OF'                           { "INSTANCE_OF" } |
+'TEMPLATE'                              { "TEMPLATE" } |
+'LABELED_STATEMENT'                     { "LABELED_STATEMENT" } |
+'MODIFIERS'                             { "MODIFIERS" } |
+'NEW_ARRAY'                             { "NEW_ARRAY" } |
+'LAMBDA_EXPRESSION'                     { "LAMBDA_EXPRESSION" } |
+'PARENTHESIZED'                         { "PARENTHESIZED" } |
+'ANY_PATTERN'                           { "ANY_PATTERN" } |
+'BINDING_PATTERN'                       { "BINDING_PATTERN" } |
+'DEFAULT_CASE_LABEL'                    { "DEFAULT_CASE_LABEL" } |
+'CONSTANT_CASE_LABEL'                   { "CONSTANT_CASE_LABEL" } |
+'PATTERN_CASE_LABEL'                    { "PATTERN_CASE_LABEL" } |
+'DECONSTRUCTION_PATTERN'                { "DECONSTRUCTION_PATTERN" } |
+'EMPTY_STATEMENT'                       { "EMPTY_STATEMENT" } |
+'SWITCH'                                { "SWITCH" } |
+'SWITCH_EXPRESSION'                     { "SWITCH_EXPRESSION" } |
+'SYNCHRONIZED'                          { "SYNCHRONIZED" } |
+'THROW'                                 { "THROW" } |
+'UNION_TYPE'                            { "UNION_TYPE" } |
+'INTERSECTION_TYPE'                     { "INTERSECTION_TYPE" } |
+'TYPE_CAST'                             { "TYPE_CAST" } |
+'TYPE_PARAMETER'                        { "TYPE_PARAMETER" } |
+'WHILE_LOOP'                            { "WHILE_LOOP" } |
+'POSTFIX_INCREMENT'                     { "POSTFIX_INCREMENT" } |
+'POSTFIX_DECREMENT'                     { "POSTFIX_DECREMENT" } |
+'PREFIX_INCREMENT'                      { "PREFIX_INCREMENT" } |
+'PREFIX_DECREMENT'                      { "PREFIX_DECREMENT" } |
+'UNARY_PLUS'                            { "UNARY_PLUS" } |
+'UNARY_MINUS'                           { "UNARY_MINUS" } |
+'BITWISE_COMPLEMENT'                    { "BITWISE_COMPLEMENT" } |
+'DIVIDE'                                { "DIVIDE" } |
+'REMAINDER'                             { "REMAINDER" } |
+'MINUS'                                 { "MINUS" } |
+'LEFT_SHIFT'                            { "LEFT_SHIFT" } |
+'RIGHT_SHIFT'                           { "RIGHT_SHIFT" } |
+'UNSIGNED_RIGHT_SHIFT'                  { "UNSIGNED_RIGHT_SHIFT" } |
+'LESS_THAN_EQUAL'                       { "LESS_THAN_EQUAL" } |
+'GREATER_THAN_EQUAL'                    { "GREATER_THAN_EQUAL" } |
+'NOT_EQUAL_TO'                          { "NOT_EQUAL_TO" } |
+'AND'                                   { "AND" } |
+'XOR'                                   { "XOR" } |
+'CONDITIONAL_AND'                       { "CONDITIONAL_AND" } |
+'CONDITIONAL_OR'                        { "CONDITIONAL_OR" } |
+'MULTIPLY_ASSIGNMENT'                   { "MULTIPLY_ASSIGNMENT" } |
+'DIVIDE_ASSIGNMENT'                     { "DIVIDE_ASSIGNMENT" } |
+'REMAINDER_ASSIGNMENT'                  { "REMAINDER_ASSIGNMENT" } |
+'PLUS_ASSIGNMENT'                       { "PLUS_ASSIGNMENT" } |
+'MINUS_ASSIGNMENT'                      { "MINUS_ASSIGNMENT" } |
+'LEFT_SHIFT_ASSIGNMENT'                 { "LEFT_SHIFT_ASSIGNMENT" } |
+'RIGHT_SHIFT_ASSIGNMENT'                { "RIGHT_SHIFT_ASSIGNMENT" } |
+'UNSIGNED_RIGHT_SHIFT_ASSIGNMENT'       { "UNSIGNED_RIGHT_SHIFT_ASSIGNMENT" } |
+'AND_ASSIGNMENT'                        { "AND_ASSIGNMENT" } |
+'XOR_ASSIGNMENT'                        { "XOR_ASSIGNMENT" } |
+'OR_ASSIGNMENT'                         { "OR_ASSIGNMENT" } |
+'LONG_LITERAL'                          { "LONG_LITERAL" } |
+'FLOAT_LITERAL'                         { "FLOAT_LITERAL" } |
+'DOUBLE_LITERAL'                        { "DOUBLE_LITERAL" } |
+'CHAR_LITERAL'                          { "CHAR_LITERAL" } |
+'UNBOUNDED_WILDCARD'                    { "UNBOUNDED_WILDCARD" } |
+'EXTENDS_WILDCARD'                      { "EXTENDS_WILDCARD" } |
+'SUPER_WILDCARD'                        { "SUPER_WILDCARD" } |
+'ERRONEOUS'                             { "ERRONEOUS" } |
+'ANNOTATION_TYPE'                       { "ANNOTATION_TYPE" } |
+'MODULE'                                { "MODULE" } |
+'EXPORTS'                               { "EXPORTS" } |
+'OPENS'                                 { "OPENS" } |
+'PROVIDES'                              { "PROVIDES" } |
+'RECORD'                                { "RECORD" } |
+'REQUIRES'                              { "REQUIRES" } |
+'USES'                                  { "USES" } |
+'YIELD'                                 { "YIELD" }
 
 -- ************
 -- *          *
