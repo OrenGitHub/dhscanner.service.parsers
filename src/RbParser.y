@@ -481,7 +481,86 @@ ID        { Actions.unquote (tokIDValue $1) } |
 'generator' { "generator"            } |
 'alternate' { "alternate"            } |
 'property'            { "property"              } |
-'comments'              { "comments"              }
+'comments'              { "comments"              } |
+-- names that are also lexed as node type tokens : ruby keywords
+-- ( :return, :if, def yield .. ) and syntax_tree node names ( left, right .. )
+'aref'             { "aref" } |
+'aref_field'       { "aref_field" } |
+'arg_block'        { "arg_block" } |
+'arg_paren'        { "arg_paren" } |
+'arg_star'         { "arg_star" } |
+'assoc'            { "assoc" } |
+'assoc_splat'      { "assoc_splat" } |
+'assocs'           { "assocs" } |
+'bare_assoc_hash'  { "bare_assoc_hash" } |
+'block_var'        { "block_var" } |
+'blockarg'         { "blockarg" } |
+'bodystmt'         { "bodystmt" } |
+'break'            { "break" } |
+'command_call'     { "command_call" } |
+'computed'         { "computed" } |
+'consequent'       { "consequent" } |
+'const'            { "const" } |
+'const_path_ref'   { "const_path_ref" } |
+'const_ref'        { "const_ref" } |
+'def'              { "def" } |
+'dyna_symbol'      { "dyna_symbol" } |
+'else_clause'      { "else_clause" } |
+'elif'             { "elsif" } |
+'ensure_clause'    { "ensure_clause" } |
+'exceptions'       { "exceptions" } |
+'expression'       { "expression" } |
+'falsy'            { "falsy" } |
+'gvar'             { "gvar" } |
+'ident'            { "ident" } |
+'if'               { "if" } |
+'if_op'            { "if_op" } |
+'keyword_rest'     { "keyword_rest" } |
+'kw'               { "kw" } |
+'kwrest_param'     { "kwrest_param" } |
+'lambda_var'       { "lambda_var" } |
+'left'             { "left" } |
+'massign'          { "massign" } |
+'method_add_block' { "method_add_block" } |
+'mlhs'             { "mlhs" } |
+'mlhs_paren'       { "mlhs_paren" } |
+'module'           { "module" } |
+'mrhs'             { "mrhs" } |
+'op'               { "op" } |
+'opassign'         { "opassign" } |
+'optionals'        { "optionals" } |
+'paren'            { "paren" } |
+'predicate'        { "predicate" } |
+'program'          { "program" } |
+'regexp_literal'   { "regexp_literal" } |
+'requireds'        { "requireds" } |
+'rescue'           { "rescue" } |
+'rescue_clause'    { "rescue_clause" } |
+'rescue_ex'        { "rescue_ex" } |
+'rest_param'       { "rest_param" } |
+'return'           { "return" } |
+'right'            { "right" } |
+'sclass'           { "sclass" } |
+'statement'        { "statement" } |
+'stmts'            { "statements" } |
+'string_concat'    { "string_concat" } |
+'string_embexpr'   { "string_embexpr" } |
+'string_literal'   { "string_literal" } |
+'super'            { "super" } |
+'superclass'       { "superclass" } |
+'symbol_literal'   { "symbol_literal" } |
+'top_const_ref'    { "top_const_ref" } |
+'truthy'           { "truthy" } |
+'tstring_content'  { "tstring_content" } |
+'unary'            { "unary" } |
+'unless'           { "unless" } |
+'var_field'        { "var_field" } |
+'var_ref'          { "var_ref" } |
+'vcall'            { "vcall" } |
+'void_stmt'        { "void_stmt" } |
+'while'            { "while" } |
+'yield'            { "yield" } |
+'zsuper'           { "zsuper" }
 
 -- *******************
 -- *                 *
