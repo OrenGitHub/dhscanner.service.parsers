@@ -1792,7 +1792,7 @@ stmtAssignPlain:
     Actions.stmtAssign $12 $16
 }
 
--- instrumented as dhscanner Ast.Exp ( assignment expression lowers to RHS )
+-- direct dhscanner subtree creation: Ast.ExpAssign
 expAssign:
 '{'
     'type' ':' 'assign' ','
@@ -1802,7 +1802,7 @@ expAssign:
     'comments' ':' comments 
 '}'
 {
-    $16
+    Actions.expAssign $8 $12 $16
 }
 
 mlhs:

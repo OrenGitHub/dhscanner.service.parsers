@@ -705,3 +705,12 @@ bodystmt loc body rescues orelse ensure = [ Just $ Ast.StmtTry $ Ast.StmtTryCont
     Ast.stmtCatchPart = catMaybes (concat (catMaybes [ rescues, orelse, ensure ])),
     Ast.stmtTryLocation = loc
 } ]
+
+-- | an assignment used as an expression ( @x = a or raise@, @if x = f@ ) :
+-- keeps the target, like @JavaParserActions.expAssign@
+expAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Exp
+expAssign loc lhs rhs = Ast.ExpAssign $ Ast.ExpAssignContent {
+    Ast.expAssignLhs = lhs,
+    Ast.expAssignRhs = rhs,
+    Ast.expAssignLocation = loc
+}
