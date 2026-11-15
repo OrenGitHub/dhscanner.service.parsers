@@ -688,3 +688,20 @@ methodify' c s f = let m = Token.MethodName $ Token.getFuncNameToken (Ast.stmtFu
     Ast.hostingClassSupers = maybe [] (: []) s,
     Ast.hostingClassAnnotations = []
 })
+
+-- | a @rescue@ clause : its body, then the bodies of the chained
+-- @rescue@ clauses ( @consequent@ )
+rescue :: [ Maybe Ast.Stmt ] -> Maybe [ Maybe Ast.Stmt ] -> [ Maybe Ast.Stmt ]
+rescue stmts consequent = stmts ++ fromMaybe [] consequent
+
+-- | @bodystmt@ ( a @def@ / @begin@ / @do@ block body ) : with a @rescue@,
+-- @else@ or @ensure@ part it is a try, and those parts all go to the catch
+-- part for now ( reachability only needs them generated, not ordered ),
+-- like @PyParserActions.stmtTry@. Without any of them it is just the body.
+bodystmt :: Location -> [ Maybe Ast.Stmt ] -> Maybe [ Maybe Ast.Stmt ] -> Maybe [ Maybe Ast.Stmt ] -> Maybe [ Maybe Ast.Stmt ] -> [ Maybe Ast.Stmt ]
+bodystmt _ body Nothing Nothing Nothing = body
+bodystmt loc body rescues orelse ensure = [ Just $ Ast.StmtTry $ Ast.StmtTryContent {
+    Ast.stmtTryPart = catMaybes body,
+    Ast.stmtCatchPart = catMaybes (concat (catMaybes [ rescues, orelse, ensure ])),
+    Ast.stmtTryLocation = loc
+} ]

@@ -2923,7 +2923,7 @@ exception:
 rescue_exception: 'exception' ':' exception ',' { Nothing }
 
 -- allow chained rescue clauses within a rescue node
-rescue_consequent: 'consequent' ':' rescue ',' { Nothing }
+rescue_consequent: 'consequent' ':' rescue ',' { $3 }
 
 -- **********
 -- *        *
@@ -2940,7 +2940,7 @@ rescue:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    Actions.rescue $13 $15
 }
 
 -- *****************
@@ -2948,14 +2948,14 @@ rescue:
 -- * rescue_clause *
 -- *               *
 -- *****************
-rescue_clause: 'rescue_clause' ':' rescue ',' { Nothing }
+rescue_clause: 'rescue_clause' ':' rescue ',' { $3 }
 
 -- *****************
 -- *               *
 -- * rescue_clause *
 -- *               *
 -- *****************
-else_clause: 'else_clause' ':' stmts ',' { Nothing }
+else_clause: 'else_clause' ':' stmts ',' { $3 }
 
 -- **********
 -- *        *
@@ -2970,7 +2970,7 @@ ensure:
     'comments' ':' comments
 '}'
 {
-    Nothing
+    $12
 }
 
 -- *****************
@@ -2978,13 +2978,9 @@ ensure:
 -- * ensure_clause *
 -- *               *
 -- *****************
-ensure_clause: 'ensure_clause' ':' ensure ',' { Nothing }
+ensure_clause: 'ensure_clause' ':' ensure ',' { $3 }
 
--- ************
--- *          *
--- * bodystmt *
--- *          *
--- ************
+-- direct dhscanner subtree creation: Ast.StmtTry ( only with a rescue / else / ensure part )
 bodystmt_type_1:
 '{'
     'type' ':' 'bodystmt' ','
@@ -2996,7 +2992,7 @@ bodystmt_type_1:
     'comments' ':' comments
 '}'
 {
-    $12
+    Actions.bodystmt $8 $12 $14 $15 $16
 }
 
 -- ************
