@@ -39,6 +39,7 @@ executable parser
         JsParser,
         CsLexer,
         CsParser,
+        CsParserActions,
         GoLexer,
         GoParser,
         TsLexer,
