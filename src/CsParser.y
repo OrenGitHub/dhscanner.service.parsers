@@ -97,6 +97,19 @@ import qualified Common
 'NamespaceDeclaration' { AlexTokenTag AlexRawToken_NAMESPACE_DECLARATION _ }
 'FileScopedNamespaceDeclaration' { AlexTokenTag AlexRawToken_FILE_SCOPED_NAMESPACE_DECLARATION _ }
 'ClassDeclaration' { AlexTokenTag AlexRawToken_CLASS_DECLARATION _ }
+'ModuloAssignmentExpression' { AlexTokenTag AlexRawToken_MODULO_ASSIGNMENT_EXPRESSION _ }
+'RightShiftAssignmentExpression' { AlexTokenTag AlexRawToken_RIGHT_SHIFT_ASSIGNMENT_EXPRESSION _ }
+'LeftShiftAssignmentExpression' { AlexTokenTag AlexRawToken_LEFT_SHIFT_ASSIGNMENT_EXPRESSION _ }
+'ExclusiveOrAssignmentExpression' { AlexTokenTag AlexRawToken_EXCLUSIVE_OR_ASSIGNMENT_EXPRESSION _ }
+'AndAssignmentExpression' { AlexTokenTag AlexRawToken_AND_ASSIGNMENT_EXPRESSION _ }
+'OrAssignmentExpression' { AlexTokenTag AlexRawToken_OR_ASSIGNMENT_EXPRESSION _ }
+'StackAllocArrayCreationExpression' { AlexTokenTag AlexRawToken_STACK_ALLOC_ARRAY_CREATION_EXPRESSION _ }
+'PreDecrementExpression' { AlexTokenTag AlexRawToken_PRE_DECREMENT_EXPRESSION _ }
+'PreIncrementExpression' { AlexTokenTag AlexRawToken_PRE_INCREMENT_EXPRESSION _ }
+'DoStatement' { AlexTokenTag AlexRawToken_DO_STATEMENT _ }
+'ParenthesizedPattern' { AlexTokenTag AlexRawToken_PARENTHESIZED_PATTERN _ }
+'AttributeTargetSpecifier' { AlexTokenTag AlexRawToken_ATTRIBUTE_TARGET_SPECIFIER _ }
+'EventFieldDeclaration' { AlexTokenTag AlexRawToken_EVENT_FIELD_DECLARATION _ }
 'DivideAssignmentExpression' { AlexTokenTag AlexRawToken_DIVIDE_ASSIGNMENT_EXPRESSION _ }
 'MultiplyAssignmentExpression' { AlexTokenTag AlexRawToken_MULTIPLY_ASSIGNMENT_EXPRESSION _ }
 'SubtractAssignmentExpression' { AlexTokenTag AlexRawToken_SUBTRACT_ASSIGNMENT_EXPRESSION _ }
@@ -363,7 +376,7 @@ program:
     'kind' ':' 'CompilationUnit' ','
     'value' ':' tokenID ','
     'location' ':' location ','
-    'children' ':' possibly_empty_listof(stmt)
+    'children' ':' possibly_empty_listof(rootMember)
 '}'
 {
     Actions.root $12 $16
@@ -752,6 +765,16 @@ attributeList:
 '}'
 {
     $16
+}
+|
+'{'
+    'kind' ':' 'AttributeList' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' attributeTargetSpecifier ',' commalistof(attribute) ']'
+'}'
+{
+    $19
 }
 
 -- instrumented as dhscanner Ast.ExpCall ( callee = the attribute name )
@@ -1464,6 +1487,7 @@ exp_and_pattern:
 }
 
 exp_pattern:
+parenthesizedPattern { $1 } |
 discardPattern { $1 } |
 typePattern { $1 } |
 exp_casting { $1 } |
@@ -1775,6 +1799,16 @@ exp_paren:
     'value' ':' 'null' ','
     'location' ':' location ','
     'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'ParenthesizedExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' expAssign ']'
 '}'
 {
     $17
@@ -2164,7 +2198,177 @@ elementBinding:
     Actions.elementBinding $12 $17
 }
 
+attributeTargetSpecifier:
+'{'
+    'kind' ':' 'AttributeTargetSpecifier' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    ()
+}
+
+-- a file's top level : statements, and [assembly: ..] attribute lists ( kept, instrumented )
+rootMember:
+stmt { $1 } |
+attributeList { Actions.rootAttributes $1 }
+
+-- `( p )` pattern : transparent
+parenthesizedPattern:
+'{'
+    'kind' ':' 'ParenthesizedPattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp_pattern ']'
+'}'
+{
+    $17
+}
+
+-- `x = y` used as an expression : `( x = y )`, `a = b = c`
+expAssign:
+'{'
+    'kind' ':' 'SimpleAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.expAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'SimpleAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' expAssign ']'
+'}'
+{
+    Actions.expAssign $12 $17 $19
+}
+
+-- `++i` / `--i` : transparent
+exp_pre_increment:
+'{'
+    'kind' ':' 'PreIncrementExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'PreDecrementExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+
+-- `stackalloc T[n]` : like array creation
+exp_stackalloc:
+'{'
+    'kind' ':' 'StackAllocArrayCreationExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' arrayType ']'
+'}'
+{
+    Actions.expNewNoArgs $12 $17
+}
+|
+'{'
+    'kind' ':' 'StackAllocArrayCreationExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' arrayType ',' arrayInitializer ']'
+'}'
+{
+    Actions.expNew $12 $17 [$19]
+}
+
+-- `do s while (c)` : instrumented as the while loop over the same body
+stmtDo:
+'{'
+    'kind' ':' 'DoStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmt ',' exp ']'
+'}'
+{
+    Actions.stmtDo $12 $17 $19
+}
+
+-- instrumented lowering: x |= y  ==>  x = x + y ( bitwise ops are + like `a | b` ), x %= y  ==>  x = x % y
+stmtBitwiseAssign:
+'{'
+    'kind' ':' 'OrAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.bitwiseAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'AndAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.bitwiseAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'ExclusiveOrAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.bitwiseAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'LeftShiftAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.bitwiseAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'RightShiftAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.bitwiseAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'ModuloAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.moduloAssign $12 $17 $19
+}
+
 exp:
+exp_pre_increment { $1 } |
+exp_stackalloc { $1 } |
 expImplicitArray { $1 } |
 arrayInitializer { $1 } |
 collectionInitializer { $1 } |
@@ -2324,6 +2528,26 @@ stmtField:
 |
 '{'
     'kind' ':' 'FieldDeclaration' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(attributeList) stmtVardec ']'
+'}'
+{
+    $18
+}
+|
+'{'
+    'kind' ':' 'EventFieldDeclaration' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmtVardec ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'EventFieldDeclaration' ','
     'value' ':' 'null' ','
     'location' ':' location ','
     'children' ':' '[' prefixlistof(attributeList) stmtVardec ']'
@@ -3000,6 +3224,16 @@ stmtAssign:
 {
     Actions.tupleAssign $12 $17 $19
 }
+|
+'{'
+    'kind' ':' 'SimpleAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' expAssign ']'
+'}'
+{
+    Actions.stmtAssign $17 $19
+}
 
 -- instrumented lowering: x += y  ==>  x = x + y
 -- instrumented lowering: x -= y  ==>  x = x - y ( same for *= /= )
@@ -3342,6 +3576,16 @@ stmtEnum:
 {
     Actions.stmtEnum $12 (tokIDValue $8) $16
 }
+|
+'{'
+    'kind' ':' 'EnumDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(attributeList) commalistof(enumMember) ']'
+'}'
+{
+    Actions.stmtEnum $12 (tokIDValue $8) $18
+}
 
 enumMember:
 '{'
@@ -3420,6 +3664,8 @@ stmtReturn { $1 } |
 stmtVardec { $1 } |
 stmtAssign { $1 } |
 stmtAddAssign { $1 } |
+stmtBitwiseAssign { $1 } |
+stmtDo { $1 } |
 stmtCompoundAssign { $1 } |
 stmtLocalFunction { $1 } |
 stmtMethod { $1 } |

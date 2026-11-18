@@ -568,6 +568,33 @@ stmtAssign lhs rhs = Ast.StmtAssign $ Ast.StmtAssignContent {
 addAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
 addAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opPlus)
 
+-- | `x |= y` ( and &= ^= <<= >>= ) : x = x + y, like `a | b`
+bitwiseAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
+bitwiseAssign = addAssign
+
+moduloAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
+moduloAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opPercent)
+
+-- | `x = y` used as an expression : direct dhscanner subtree creation, Ast.ExpAssign
+expAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Exp
+expAssign loc lhs rhs = Ast.ExpAssign $ Ast.ExpAssignContent {
+    Ast.expAssignLhs = lhs,
+    Ast.expAssignRhs = rhs,
+    Ast.expAssignLocation = loc
+}
+
+-- | `do body while (cond)` : the while loop over the same body
+stmtDo :: Location -> Ast.Stmt -> Ast.Exp -> Ast.Stmt
+stmtDo loc body cond = stmtWhile loc cond body
+
+-- | `[assembly: X]` at the top of a file : instrumented, tag [attributes]
+rootAttributes :: [ Ast.Exp ] -> Ast.Stmt
+rootAttributes attrs = stmtExp (instrumentationCall "attributes" (attributesLocation attrs) attrs)
+
+attributesLocation :: [ Ast.Exp ] -> Location
+attributesLocation (Ast.ExpCall c : _) = Ast.expCallLocation c
+attributesLocation _ = Location "" 0 0 0 0
+
 -- | `x op= y` : x = x - y, x * y, x / y
 subtractAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
 subtractAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opMinus)
