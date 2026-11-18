@@ -97,6 +97,17 @@ import qualified Common
 'NamespaceDeclaration' { AlexTokenTag AlexRawToken_NAMESPACE_DECLARATION _ }
 'FileScopedNamespaceDeclaration' { AlexTokenTag AlexRawToken_FILE_SCOPED_NAMESPACE_DECLARATION _ }
 'ClassDeclaration' { AlexTokenTag AlexRawToken_CLASS_DECLARATION _ }
+'EmptyStatement' { AlexTokenTag AlexRawToken_EMPTY_STATEMENT _ }
+'GotoDefaultStatement' { AlexTokenTag AlexRawToken_GOTO_DEFAULT_STATEMENT _ }
+'GotoCaseStatement' { AlexTokenTag AlexRawToken_GOTO_CASE_STATEMENT _ }
+'GotoStatement' { AlexTokenTag AlexRawToken_GOTO_STATEMENT _ }
+'LabeledStatement' { AlexTokenTag AlexRawToken_LABELED_STATEMENT _ }
+'ConversionOperatorDeclaration' { AlexTokenTag AlexRawToken_CONVERSION_OPERATOR_DECLARATION _ }
+'OperatorDeclaration' { AlexTokenTag AlexRawToken_OPERATOR_DECLARATION _ }
+'SlicePattern' { AlexTokenTag AlexRawToken_SLICE_PATTERN _ }
+'ListPattern' { AlexTokenTag AlexRawToken_LIST_PATTERN _ }
+'VarPattern' { AlexTokenTag AlexRawToken_VAR_PATTERN _ }
+'PositionalPatternClause' { AlexTokenTag AlexRawToken_POSITIONAL_PATTERN_CLAUSE _ }
 'DefaultExpression' { AlexTokenTag AlexRawToken_DEFAULT_EXPRESSION _ }
 'GlobalStatement' { AlexTokenTag AlexRawToken_GLOBAL_STATEMENT _ }
 'UnsignedRightShiftExpression' { AlexTokenTag AlexRawToken_UNSIGNED_RIGHT_SHIFT_EXPRESSION _ }
@@ -1385,6 +1396,16 @@ exp_casting:
 {
     Actions.expVar $19
 }
+|
+'{'
+    'kind' ':' 'DeclarationPattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' nominalType ',' discardDesignation ']'
+'}'
+{
+    Actions.expVar $17
+}
 
 -- `out var x` : transparent, returns the designated variable
 exp_declaration:
@@ -1441,6 +1462,16 @@ subpattern:
 {
     Actions.kwArg $12 $17 $19
 }
+|
+'{'
+    'kind' ':' 'Subpattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp_pattern ']'
+'}'
+{
+    $17
+}
 
 relationalPattern:
 '{'
@@ -1470,7 +1501,7 @@ exp_recursive_pattern:
     'kind' ':' 'RecursivePattern' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' propertyPatternClause ']'
+    'children' ':' '[' patternClause ']'
 '}'
 {
     Actions.instrumentationCall "pattern" $12 $17
@@ -1480,7 +1511,7 @@ exp_recursive_pattern:
     'kind' ':' 'RecursivePattern' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' nominalType ',' propertyPatternClause ']'
+    'children' ':' '[' nominalType ',' patternClause ']'
 '}'
 {
     Actions.instrumentationCall "pattern" $12 (Actions.expVar $17 : $19)
@@ -1490,7 +1521,7 @@ exp_recursive_pattern:
     'kind' ':' 'RecursivePattern' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' propertyPatternClause ',' designation ']'
+    'children' ':' '[' patternClause ',' designation ']'
 '}'
 {
     Actions.instrumentationCall "pattern" $12 ($17 ++ [ Actions.expVar $19 ])
@@ -1500,7 +1531,7 @@ exp_recursive_pattern:
     'kind' ':' 'RecursivePattern' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' nominalType ',' propertyPatternClause ',' designation ']'
+    'children' ':' '[' nominalType ',' patternClause ',' designation ']'
 '}'
 {
     Actions.instrumentationCall "pattern" $12 (Actions.expVar $17 : ($19 ++ [ Actions.expVar $21 ]))
@@ -1529,6 +1560,9 @@ exp_and_pattern:
 }
 
 exp_pattern:
+varPattern { $1 } |
+listPattern { $1 } |
+slicePattern { $1 } |
 parenthesizedPattern { $1 } |
 discardPattern { $1 } |
 typePattern { $1 } |
@@ -2448,7 +2482,149 @@ interpolationAlignmentClause:
     ()
 }
 
+patternClause:
+propertyPatternClause { $1 } |
+positionalPatternClause { $1 }
+
+positionalPatternClause:
+'{'
+    'kind' ':' 'PositionalPatternClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' nonempty_listof(subpattern)
+'}'
+{
+    $16
+}
+
+-- `var x` : the variable
+varPattern:
+'{'
+    'kind' ':' 'VarPattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' designation ']'
+'}'
+{
+    Actions.expVar $17
+}
+
+-- `[1, .., var last]` : instrumented as dhscanner Ast.ExpCall ( tag [list_pattern] )
+listPattern:
+'{'
+    'kind' ':' 'ListPattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' possibly_empty_listof(exp_pattern)
+'}'
+{
+    Actions.listPattern $12 $16
+}
+
+-- `..` / `.. var rest` : instrumented as dhscanner Ast.ExpCall ( tag [slice] )
+slicePattern:
+'{'
+    'kind' ':' 'SlicePattern' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.slicePattern $12
+}
+|
+'{'
+    'kind' ':' 'SlicePattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp_pattern ']'
+'}'
+{
+    $17
+}
+
+-- `static C operator +(C a, C b)` / `implicit operator string(C c)` : a method
+stmtOperator:
+'{'
+    'kind' ':' 'OperatorDeclaration' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' annotatedType ',' params ',' methodBody ']'
+'}'
+{
+    Actions.stmtOperator $12 $19 $17 $21
+}
+|
+'{'
+    'kind' ':' 'ConversionOperatorDeclaration' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' annotatedType ',' params ',' methodBody ']'
+'}'
+{
+    Actions.stmtOperator $12 $19 $17 $21
+}
+
+-- `label: s` : the statement ( the label is dropped )
+stmtLabeled:
+'{'
+    'kind' ':' 'LabeledStatement' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' stmt ']'
+'}'
+{
+    $17
+}
+
+-- `goto l` / `goto case x` / `goto default` : instrumented as dhscanner Ast.ExpCall ( tag [goto] )
+stmtGoto:
+'{'
+    'kind' ':' 'GotoStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.stmtGoto $12 $17
+}
+|
+'{'
+    'kind' ':' 'GotoCaseStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.stmtGoto $12 $17
+}
+|
+'{'
+    'kind' ':' 'GotoDefaultStatement' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.stmtGotoDefault $12
+}
+
+-- `;`
+stmtEmpty:
+'{'
+    'kind' ':' 'EmptyStatement' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.stmtEmpty $12
+}
+
 exp:
+varPattern { $1 } |
+listPattern { $1 } |
+slicePattern { $1 } |
 exp_pre_increment { $1 } |
 exp_stackalloc { $1 } |
 expImplicitArray { $1 } |
@@ -3761,6 +3937,10 @@ stmtReturn { $1 } |
 stmtVardec { $1 } |
 stmtAssign { $1 } |
 stmtAddAssign { $1 } |
+stmtOperator { $1 } |
+stmtLabeled { $1 } |
+stmtGoto { $1 } |
+stmtEmpty { $1 } |
 stmtBitwiseAssign { $1 } |
 stmtDo { $1 } |
 stmtCompoundAssign { $1 } |

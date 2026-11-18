@@ -743,6 +743,30 @@ classExtension loc receiver members = ClassMember (stmtBlock loc (map withReceiv
     withReceiver (Ast.StmtMethod m) = Ast.StmtMethod m { Ast.stmtMethodParams = receiver ++ Ast.stmtMethodParams m }
     withReceiver s = s
 
+-- | `[p, .., q]`
+listPattern :: Location -> [ Ast.Exp ] -> Ast.Exp
+listPattern = instrumentationCall "list_pattern"
+
+-- | `..`
+slicePattern :: Location -> Ast.Exp
+slicePattern loc = instrumentationCall "slice" loc []
+
+-- | an operator ( or conversion operator ) is a method : operators have no name
+-- token, so the name is made unique by its location ( one class has many )
+stmtOperator :: Location -> [ Ast.Param ] -> Annotated -> Ast.Stmt -> Ast.Stmt
+stmtOperator loc = stmtMethod loc ("operator_" ++ show (Location.lineStart loc) ++ "_" ++ show (Location.colStart loc))
+
+-- | `goto l` / `goto case x`
+stmtGoto :: Location -> Ast.Exp -> Ast.Stmt
+stmtGoto loc target = stmtExp (instrumentationCall "goto" loc [ target ])
+
+stmtGotoDefault :: Location -> Ast.Stmt
+stmtGotoDefault loc = stmtExp (instrumentationCall "goto" loc [])
+
+-- | `;`
+stmtEmpty :: Location -> Ast.Stmt
+stmtEmpty loc = stmtBlock loc []
+
 stmtBreak :: Location -> Ast.Stmt
 stmtBreak loc = Ast.StmtBreak (Ast.StmtBreakContent loc)
 
