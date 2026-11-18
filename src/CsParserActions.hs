@@ -735,6 +735,14 @@ isBindingHole :: Ast.Exp -> Bool
 isBindingHole (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName n))))) = Token.content n == bindingHoleName
 isBindingHole _ = False
 
+-- | `extension(T x) { members }` ( C# 14 ) : the members are the class's,
+-- the receiver x is the first param of each method
+classExtension :: Location -> [ Ast.Param ] -> [ Ast.Stmt ] -> ClassPart
+classExtension loc receiver members = ClassMember (stmtBlock loc (map withReceiver members))
+  where
+    withReceiver (Ast.StmtMethod m) = Ast.StmtMethod m { Ast.stmtMethodParams = receiver ++ Ast.stmtMethodParams m }
+    withReceiver s = s
+
 stmtBreak :: Location -> Ast.Stmt
 stmtBreak loc = Ast.StmtBreak (Ast.StmtBreakContent loc)
 

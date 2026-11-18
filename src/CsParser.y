@@ -97,6 +97,15 @@ import qualified Common
 'NamespaceDeclaration' { AlexTokenTag AlexRawToken_NAMESPACE_DECLARATION _ }
 'FileScopedNamespaceDeclaration' { AlexTokenTag AlexRawToken_FILE_SCOPED_NAMESPACE_DECLARATION _ }
 'ClassDeclaration' { AlexTokenTag AlexRawToken_CLASS_DECLARATION _ }
+'DefaultExpression' { AlexTokenTag AlexRawToken_DEFAULT_EXPRESSION _ }
+'GlobalStatement' { AlexTokenTag AlexRawToken_GLOBAL_STATEMENT _ }
+'UnsignedRightShiftExpression' { AlexTokenTag AlexRawToken_UNSIGNED_RIGHT_SHIFT_EXPRESSION _ }
+'RightShiftExpression' { AlexTokenTag AlexRawToken_RIGHT_SHIFT_EXPRESSION _ }
+'LeftShiftExpression' { AlexTokenTag AlexRawToken_LEFT_SHIFT_EXPRESSION _ }
+'ExclusiveOrExpression' { AlexTokenTag AlexRawToken_EXCLUSIVE_OR_EXPRESSION _ }
+'BitwiseAndExpression' { AlexTokenTag AlexRawToken_BITWISE_AND_EXPRESSION _ }
+'InterpolationAlignmentClause' { AlexTokenTag AlexRawToken_INTERPOLATION_ALIGNMENT_CLAUSE _ }
+'ExtensionBlockDeclaration' { AlexTokenTag AlexRawToken_EXTENSION_BLOCK_DECLARATION _ }
 'ModuloAssignmentExpression' { AlexTokenTag AlexRawToken_MODULO_ASSIGNMENT_EXPRESSION _ }
 'RightShiftAssignmentExpression' { AlexTokenTag AlexRawToken_RIGHT_SHIFT_ASSIGNMENT_EXPRESSION _ }
 'LeftShiftAssignmentExpression' { AlexTokenTag AlexRawToken_LEFT_SHIFT_ASSIGNMENT_EXPRESSION _ }
@@ -671,6 +680,24 @@ classKind:
 -- one child of a class, in any order : every alternative starts with its
 -- own kind, so a new one ( TypeParameterList, .. ) never conflicts
 classChild:
+'{'
+    'kind' ':' 'ExtensionBlockDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' typeParameterList ',' params ',' commalistof(stmt) ']'
+'}'
+{
+    Actions.classExtension $12 $19 $21
+} |
+'{'
+    'kind' ':' 'ExtensionBlockDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' params ',' commalistof(stmt) ']'
+'}'
+{
+    Actions.classExtension $12 $17 $19
+} |
 attributeList { Actions.classAttributes $1 } |
 params { Actions.classParams $1 } |
 baseList { Actions.classSupers $1 } |
@@ -1282,6 +1309,11 @@ operator:
 'SubtractExpression' { Actions.opMinus } |
 'DivideExpression' { Actions.opDivide } |
 'ModuloExpression' { Actions.opPercent } |
+'BitwiseAndExpression' { Actions.opPlus } |
+'ExclusiveOrExpression' { Actions.opPlus } |
+'LeftShiftExpression' { Actions.opTimes } |
+'RightShiftExpression' { Actions.opDivide } |
+'UnsignedRightShiftExpression' { Actions.opDivide } |
 'NotEqualsExpression' { Actions.opNeq }
 
 -- direct dhscanner subtree creation: Ast.ExpBinop
@@ -1315,6 +1347,16 @@ expDefault:
     'value' ':' ID ','
     'location' ':' location ','
     'children' ':' '[' ']'
+'}'
+{
+    Actions.expNull $12
+}
+|
+'{'
+    'kind' ':' 'DefaultExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' nominalType ']'
 '}'
 {
     Actions.expNull $12
@@ -1621,6 +1663,26 @@ interpolation:
     'value' ':' 'null' ','
     'location' ':' location ','
     'children' ':' '[' exp ',' interpolationFormatClause ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'Interpolation' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ',' interpolationAlignmentClause ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'Interpolation' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ',' interpolationAlignmentClause ',' interpolationFormatClause ']'
 '}'
 {
     $17
@@ -2212,6 +2274,15 @@ attributeTargetSpecifier:
 -- a file's top level : statements, and [assembly: ..] attribute lists ( kept, instrumented )
 rootMember:
 stmt { $1 } |
+'{'
+    'kind' ':' 'GlobalStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmt ']'
+'}'
+{
+    $17
+} |
 attributeList { Actions.rootAttributes $1 }
 
 -- `( p )` pattern : transparent
@@ -2366,6 +2437,17 @@ stmtBitwiseAssign:
     Actions.moduloAssign $12 $17 $19
 }
 
+interpolationAlignmentClause:
+'{'
+    'kind' ':' 'InterpolationAlignmentClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    ()
+}
+
 exp:
 exp_pre_increment { $1 } |
 exp_stackalloc { $1 } |
@@ -2423,7 +2505,12 @@ exp_index_expression { $1 } |
 exp_range_expression { $1 } |
 exp_coalesce_assign { $1 } |
 exp_member_binding { $1 } |
-exp_throw { $1 }
+exp_throw { $1 } |
+objectInitializer { $1 } |
+relationalPattern { $1 } |
+discardPattern { $1 } |
+typePattern { $1 } |
+parenthesizedPattern { $1 }
 
 equalsValueClause:
 '{'
@@ -3027,6 +3114,16 @@ stmtFor:
     'value' ':' 'null' ','
     'location' ':' location ','
     'children' ':' '[' stmtVardec ',' exp ',' exp ',' stmt ']'
+'}'
+{
+    Actions.stmtForFromVardec $12 $17 [$19, $21] $23
+}
+|
+'{'
+    'kind' ':' 'ForStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmtVardec ',' exp ',' expAssign ',' stmt ']'
 '}'
 {
     Actions.stmtForFromVardec $12 $17 [$19, $21] $23
