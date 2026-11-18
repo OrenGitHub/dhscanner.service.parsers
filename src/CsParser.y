@@ -97,6 +97,13 @@ import qualified Common
 'NamespaceDeclaration' { AlexTokenTag AlexRawToken_NAMESPACE_DECLARATION _ }
 'FileScopedNamespaceDeclaration' { AlexTokenTag AlexRawToken_FILE_SCOPED_NAMESPACE_DECLARATION _ }
 'ClassDeclaration' { AlexTokenTag AlexRawToken_CLASS_DECLARATION _ }
+'RemoveAccessorDeclaration' { AlexTokenTag AlexRawToken_REMOVE_ACCESSOR_DECLARATION _ }
+'AddAccessorDeclaration' { AlexTokenTag AlexRawToken_ADD_ACCESSOR_DECLARATION _ }
+'EventDeclaration' { AlexTokenTag AlexRawToken_EVENT_DECLARATION _ }
+'CheckedExpression' { AlexTokenTag AlexRawToken_CHECKED_EXPRESSION _ }
+'UncheckedExpression' { AlexTokenTag AlexRawToken_UNCHECKED_EXPRESSION _ }
+'CheckedStatement' { AlexTokenTag AlexRawToken_CHECKED_STATEMENT _ }
+'UncheckedStatement' { AlexTokenTag AlexRawToken_UNCHECKED_STATEMENT _ }
 'EmptyStatement' { AlexTokenTag AlexRawToken_EMPTY_STATEMENT _ }
 'GotoDefaultStatement' { AlexTokenTag AlexRawToken_GOTO_DEFAULT_STATEMENT _ }
 'GotoCaseStatement' { AlexTokenTag AlexRawToken_GOTO_CASE_STATEMENT _ }
@@ -1180,6 +1187,16 @@ objectInitializer:
 {
     Actions.dictify $12 $16
 }
+|
+'{'
+    'kind' ':' 'ObjectInitializerExpression' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.emptyObject $12
+}
 
 -- instrumented as dhscanner Ast.ExpCall ( tag [collection] )
 collectionInitializer:
@@ -1191,6 +1208,16 @@ collectionInitializer:
 '}'
 {
     Actions.collection $12 $16
+}
+|
+'{'
+    'kind' ':' 'CollectionInitializerExpression' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.emptyCollection $12
 }
 
 withInitializer:
@@ -1417,6 +1444,16 @@ exp_declaration:
 '}'
 {
     Actions.expVar $19
+}
+|
+'{'
+    'kind' ':' 'DeclarationExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' nominalType ',' discardDesignation ']'
+'}'
+{
+    Actions.discardPattern $12
 }
 
 -- pattern negation wrapper: transparent
@@ -2257,6 +2294,16 @@ arrayInitializer:
 {
     Actions.collection $12 $16
 }
+|
+'{'
+    'kind' ':' 'ArrayInitializerExpression' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.emptyCollection $12
+}
 
 -- `new[] { a, b }`
 expImplicitArray:
@@ -2621,7 +2668,74 @@ stmtEmpty:
     Actions.stmtEmpty $12
 }
 
+-- `checked { .. }` / `unchecked { .. }` : transparent
+stmtChecked:
+'{'
+    'kind' ':' 'UncheckedStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmtBlock ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'CheckedStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmtBlock ']'
+'}'
+{
+    $17
+}
+
+-- `checked(e)` / `unchecked(e)` : transparent
+exp_checked:
+'{'
+    'kind' ':' 'UncheckedExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'CheckedExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+
+-- `event T X { add { .. } remove { .. } }`
+stmtEvent:
+'{'
+    'kind' ':' 'EventDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' nominalType ',' accessor_list ']'
+'}'
+{
+    Actions.stmtProperty $12 (tokIDValue $8) $17
+}
+|
+'{'
+    'kind' ':' 'EventDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(attributeList) nominalType ',' accessor_list ']'
+'}'
+{
+    Actions.stmtProperty $12 (tokIDValue $8) $18
+}
+
 exp:
+exp_checked { $1 } |
 varPattern { $1 } |
 listPattern { $1 } |
 slicePattern { $1 } |
@@ -2694,6 +2808,16 @@ equalsValueClause:
     'value' ':' 'null' ','
     'location' ':' location ','
     'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'EqualsValueClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' expAssign ']'
 '}'
 {
     $17
@@ -2822,7 +2946,9 @@ stmtField:
 accessor_kind:
 'GetAccessorDeclaration' { Nothing } |
 'SetAccessorDeclaration' { Nothing } |
-'InitAccessorDeclaration' { Nothing }
+'InitAccessorDeclaration' { Nothing } |
+'AddAccessorDeclaration' { Nothing } |
+'RemoveAccessorDeclaration' { Nothing }
 
 accessor:
 '{'
@@ -3453,6 +3579,16 @@ stmtForEachVariable:
 {
     Actions.stmtForEachVar $12 $17 $19 $21
 }
+|
+'{'
+    'kind' ':' 'ForEachVariableStatement' ','
+    'value' ':' tokenID ','
+    'location' ':' location ','
+    'children' ':' '[' exp_tuple_expression ',' exp ',' stmt ']'
+'}'
+{
+    Actions.stmtForEachTuple $12 $17 $19 $21
+}
 
 -- `e;` : the expression ( or assignment ) itself
 stmtExpression:
@@ -3600,6 +3736,16 @@ stmtReturn:
 {
     Actions.stmtReturnVoid $12
 }
+|
+'{'
+    'kind' ':' 'ReturnStatement' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' expAssign ']'
+'}'
+{
+    Actions.stmtReturn $12 $17
+}
 
 -- instrumented as dhscanner Ast.StmtExp ( tag [yield] )
 stmtYieldReturn:
@@ -3655,7 +3801,7 @@ stmtCtor:
     'kind' ':' 'ConstructorDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' params ',' ctorInitializer ',' stmtBlock ']'
+    'children' ':' '[' params ',' ctorInitializer ',' methodBody ']'
 '}'
 {
     Actions.stmtCtorInit $12 (tokIDValue $8) $17 $19 $21
@@ -3664,7 +3810,7 @@ stmtCtor:
     'kind' ':' 'ConstructorDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' params ',' baseCtorInitializer ',' stmtBlock ']'
+    'children' ':' '[' params ',' baseCtorInitializer ',' methodBody ']'
 '}'
 {
     Actions.stmtCtorInit $12 (tokIDValue $8) $17 $19 $21
@@ -3684,7 +3830,7 @@ stmtCtor:
     'kind' ':' 'ConstructorDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' prefixlistof(attributeList) params ',' ctorInitializer ',' stmtBlock ']'
+    'children' ':' '[' prefixlistof(attributeList) params ',' ctorInitializer ',' methodBody ']'
 '}'
 {
     Actions.stmtCtorInit $12 (tokIDValue $8) $18 $20 $22
@@ -3694,7 +3840,7 @@ stmtCtor:
     'kind' ':' 'ConstructorDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' prefixlistof(attributeList) params ',' baseCtorInitializer ',' stmtBlock ']'
+    'children' ':' '[' prefixlistof(attributeList) params ',' baseCtorInitializer ',' methodBody ']'
 '}'
 {
     Actions.stmtCtorInit $12 (tokIDValue $8) $18 $20 $22
@@ -3859,6 +4005,26 @@ stmtEnum:
 {
     Actions.stmtEnum $12 (tokIDValue $8) $18
 }
+|
+'{'
+    'kind' ':' 'EnumDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' baseList ',' commalistof(enumMember) ']'
+'}'
+{
+    Actions.stmtEnum $12 (tokIDValue $8) $19
+}
+|
+'{'
+    'kind' ':' 'EnumDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(attributeList) baseList ',' commalistof(enumMember) ']'
+'}'
+{
+    Actions.stmtEnum $12 (tokIDValue $8) $20
+}
 
 enumMember:
 '{'
@@ -3937,6 +4103,8 @@ stmtReturn { $1 } |
 stmtVardec { $1 } |
 stmtAssign { $1 } |
 stmtAddAssign { $1 } |
+stmtChecked { $1 } |
+stmtEvent { $1 } |
 stmtOperator { $1 } |
 stmtLabeled { $1 } |
 stmtGoto { $1 } |

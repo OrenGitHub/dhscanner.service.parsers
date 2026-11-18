@@ -767,6 +767,19 @@ stmtGotoDefault loc = stmtExp (instrumentationCall "goto" loc [])
 stmtEmpty :: Location -> Ast.Stmt
 stmtEmpty loc = stmtBlock loc []
 
+-- | `foreach ((var k, var v) in xs)` : instrumented like foreach, the tuple of
+-- the loop variables next to the iterable
+stmtForEachTuple :: Location -> Ast.Exp -> Ast.Exp -> Ast.Stmt -> Ast.Stmt
+stmtForEachTuple loc vars iterable body =
+  stmtBlock loc (stmtExp (instrumentationCall "foreach" loc [ vars, iterable ]) : unblock body)
+
+-- | `{ }`
+emptyCollection :: Location -> Ast.Exp
+emptyCollection loc = collection loc []
+
+emptyObject :: Location -> Ast.Exp
+emptyObject loc = dictify loc []
+
 stmtBreak :: Location -> Ast.Stmt
 stmtBreak loc = Ast.StmtBreak (Ast.StmtBreakContent loc)
 
