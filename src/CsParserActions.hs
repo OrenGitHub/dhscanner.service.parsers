@@ -102,6 +102,10 @@ fieldVarFromVar loc lhs v = fieldVar loc lhs (named loc (var2name v))
 qualifiedName :: Location -> Ast.Var -> Token.Named -> Ast.Var
 qualifiedName loc lhs name = fieldVar loc (expVar lhs) name
 
+-- | `System.Collections.Generic.List<T>` : the type `System.Collections.Generic.List`
+qualifiedGeneric :: Location -> Ast.Var -> Ast.Var -> Ast.Var
+qualifiedGeneric loc lhs generic = fieldVar loc (expVar lhs) (named loc (var2name generic))
+
 -- | `a[i]` ( the first index only )
 subscriptVar :: Location -> Ast.Exp -> [ Ast.Exp ] -> Ast.Var
 subscriptVar loc lhs (idx:_) = Ast.VarSubscript (Ast.VarSubscriptContent lhs idx loc)
@@ -460,6 +464,9 @@ opTimes = Ast.TIMES
 opDivide :: Ast.Operator
 opDivide = Ast.DIVIDE
 
+opPercent :: Ast.Operator
+opPercent = Ast.PERCENT
+
 unaryMinus :: Location -> Ast.Exp -> Ast.Exp
 unaryMinus loc e = expBinop loc (expInt loc "0") e opMinus
 
@@ -561,6 +568,16 @@ stmtAssign lhs rhs = Ast.StmtAssign $ Ast.StmtAssignContent {
 addAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
 addAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opPlus)
 
+-- | `x op= y` : x = x - y, x * y, x / y
+subtractAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
+subtractAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opMinus)
+
+multiplyAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
+multiplyAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opTimes)
+
+divideAssign :: Location -> Ast.Var -> Ast.Exp -> Ast.Stmt
+divideAssign loc lhs rhs = stmtAssign lhs (expBinop loc (expVar lhs) rhs opDivide)
+
 stmtIf :: Location -> Ast.Exp -> Ast.Stmt -> Maybe [ Ast.Stmt ] -> Ast.Stmt
 stmtIf loc cond body elseBody = Ast.StmtIf $ Ast.StmtIfContent {
     Ast.stmtIfCond = cond,
@@ -593,6 +610,8 @@ conditionalAccess :: Ast.Exp -> Ast.Exp -> Ast.Exp
 conditionalAccess = rebase
 
 rebase :: Ast.Exp -> Ast.Exp -> Ast.Exp
+rebase recv (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSubscript s)))
+    | isBindingHole (Ast.varSubscriptLhs s) = Ast.ExpVar (Ast.ExpVarContent (Ast.VarSubscript s { Ast.varSubscriptLhs = recv }))
 rebase recv (Ast.ExpVar (Ast.ExpVarContent v)) = Ast.ExpVar (Ast.ExpVarContent (rebaseVar recv v))
 rebase recv (Ast.ExpCall c) = Ast.ExpCall c { Ast.callee = rebase recv (Ast.callee c) }
 rebase _ e = e
@@ -624,6 +643,70 @@ stmtUsingStatementFromVardec loc decl body =
 stmtLock :: Location -> Ast.Exp -> Ast.Stmt -> Ast.Stmt
 stmtLock loc obj body =
   stmtBlock loc (stmtExp (instrumentationCall "lock" loc [ obj ]) : unblock body)
+
+-- | `M() => expr` : the body returns expr
+arrowBody :: Location -> Ast.Exp -> Ast.Stmt
+arrowBody loc e = stmtBlock loc [ stmtReturn loc e ]
+
+-- | `M() => x = y` / `set => _x = value` : the body is the assignment
+arrowStmtBody :: Location -> Ast.Stmt -> Ast.Stmt
+arrowStmtBody loc s = stmtBlock loc [ s ]
+
+-- | `_` ( a discard pattern )
+discardPattern :: Location -> Ast.Exp
+discardPattern loc = instrumentationCall "discard" loc []
+
+-- | `x switch { arms }`
+expSwitch :: Location -> Ast.Exp -> [ Ast.Exp ] -> Ast.Exp
+expSwitch loc subject arms = instrumentationCall "switch" loc (subject : arms)
+
+-- | `pattern [when cond] => result`
+switchArm :: Location -> Ast.Exp -> Maybe Ast.Exp -> Ast.Exp -> Ast.Exp
+switchArm loc pattern cond result = instrumentationCall "arm" loc ([ pattern ] ++ maybeToList cond ++ [ result ])
+
+-- | `from x in xs <clauses>`
+expQuery :: Location -> Ast.Exp -> [ Ast.Exp ] -> Ast.Exp
+expQuery loc from clauses = instrumentationCall "query" loc (from : clauses)
+
+-- | `from x in xs` / `let x = e` : the range variable next to its source
+queryBinding :: String -> Location -> String -> Ast.Exp -> Ast.Exp
+queryBinding tag loc name source = instrumentationCall tag loc [ expvarify (named loc name), source ]
+
+-- | `where c` / `orderby a, b` / `select e` / `group e by k`
+queryClause :: String -> Location -> [ Ast.Exp ] -> Ast.Exp
+queryClause = instrumentationCall
+
+-- | `join y in ys on l equals r [into g]`
+queryJoin :: Location -> String -> Ast.Exp -> Ast.Exp -> Ast.Exp -> Maybe Token.Named -> Ast.Exp
+queryJoin loc name source l r into = instrumentationCall "join" loc
+    ([ expvarify (named loc name), source, l, r ] ++ map expvarify (maybeToList into))
+
+-- | `into g <clauses>`
+queryContinuation :: Location -> String -> [ Ast.Exp ] -> Ast.Exp
+queryContinuation loc name clauses = instrumentationCall "into" loc (expvarify (named loc name) : clauses)
+
+-- | `(a, b) = rhs` : each variable of the tuple gets rhs ( over approximated :
+-- the element index is dropped, no flow is lost )
+tupleAssign :: Location -> Ast.Exp -> Ast.Exp -> Ast.Stmt
+tupleAssign loc (Ast.ExpCall c) rhs = stmtBlock loc ([ stmtAssign v rhs | Ast.ExpVar (Ast.ExpVarContent v) <- Ast.args c ] ++ [ stmtExp rhs | null [ () | Ast.ExpVar _ <- Ast.args c ] ])
+tupleAssign _ _ rhs = stmtExp rhs
+
+-- | `{ k, v }` of a collection initializer ( a dictionary entry )
+complexElement :: Location -> [ Ast.Exp ] -> Ast.Exp
+complexElement = instrumentationCall "element"
+
+-- | `?[i]` : a subscript of a hole, the receiver of the conditional access
+-- fills it ( `o?[i]` is `o[i]`, see conditionalAccess )
+elementBinding :: Location -> [ Ast.Exp ] -> Ast.Exp
+elementBinding loc idxs = expVar (subscriptVar loc bindingHole idxs)
+  where bindingHole = expvarify (named loc bindingHoleName)
+
+bindingHoleName :: String
+bindingHoleName = "<dhscanner-binding-hole>"
+
+isBindingHole :: Ast.Exp -> Bool
+isBindingHole (Ast.ExpVar (Ast.ExpVarContent (Ast.VarSimple (Ast.VarSimpleContent (Token.VarName n))))) = Token.content n == bindingHoleName
+isBindingHole _ = False
 
 stmtBreak :: Location -> Ast.Stmt
 stmtBreak loc = Ast.StmtBreak (Ast.StmtBreakContent loc)

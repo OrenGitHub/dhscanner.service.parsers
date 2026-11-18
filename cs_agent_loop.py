@@ -539,6 +539,7 @@ def pick_failure(
     rng: random.Random,
     target_node: str | None,
     attempts: dict[str, int] | None = None,
+    focus: str | None = None,
 ) -> str | None:
     failures = [
         rel
@@ -549,6 +550,7 @@ def pick_failure(
         and not is_trivial_failure_location(info)
         and (target_node is None or info.get("node") == target_node)
         and (attempts or {}).get(rel, 0) < MAX_ATTEMPTS_PER_FILE
+        and (focus is None or rel.startswith(focus.rstrip("/") + "/"))
     ]
     if not failures:
         return None
@@ -1041,6 +1043,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     ap.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS_DIR,
                     required=DEFAULT_CORPUS_DIR is None,
                     help="corpus directory (default: $CS_CORPUS_DIR)")
+    ap.add_argument("--focus", default=None,
+                    help="pick failures only under this corpus subdirectory ( the gate still "
+                         "covers the whole corpus : grow one repo, keep the others )")
     ap.add_argument("--model", default=os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
                     help=f"OpenAI model (default: {DEFAULT_MODEL} or $OPENAI_MODEL)")
     ap.add_argument("--pick", choices=["first", "random", "earliest", "top-node"], default="earliest",
@@ -1179,7 +1184,7 @@ def main(argv: list[str] | None = None) -> int:
 
     pick_strategy = "random" if args.reshuffle else args.pick
     attempts = load_attempts()
-    chosen = pick_failure(files_map, pick_strategy, rng, args.target_node, attempts)
+    chosen = pick_failure(files_map, pick_strategy, rng, args.target_node, attempts, args.focus)
     if chosen is None:
         scope = f" on node {args.target_node}" if args.target_node else ""
         print(f"no actionable failures{scope} in baseline -- nothing to do.")

@@ -97,6 +97,31 @@ import qualified Common
 'NamespaceDeclaration' { AlexTokenTag AlexRawToken_NAMESPACE_DECLARATION _ }
 'FileScopedNamespaceDeclaration' { AlexTokenTag AlexRawToken_FILE_SCOPED_NAMESPACE_DECLARATION _ }
 'ClassDeclaration' { AlexTokenTag AlexRawToken_CLASS_DECLARATION _ }
+'DivideAssignmentExpression' { AlexTokenTag AlexRawToken_DIVIDE_ASSIGNMENT_EXPRESSION _ }
+'MultiplyAssignmentExpression' { AlexTokenTag AlexRawToken_MULTIPLY_ASSIGNMENT_EXPRESSION _ }
+'SubtractAssignmentExpression' { AlexTokenTag AlexRawToken_SUBTRACT_ASSIGNMENT_EXPRESSION _ }
+'ElementBindingExpression' { AlexTokenTag AlexRawToken_ELEMENT_BINDING_EXPRESSION _ }
+'ModuloExpression' { AlexTokenTag AlexRawToken_MODULO_EXPRESSION _ }
+'ComplexElementInitializerExpression' { AlexTokenTag AlexRawToken_COMPLEX_ELEMENT_INITIALIZER_EXPRESSION _ }
+'ImplicitArrayCreationExpression' { AlexTokenTag AlexRawToken_IMPLICIT_ARRAY_CREATION_EXPRESSION _ }
+'ArrayInitializerExpression' { AlexTokenTag AlexRawToken_ARRAY_INITIALIZER_EXPRESSION _ }
+'QueryContinuation' { AlexTokenTag AlexRawToken_QUERY_CONTINUATION _ }
+'GroupClause' { AlexTokenTag AlexRawToken_GROUP_CLAUSE _ }
+'SelectClause' { AlexTokenTag AlexRawToken_SELECT_CLAUSE _ }
+'DescendingOrdering' { AlexTokenTag AlexRawToken_DESCENDING_ORDERING _ }
+'AscendingOrdering' { AlexTokenTag AlexRawToken_ASCENDING_ORDERING _ }
+'OrderByClause' { AlexTokenTag AlexRawToken_ORDER_BY_CLAUSE _ }
+'WhereClause' { AlexTokenTag AlexRawToken_WHERE_CLAUSE _ }
+'LetClause' { AlexTokenTag AlexRawToken_LET_CLAUSE _ }
+'JoinIntoClause' { AlexTokenTag AlexRawToken_JOIN_INTO_CLAUSE _ }
+'JoinClause' { AlexTokenTag AlexRawToken_JOIN_CLAUSE _ }
+'QueryBody' { AlexTokenTag AlexRawToken_QUERY_BODY _ }
+'FromClause' { AlexTokenTag AlexRawToken_FROM_CLAUSE _ }
+'QueryExpression' { AlexTokenTag AlexRawToken_QUERY_EXPRESSION _ }
+'TypePattern' { AlexTokenTag AlexRawToken_TYPE_PATTERN _ }
+'DiscardPattern' { AlexTokenTag AlexRawToken_DISCARD_PATTERN _ }
+'SwitchExpressionArm' { AlexTokenTag AlexRawToken_SWITCH_EXPRESSION_ARM _ }
+'SwitchExpression' { AlexTokenTag AlexRawToken_SWITCH_EXPRESSION _ }
 'InterfaceDeclaration' { AlexTokenTag AlexRawToken_INTERFACE_DECLARATION _ }
 'EnumDeclaration' { AlexTokenTag AlexRawToken_ENUM_DECLARATION _ }
 'EnumMemberDeclaration' { AlexTokenTag AlexRawToken_ENUM_MEMBER_DECLARATION _ }
@@ -485,6 +510,16 @@ varQualifiedName:
 {
     Actions.qualifiedName $12 $17 $19
 }
+|
+'{'
+    'kind' ':' 'QualifiedName' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' genericName ']'
+'}'
+{
+    Actions.qualifiedGeneric $12 $17 $19
+}
 
 -- direct dhscanner subtree creation: Ast.VarField
 varAliasQualifiedName:
@@ -770,6 +805,15 @@ attributeArg:
 '}'
 {
     Actions.kwArg $12 $17 $19
+} |
+'{'
+    'kind' ':' 'AttributeArgument' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' nameColon ',' exp ']'
+'}'
+{
+    Actions.kwArg $12 $17 $19
 }
 
 -- a type, possibly after attribute lists ( a method's return type, a parameter's type )
@@ -1031,6 +1075,16 @@ exp_implicit_new:
 {
     Actions.implicitNewArgsInit $12 $17 $19
 }
+|
+'{'
+    'kind' ':' 'ImplicitObjectCreationExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' args ',' collectionInitializer ']'
+'}'
+{
+    Actions.implicitNewArgsInit $12 $17 $19
+}
 
 -- treat array creation like object creation: call on the array type with no args
 exp_array_creation:
@@ -1042,6 +1096,16 @@ exp_array_creation:
 '}'
 {
     Actions.expNewNoArgs $12 $17
+}
+|
+'{'
+    'kind' ':' 'ArrayCreationExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' arrayType ',' arrayInitializer ']'
+'}'
+{
+    Actions.expNew $12 $17 [$19]
 }
 
 -- instrumented as dhscanner Ast.ExpCall ( tag [dictify], one Ast.ExpKwArg per member )
@@ -1194,6 +1258,7 @@ operator:
 'MultiplyExpression' { Actions.opTimes } |
 'SubtractExpression' { Actions.opMinus } |
 'DivideExpression' { Actions.opDivide } |
+'ModuloExpression' { Actions.opPercent } |
 'NotEqualsExpression' { Actions.opNeq }
 
 -- direct dhscanner subtree creation: Ast.ExpBinop
@@ -1285,10 +1350,20 @@ propertyPatternClause:
     'kind' ':' 'PropertyPatternClause' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' nonempty_listof(subpattern)
+    'children' ':' possibly_empty_listof(subpattern)
 '}'
 {
     $16
+}
+|
+'{'
+    'kind' ':' 'PropertyPatternClause' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    []
 }
 
 subpattern:
@@ -1389,6 +1464,8 @@ exp_and_pattern:
 }
 
 exp_pattern:
+discardPattern { $1 } |
+typePattern { $1 } |
 exp_casting { $1 } |
 relationalPattern { $1 } |
 constantPattern { $1 } |
@@ -1832,7 +1909,269 @@ exp_simple_lambda:
     Actions.simpleLambda $12 $17 $19
 }
 
+-- `_` : instrumented as dhscanner Ast.ExpCall ( tag [discard] )
+discardPattern:
+'{'
+    'kind' ':' 'DiscardPattern' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.discardPattern $12
+}
+
+-- `not string` : the type
+typePattern:
+'{'
+    'kind' ':' 'TypePattern' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' nominalType ']'
+'}'
+{
+    Actions.expVar $17
+}
+
+-- `x switch { p => e, .. }` : instrumented as dhscanner Ast.ExpCall ( tag [switch] )
+expSwitch:
+'{'
+    'kind' ':' 'SwitchExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ',' commalistof(switchArm) ']'
+'}'
+{
+    Actions.expSwitch $12 $17 $19
+}
+
+-- `p when c => e` : instrumented as dhscanner Ast.ExpCall ( tag [arm] )
+switchArm:
+'{'
+    'kind' ':' 'SwitchExpressionArm' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp_pattern ',' exp ']'
+'}'
+{
+    Actions.switchArm $12 $17 Nothing $19
+}
+|
+'{'
+    'kind' ':' 'SwitchExpressionArm' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp_pattern ',' whenClause ',' exp ']'
+'}'
+{
+    Actions.switchArm $12 $17 (Just $19) $21
+}
+
+-- `from x in xs .. select e` : instrumented as dhscanner Ast.ExpCall ( tag [query] ),
+-- one instrumented call per clause, range variables kept next to their source
+expQuery:
+'{'
+    'kind' ':' 'QueryExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' fromClause ',' queryBody ']'
+'}'
+{
+    Actions.expQuery $12 $17 $19
+}
+
+queryBody:
+'{'
+    'kind' ':' 'QueryBody' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' nonempty_listof(queryClause)
+'}'
+{
+    $16
+}
+
+queryClause:
+fromClause { $1 } |
+'{'
+    'kind' ':' 'JoinClause' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' exp ',' exp ',' exp ']'
+'}'
+{
+    Actions.queryJoin $12 (tokIDValue $8) $17 $19 $21 Nothing
+}
+|
+'{'
+    'kind' ':' 'JoinClause' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' exp ',' exp ',' exp ',' joinInto ']'
+'}'
+{
+    Actions.queryJoin $12 (tokIDValue $8) $17 $19 $21 (Just $23)
+}
+|
+'{'
+    'kind' ':' 'LetClause' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.queryBinding "let" $12 (tokIDValue $8) $17
+}
+|
+'{'
+    'kind' ':' 'WhereClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.queryClause "where" $12 [$17]
+}
+|
+'{'
+    'kind' ':' 'OrderByClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' nonempty_listof(ordering)
+'}'
+{
+    Actions.queryClause "orderby" $12 $16
+}
+|
+'{'
+    'kind' ':' 'SelectClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.queryClause "select" $12 [$17]
+}
+|
+'{'
+    'kind' ':' 'GroupClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ',' exp ']'
+'}'
+{
+    Actions.queryClause "group" $12 [$17, $19]
+}
+|
+'{'
+    'kind' ':' 'QueryContinuation' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' queryBody ']'
+'}'
+{
+    Actions.queryContinuation $12 (tokIDValue $8) $17
+}
+
+fromClause:
+'{'
+    'kind' ':' 'FromClause' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.queryBinding "from" $12 (tokIDValue $8) $17
+}
+
+joinInto:
+'{'
+    'kind' ':' 'JoinIntoClause' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' ']'
+'}'
+{
+    Actions.named $12 (tokIDValue $8)
+}
+
+ordering:
+'{'
+    'kind' ':' 'AscendingOrdering' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+|
+'{'
+    'kind' ':' 'DescendingOrdering' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    $17
+}
+
+-- `{ a, b }` : instrumented as dhscanner Ast.ExpCall ( tag [collection] )
+arrayInitializer:
+'{'
+    'kind' ':' 'ArrayInitializerExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' possibly_empty_listof(exp)
+'}'
+{
+    Actions.collection $12 $16
+}
+
+-- `new[] { a, b }`
+expImplicitArray:
+'{'
+    'kind' ':' 'ImplicitArrayCreationExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' arrayInitializer ']'
+'}'
+{
+    $17
+}
+
+-- `{ k, v }` in a collection initializer : instrumented as dhscanner Ast.ExpCall ( tag [element] )
+complexElement:
+'{'
+    'kind' ':' 'ComplexElementInitializerExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' possibly_empty_listof(exp)
+'}'
+{
+    Actions.complexElement $12 $16
+}
+
+-- `?[i]` of `o?[i]` : rebased onto o by Actions.conditionalAccess
+elementBinding:
+'{'
+    'kind' ':' 'ElementBindingExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' bracketedArgs ']'
+'}'
+{
+    Actions.elementBinding $12 $17
+}
+
 exp:
+expImplicitArray { $1 } |
+arrayInitializer { $1 } |
+collectionInitializer { $1 } |
+complexElement { $1 } |
+elementBinding { $1 } |
+expSwitch { $1 } |
+expQuery { $1 } |
 expNew { $1 } |
 exp_implicit_new { $1 } |
 exp_array_creation { $1 } |
@@ -1891,6 +2230,29 @@ equalsValueClause:
 '}'
 {
     $17
+}
+
+-- a method body : a block, or `=> expr` ( returned ) / `=> x = y`
+methodBody:
+stmtBlock { $1 } |
+'{'
+    'kind' ':' 'ArrowExpressionClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp ']'
+'}'
+{
+    Actions.arrowBody $12 $17
+}
+|
+'{'
+    'kind' ':' 'ArrowExpressionClause' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' stmtAssign ']'
+'}'
+{
+    Actions.arrowStmtBody $12 $17
 }
 
 arrowExpressionClause:
@@ -2218,7 +2580,7 @@ stmtMethod:
     'kind' ':' 'MethodDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' params ',' stmtBlock ']'
+    'children' ':' '[' annotatedType ',' params ',' methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $19 $17 $21
@@ -2228,7 +2590,7 @@ stmtMethod:
     'kind' ':' 'MethodDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' stmtBlock ']'
+    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $21 $17 $23
@@ -2258,7 +2620,7 @@ stmtMethod:
     'kind' ':' 'MethodDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' explicitInterfaceSpecifier ',' params ',' stmtBlock ']'
+    'children' ':' '[' annotatedType ',' explicitInterfaceSpecifier ',' params ',' methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $21 $17 $23
@@ -2278,7 +2640,7 @@ stmtMethod:
     'kind' ':' 'MethodDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' prefixlistof(typeParameterConstraintClause) stmtBlock ']'
+    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' prefixlistof(typeParameterConstraintClause) methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $21 $17 $24
@@ -2288,7 +2650,17 @@ stmtMethod:
     'kind' ':' 'MethodDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' nonempty_listof(typeParameterConstraintClause) ']'
+    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' prefixlistof(typeParameterConstraintClause) typeParameterConstraintClause ']'
+'}'
+{
+    Actions.stmtMethodNoBody $12 (tokIDValue $8) $21 $17
+}
+|
+'{'
+    'kind' ':' 'MethodDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' typeParameterConstraintClause ']'
 '}'
 {
     Actions.stmtMethodNoBody $12 (tokIDValue $8) $21 $17
@@ -2300,7 +2672,7 @@ stmtLocalFunction:
     'kind' ':' 'LocalFunctionStatement' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' params ',' stmtBlock ']'
+    'children' ':' '[' annotatedType ',' params ',' methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $19 $17 $21
@@ -2310,7 +2682,7 @@ stmtLocalFunction:
     'kind' ':' 'LocalFunctionStatement' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' stmtBlock ']'
+    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $21 $17 $23
@@ -2320,7 +2692,7 @@ stmtLocalFunction:
     'kind' ':' 'LocalFunctionStatement' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' prefixlistof(typeParameterConstraintClause) stmtBlock ']'
+    'children' ':' '[' annotatedType ',' typeParameterList ',' params ',' prefixlistof(typeParameterConstraintClause) methodBody ']'
 '}'
 {
     Actions.stmtMethod $12 (tokIDValue $8) $21 $17 $24
@@ -2366,7 +2738,7 @@ stmtIf:
     'kind' ':' 'IfStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' exp ',' stmtBlock optional(elsePart) ']'
+    'children' ':' '[' exp ',' stmt optional(elsePart) ']'
 '}'
 {
     Actions.stmtIf $12 $17 $19 $20
@@ -2378,7 +2750,7 @@ stmtWhile:
     'kind' ':' 'WhileStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' exp ',' stmtBlock ']'
+    'children' ':' '[' exp ',' stmt ']'
 '}'
 {
     Actions.stmtWhile $12 $17 $19
@@ -2390,7 +2762,7 @@ stmtFor:
     'kind' ':' 'ForStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' exp ',' stmtBlock ']'
+    'children' ':' '[' exp ',' stmt ']'
 '}'
 {
     Actions.stmtFor $12 [$17] $19
@@ -2400,7 +2772,7 @@ stmtFor:
     'kind' ':' 'ForStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' exp ',' exp ',' stmtBlock ']'
+    'children' ':' '[' exp ',' exp ',' stmt ']'
 '}'
 {
     Actions.stmtFor $12 [$17, $19] $21
@@ -2410,7 +2782,7 @@ stmtFor:
     'kind' ':' 'ForStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' stmtVardec ',' stmtBlock ']'
+    'children' ':' '[' stmtVardec ',' stmt ']'
 '}'
 {
     Actions.stmtForFromVardec $12 $17 [] $19
@@ -2420,7 +2792,7 @@ stmtFor:
     'kind' ':' 'ForStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' stmtVardec ',' exp ',' stmtBlock ']'
+    'children' ':' '[' stmtVardec ',' exp ',' stmt ']'
 '}'
 {
     Actions.stmtForFromVardec $12 $17 [$19] $21
@@ -2430,7 +2802,7 @@ stmtFor:
     'kind' ':' 'ForStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' stmtVardec ',' exp ',' exp ',' stmtBlock ']'
+    'children' ':' '[' stmtVardec ',' exp ',' exp ',' stmt ']'
 '}'
 {
     Actions.stmtForFromVardec $12 $17 [$19, $21] $23
@@ -2533,7 +2905,7 @@ stmtUsingStatement:
     'kind' ':' 'UsingStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' exp ',' stmtBlock ']'
+    'children' ':' '[' exp ',' stmt ']'
 '}'
 {
     Actions.stmtUsingStatement $12 $17 $19
@@ -2543,7 +2915,7 @@ stmtUsingStatement:
     'kind' ':' 'UsingStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' stmtVardec ',' stmtBlock ']'
+    'children' ':' '[' stmtVardec ',' stmt ']'
 '}'
 {
     Actions.stmtUsingStatementFromVardec $12 $17 $19
@@ -2556,7 +2928,7 @@ stmtLock:
     'kind' ':' 'LockStatement' ','
     'value' ':' 'null' ','
     'location' ':' location ','
-    'children' ':' '[' exp ',' stmtBlock ']'
+    'children' ':' '[' exp ',' stmt ']'
 '}'
 {
     Actions.stmtLock $12 $17 $19
@@ -2567,7 +2939,7 @@ stmtForEach:
     'kind' ':' 'ForEachStatement' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' annotatedType ',' exp ',' stmtBlock ']'
+    'children' ':' '[' annotatedType ',' exp ',' stmt ']'
 '}'
 {
     Actions.stmtForEach $12 (tokIDValue $8) $17 $19 $21
@@ -2579,7 +2951,7 @@ stmtForEachVariable:
     'kind' ':' 'ForEachVariableStatement' ','
     'value' ':' tokenID ','
     'location' ':' location ','
-    'children' ':' '[' declarationDeconstructVar ',' exp ',' stmtBlock ']'
+    'children' ':' '[' declarationDeconstructVar ',' exp ',' stmt ']'
 '}'
 {
     Actions.stmtForEachVar $12 $17 $19 $21
@@ -2618,8 +2990,50 @@ stmtAssign:
 {
     Actions.stmtAssign $17 $19
 }
+|
+'{'
+    'kind' ':' 'SimpleAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' exp_tuple_expression ',' exp ']'
+'}'
+{
+    Actions.tupleAssign $12 $17 $19
+}
 
 -- instrumented lowering: x += y  ==>  x = x + y
+-- instrumented lowering: x -= y  ==>  x = x - y ( same for *= /= )
+stmtCompoundAssign:
+'{'
+    'kind' ':' 'SubtractAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.subtractAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'MultiplyAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.multiplyAssign $12 $17 $19
+}
+|
+'{'
+    'kind' ':' 'DivideAssignmentExpression' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' var ',' exp ']'
+'}'
+{
+    Actions.divideAssign $12 $17 $19
+}
+
 stmtAddAssign:
 '{'
     'kind' ':' 'AddAssignmentExpression' ','
@@ -2752,7 +3166,7 @@ stmtCtor:
     'kind' ':' 'ConstructorDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' params ',' stmtBlock ']'
+    'children' ':' '[' params ',' methodBody ']'
 '}'
 {
     Actions.stmtCtor $12 (tokIDValue $8) $17 $19
@@ -2783,7 +3197,7 @@ stmtCtor:
     'kind' ':' 'ConstructorDeclaration' ','
     'value' ':' ID ','
     'location' ':' location ','
-    'children' ':' '[' prefixlistof(attributeList) params ',' stmtBlock ']'
+    'children' ':' '[' prefixlistof(attributeList) params ',' methodBody ']'
 '}'
 {
     Actions.stmtCtor $12 (tokIDValue $8) $18 $20
@@ -2797,7 +3211,7 @@ whenClause:
     'children' ':' '[' exp ']'
 '}'
 {
-    ()
+    $17
 }
 
 caseLabel:
@@ -2860,6 +3274,15 @@ switchSection:
 '}'
 {
     Actions.defaultSection $19
+} |
+'{'
+    'kind' ':' 'SwitchSection' ','
+    'value' ':' 'null' ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(caseLabel) defaultLabel ',' commalistof(stmt) ']'
+'}'
+{
+    Actions.caseSectionMulti $17 $20
 }
 
 -- instrumented as dhscanner Ast.StmtBlock ( scrutinee, labels, bodies )
@@ -2930,6 +3353,46 @@ enumMember:
 {
     tokIDValue $8
 }
+|
+'{'
+    'kind' ':' 'EnumMemberDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' equalsValueClause ']'
+'}'
+{
+    tokIDValue $8
+}
+|
+'{'
+    'kind' ':' 'EnumMemberDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(attributeList) equalsValueClause ']'
+'}'
+{
+    tokIDValue $8
+}
+|
+'{'
+    'kind' ':' 'EnumMemberDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' attributeList ']'
+'}'
+{
+    tokIDValue $8
+}
+|
+'{'
+    'kind' ':' 'EnumMemberDeclaration' ','
+    'value' ':' ID ','
+    'location' ':' location ','
+    'children' ':' '[' prefixlistof(attributeList) attributeList ']'
+'}'
+{
+    tokIDValue $8
+}
 
 stmt:
 stmtIf { $1 } |
@@ -2957,6 +3420,7 @@ stmtReturn { $1 } |
 stmtVardec { $1 } |
 stmtAssign { $1 } |
 stmtAddAssign { $1 } |
+stmtCompoundAssign { $1 } |
 stmtLocalFunction { $1 } |
 stmtMethod { $1 } |
 stmtExpression { $1 } |
