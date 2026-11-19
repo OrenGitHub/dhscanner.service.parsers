@@ -791,6 +791,15 @@ exp_call:
 '}'
 {
     JavaParserActions.expCall $8 $13
+} |
+-- X.<Map<K, V>>m( args ) : explicit type args come first in children, dropped
+'{'
+    'kind' ':' 'METHOD_INVOCATION' ','
+    'loc' ':' location ','
+    'children' ':' '[' parameterized_type ',' commalistof(exp) ']'
+'}'
+{
+    JavaParserActions.expCall $8 $15
 }
 
 -- ***********
@@ -982,7 +991,10 @@ binop_kind:
 'MULTIPLY'            { Ast.TIMES } |
 'DIVIDE'              { Ast.TIMES } |
 'AND'                 { Ast.PLUS  } |
+'OR'                  { Ast.PLUS  } |
+'XOR'                 { Ast.PLUS  } |
 'LEFT_SHIFT'          { Ast.PLUS  } |
+'RIGHT_SHIFT'         { Ast.PLUS  } |
 'UNSIGNED_RIGHT_SHIFT' { Ast.PLUS  } |
 'CONDITIONAL_AND'     { Ast.PLUS  } |
 'CONDITIONAL_OR'      { Ast.PLUS  }
