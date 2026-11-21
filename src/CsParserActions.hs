@@ -12,6 +12,7 @@ module CsParserActions where
 import qualified Ast
 import qualified Token
 import Location
+import qualified Common
 
 -- *******************
 -- *                 *
@@ -852,3 +853,33 @@ coalesceAssign loc lhs rhs = Ast.ExpAssign $ Ast.ExpAssignContent {
 
 instrumentationCall :: String -> Location -> [ Ast.Exp ] -> Ast.Exp
 instrumentationCall tag loc callArgs = call loc (expvarify (named loc ("<dhscanner-instrumentation>[" ++ tag ++ "]"))) callArgs
+
+-- ******************************
+-- *                            *
+-- * namespace visible types    *
+-- *                            *
+-- ******************************
+-- | C# imports no single type : a file sees every type of its own namespace,
+-- of the enclosing ones and of its `using` namespaces. The cli maps the 1st
+-- party types a file names this way to the repo file declaring them
+-- ( X-Path-Mappings, from = App.Areas.Identity.Controllers.IdentityController,
+-- to = src/App/Areas/Identity/Controllers/IdentityController.cs ) ; each
+-- becomes a synthetic 1st party import, the node a java import of it lowers
+-- to, so `class AccountController : IdentityController` resolves its super
+-- ( runner #161 for java same package classes ). No mappings ( agent loops,
+-- golden set ) -> unchanged output.
+withFirstPartyImports :: [ Common.PathMapping ] -> Ast.Root -> Ast.Root
+withFirstPartyImports [] r = r
+withFirstPartyImports mappings r = r { Ast.stmts = imports ++ Ast.stmts r }
+    where imports = [ namespaceImport (Ast.filename r) (Common.path_mapping_from m) (Common.path_mapping_to m) | m <- mappings ]
+
+namespaceImport :: FilePath -> String -> FilePath -> Ast.Stmt
+namespaceImport fp from file = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportLocal (Ast.ImportLocalFile file),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific (simpleTypeName from)),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = Location fp 1 1 1 1
+}
+
+simpleTypeName :: String -> String
+simpleTypeName = reverse . takeWhile (/= '.') . reverse
