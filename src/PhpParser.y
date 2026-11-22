@@ -13,6 +13,7 @@ import PhpLexer
 import Location
 import qualified Token
 import qualified Common
+import qualified JavaParserActions
 
 -- *******************
 -- *                 *
@@ -22,7 +23,7 @@ import qualified Common
 import Data.Maybe
 import Data.Either
 import Data.List ( map, foldl', intercalate, init, last, concatMap, filter, null, dropWhile )
-import Data.Map ( empty, fromList )
+import Data.Map ( empty, fromList, toList, Map )
 
 }
 
@@ -2443,6 +2444,30 @@ useItem parts' alias loc = let parts = backslashed parts' in Ast.StmtImportConte
         Ast.stmtImportLocation = loc
     }
 
+-- as JavaParserActions.withFirstPartyImports, but a php use sits inside blocks
+-- ( the use itself and the namespace are both an Ast.StmtBlock ) : rewrite it there
+withFirstPartyImports :: [ Common.PathMapping ] -> Ast.Root -> Ast.Root
+withFirstPartyImports [] root = root
+withFirstPartyImports mappings root = root { Ast.stmts = samePackage ++ Data.List.map (firstPartyImports known) (Ast.stmts root) }
+    where
+        known = Data.Map.fromList [ (Common.path_mapping_from m, Common.path_mapping_to m) | m <- mappings ]
+        explicit = [ (src, specific) | i <- nestedImports (Ast.stmts root), Ast.ImportThirdParty (Ast.ImportThirdPartyContent src) <- [ Ast.stmtImportSource i ], Just (Ast.ImportSpecific specific) <- [ Ast.stmtImportSpecific i ] ]
+        explicitQualified = [ src ++ "." ++ specific | (src, specific) <- explicit ]
+        explicitNames = Data.List.map snd explicit
+        samePackage = [ JavaParserActions.samePackageImport (Ast.filename root) from file | (from, file) <- Data.Map.toList known, from `notElem` explicitQualified, JavaParserActions.simpleName from `notElem` explicitNames ]
+
+firstPartyImports :: Data.Map.Map String FilePath -> Ast.Stmt -> Ast.Stmt
+firstPartyImports known (Ast.StmtBlock b) = Ast.StmtBlock b { Ast.stmtBlockContent = Data.List.map (firstPartyImports known) (Ast.stmtBlockContent b) }
+firstPartyImports known stmt = JavaParserActions.firstPartyImport known stmt
+
+nestedImports :: [ Ast.Stmt ] -> [ Ast.StmtImportContent ]
+nestedImports = Data.List.concatMap nestedImports'
+
+nestedImports' :: Ast.Stmt -> [ Ast.StmtImportContent ]
+nestedImports' (Ast.StmtImport i) = [ i ]
+nestedImports' (Ast.StmtBlock b) = nestedImports (Ast.stmtBlockContent b)
+nestedImports' _ = []
+
 -- a class without extends has 'extends: null' ( type -> tokenID "null" )
 classSupers :: Token.Named -> [ Token.SuperName ]
 classSupers t = if Token.content t == "null" then [] else [ Token.SuperName t ]
@@ -2473,5 +2498,8 @@ parseError t = alexError' (tokenLoc t)
 -- *              *
 -- ****************
 parseProgram :: Common.SourceCodeFilePath -> Common.SourceCodeContent -> Common.AdditionalRepoInfo -> Either String Ast.Root
-parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo = runAlex' parse fp additionalInfo content
+-- the cli maps each use A\B\C of a 1st party class ( and every class of the file's
+-- own namespace it names ) to the declaring file ( X-Path-Mappings, from = A.B.C ) , as java
+parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo =
+    withFirstPartyImports (Common.path_mappings additionalInfo) <$> runAlex' parse fp additionalInfo content
 }
