@@ -21,7 +21,7 @@ import qualified Common
 -- *******************
 import Data.Maybe
 import Data.Either
-import Data.List ( map, foldl' )
+import Data.List ( map, foldl', intercalate, init, last, concatMap, filter, null, dropWhile )
 import Data.Map ( empty, fromList )
 
 }
@@ -665,7 +665,7 @@ stmt_trait:
         Ast.stmtClassName = Token.ClassName $9,
         Ast.stmtClassSupers = [],
         Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $9) $12
+        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $9) [] $12
     }
 }
 
@@ -763,7 +763,7 @@ name:
     'name' ':' importee
 ')'
 {
-    Data.List.foldl' (\x y -> x ++ "." ++ y) "" $6
+    $6
 }
 
 use_item:
@@ -774,13 +774,7 @@ use_item:
     'alias' ':' type
 ')'
 {
-    Ast.StmtImportContent
-    {
-        Ast.stmtImportSource = ImportThirdParty (ImportThirdPartyContent $9),
-        Ast.stmtImportSpecific = Nothing,
-        Ast.stmtImportAlias = Nothing,
-        Ast.stmtImportLocation = $2
-    }
+    useItem $9 $12 $2
 }
 
 stmt_use_type: tokenID '(' INT ')' { Nothing }
@@ -928,13 +922,13 @@ param:
     Ast.Param
     {
         Ast.paramName = Token.ParamName $ Token.Named $28 $24,
-        Ast.paramNominalType = Just (varme (Token.Named "any" $24)),
+        Ast.paramNominalType = Just (varme (paramType $14 $24)),
         paramSerialIdx = 15555,
         paramAnnotations = []
     }
 }
 
-numbered_param: INT ':' param { $3 }
+numbered_param: INT ':' param { $3 { Ast.paramSerialIdx = fromIntegral (tokIntValue $1) } }
 
 params: 'array' '(' ')' { [] } | 'array' '(' listof(numbered_param) ')' { $3 }
 
@@ -958,7 +952,7 @@ stmt_method:
     {
         Ast.stmtMethodReturnType = Just (varme (Token.Named "any" $2)),
         Ast.stmtMethodName = Token.MethodName $17,
-        Ast.stmtMethodParams = [],
+        Ast.stmtMethodParams = $20,
         Ast.stmtMethodBody = case $26 of { Nothing -> []; Just _stmts -> _stmts },
         Ast.stmtMethodAnnotations = [],
         Ast.stmtMethodLocation = $2,
@@ -982,7 +976,7 @@ stmt_interface:
         Ast.stmtClassName = Token.ClassName $9,
         Ast.stmtClassSupers = Data.List.map Token.SuperName $12,
         Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $9) $15
+        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $9) (Data.List.map Token.SuperName $12) $15
     }
 } 
 
@@ -1005,9 +999,9 @@ stmt_class:
     Ast.StmtClass $ Ast.StmtClassContent
     {
         Ast.stmtClassName = Token.ClassName $12,
-        Ast.stmtClassSupers = [Token.SuperName $15],
+        Ast.stmtClassSupers = classSupers $15,
         Ast.stmtClassDataMembers = Ast.DataMembers Data.Map.empty,
-        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $12) $21
+        Ast.stmtClassMethods = Ast.Methods $ Data.Map.fromList $ methodify (Token.ClassName $12) (classSupers $15) $21
     }
 } 
 
@@ -2351,16 +2345,30 @@ loc: '[' INT ':' INT '-' INT ':' INT ']'
 
 {
 
-importify' :: Location -> String -> Ast.StmtImportContent -> Ast.Stmt
-importify' loc src content = Ast.StmtImport $ Ast.StmtImportContent {
-    Ast.stmtImportSource = ImportThirdParty (ImportThirdPartyContent src),
-    Ast.stmtImportSpecific = Nothing,
-    Ast.stmtImportAlias = Ast.stmtImportAlias content,
+-- use A\{B\C, D} : every item is prefixed ( source A.B , specific C ; source A , specific D )
+importify' :: Location -> [ String ] -> Ast.StmtImportContent -> Ast.Stmt
+importify' loc prefix content = Ast.StmtImport $ content {
+    Ast.stmtImportSource = ImportThirdParty (ImportThirdPartyContent (prefixed prefix (Ast.stmtImportSource content))),
     Ast.stmtImportLocation = loc
 }
 
-importify :: Location -> String -> [ Ast.StmtImportContent ] -> [ Ast.Stmt ]
-importify loc f = Data.List.map (importify' loc f)
+prefixed :: [ String ] -> Ast.ImportSource -> String
+prefixed prefix (ImportThirdParty (ImportThirdPartyContent "")) = Data.List.intercalate "." prefix
+prefixed prefix (ImportThirdParty (ImportThirdPartyContent src)) = Data.List.intercalate "." (prefix ++ [ src ])
+prefixed prefix _ = Data.List.intercalate "." prefix
+
+importify :: Location -> [ String ] -> [ Ast.StmtImportContent ] -> [ Ast.Stmt ]
+importify loc f = Data.List.map (importify' loc (backslashed f))
+
+-- the lexer hands a qualified name as one token ( Illuminate\Http\Request ) : split it
+backslashed :: [ String ] -> [ String ]
+backslashed = Data.List.filter (not . Data.List.null) . Data.List.concatMap splitOn'
+
+-- a run of backslashes is one separator ( the token may keep the json escaping )
+splitOn' :: String -> [ String ]
+splitOn' name = case break (== '\\') name of
+    (part, []) -> [ part ]
+    (part, rest) -> part : splitOn' (Data.List.dropWhile (== '\\') rest)
 
 arr_snd :: Ast.Exp -> Maybe Token.Named
 arr_snd e@(Ast.ExpStr (Ast.ExpStrContent (Token.ConstStr v loc))) = Just (Token.Named v loc)
@@ -2417,12 +2425,31 @@ dummyLoc = Location "" 0 0 0 0
 -- * methodify *
 -- *           *
 -- *************
-methodify :: Token.ClassName -> [ Ast.Stmt ] -> [(Token.MethodName, Ast.StmtMethodContent)]
-methodify c stmts = catMaybes $ Data.List.map (methodify' c) stmts
+-- every method carries its hosting class and that class's supers ( as JavaParserActions.stmtClass' )
+methodify :: Token.ClassName -> [ Token.SuperName ] -> [ Ast.Stmt ] -> [(Token.MethodName, Ast.StmtMethodContent)]
+methodify c supers stmts = catMaybes $ Data.List.map (methodify' c supers) stmts
 
-methodify' :: Token.ClassName -> Ast.Stmt -> Maybe (Token.MethodName, Ast.StmtMethodContent)
-methodify' c (Ast.StmtMethod m) = Just (Ast.stmtMethodName m, m { Ast.hostingClassName = c } )
-methodify' _ _ = Nothing
+methodify' :: Token.ClassName -> [ Token.SuperName ] -> Ast.Stmt -> Maybe (Token.MethodName, Ast.StmtMethodContent)
+methodify' c supers (Ast.StmtMethod m) = Just (Ast.stmtMethodName m, m { Ast.hostingClassName = c, Ast.hostingClassSupers = supers } )
+methodify' _ _ _ = Nothing
+
+-- use A\B\C [ as D ] binds C ( or D ) : source A.B , specific C ( as a java import a.b.C )
+useItem :: [ String ] -> Token.Named -> Location -> Ast.StmtImportContent
+useItem parts' alias loc = let parts = backslashed parts' in Ast.StmtImportContent
+    {
+        Ast.stmtImportSource = ImportThirdParty (ImportThirdPartyContent (Data.List.intercalate "." (Data.List.init parts))),
+        Ast.stmtImportSpecific = Just (Ast.ImportSpecific (Data.List.last parts)),
+        Ast.stmtImportAlias = if Token.content alias == "null" then Nothing else Just (Ast.ImportAlias (Token.content alias)),
+        Ast.stmtImportLocation = loc
+    }
+
+-- a class without extends has 'extends: null' ( type -> tokenID "null" )
+classSupers :: Token.Named -> [ Token.SuperName ]
+classSupers t = if Token.content t == "null" then [] else [ Token.SuperName t ]
+
+-- an untyped param has 'type: null' ; the declared type otherwise ( located at the param )
+paramType :: Token.Named -> Location -> Token.Named
+paramType t loc = if Token.content t == "null" then Token.Named "any" loc else Token.Named (Token.content t) loc
 
 -- ***********
 -- *         *
