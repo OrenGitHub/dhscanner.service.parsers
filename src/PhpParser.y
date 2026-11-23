@@ -1913,7 +1913,7 @@ array_item:
     'unpack' ':' unpack
 ')'
 {
-    $9
+    arrayItem $2 $6 $9
 }
 
 -- *************
@@ -2394,6 +2394,17 @@ arr_fst _ = Nothing
 
 arr_helper :: Ast.Exp -> Ast.Exp -> Maybe Ast.Exp
 arr_helper e1 e2 = case (arr_fst e1) of { Just (obj,loc) -> arr_helper' loc obj e2; _ -> Nothing }
+
+-- | `'k' => v` keeps its constant key as a keyword arg of `arrayify`
+-- ( kb_keyword_arg_for_call ), as the C# `dictify` members ; any other item
+-- is its value alone
+arrayItem :: Location -> Maybe Ast.Exp -> Ast.Exp -> Ast.Exp
+arrayItem loc (Just (Ast.ExpStr (Ast.ExpStrContent key))) value = Ast.ExpKwArg $ Ast.ExpKwArgContent {
+    Ast.expKwArgName = Token.constStrValue key,
+    Ast.expKwArgValue = value,
+    Ast.expKwArgLocation = loc
+}
+arrayItem _ _ value = value
 
 normalize_expr_array_method :: [Ast.Exp] -> Maybe Ast.Exp
 normalize_expr_array_method [e1,e2] = arr_helper e1 e2
