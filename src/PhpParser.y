@@ -309,6 +309,7 @@ ID      { tokIDValue $1 } |
 'default' { "default"   } |
 'true'  { "true"        } |
 'init'  { "init"        } |
+'loop'  { "loop"        } |
 'false' { "false"       } |
 'props' { "props"       } |
 'prefix' { "prefix"     } |
