@@ -2787,5 +2787,7 @@ parseError t = alexError' (tokenLoc t)
 -- *              *
 -- ****************
 parseProgram :: Common.SourceCodeFilePath -> Common.SourceCodeContent -> Common.AdditionalRepoInfo -> Either String Ast.Root
-parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo = runAlex' parse fp additionalInfo content
+parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo = withFilename <$> runAlex' parse fp additionalInfo content
+    -- the root carries the file's name : the script's own location ( kb_called_from ) needs it
+    where withFilename root = root { Ast.filename = fp }
 }

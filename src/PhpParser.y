@@ -2349,7 +2349,7 @@ stmt_foreach:
 {
     Ast.StmtWhile $ Ast.StmtWhileContent
     {
-        Ast.stmtWhileCond = $6,
+        Ast.stmtWhileCond = iterateOver $2 $6 $15,
         Ast.stmtWhileBody = $18,
         Ast.stmtWhileLocation = $2
     }
@@ -2452,6 +2452,16 @@ normalize_expr_array name loc args = case (normalize_expr_array_method args) of 
 normalizeImports :: Location -> Ast.Exp -> Ast.Exp
 normalizeImports _ file@(Ast.ExpStr _) = file
 normalizeImports loc file = JavaParserActions.instrumentationCall "dynamic-import" loc [ file ]
+
+-- | foreach ( X as Y ) : the while condition is Y = <dhscanner-instrumentation>[iterate-over](X) ;
+-- a non variable Y ( [ $a, $b ] destructuring ) keeps the plain condition X
+iterateOver :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+iterateOver loc x (Ast.ExpVar (Ast.ExpVarContent y)) = Ast.ExpAssign $ Ast.ExpAssignContent {
+    Ast.expAssignLhs = y,
+    Ast.expAssignRhs = JavaParserActions.instrumentationCall "iterate-over" loc [ x ],
+    Ast.expAssignLocation = loc
+}
+iterateOver _ x _ = x
 
 varme :: Token.Named -> Ast.Var
 varme = Ast.VarSimple . Ast.VarSimpleContent . Token.VarName
@@ -2569,5 +2579,7 @@ parseProgram :: Common.SourceCodeFilePath -> Common.SourceCodeContent -> Common.
 -- the cli maps each use A\B\C of a 1st party class ( and every class of the file's
 -- own namespace it names ) to the declaring file ( X-Path-Mappings, from = A.B.C ) , as java
 parseProgram (Common.SourceCodeFilePath fp) (Common.SourceCodeContent content) additionalInfo =
-    withFirstPartyImports (Common.path_mappings additionalInfo) <$> runAlex' parse fp additionalInfo content
+    withFirstPartyImports (Common.path_mappings additionalInfo) . withFilename <$> runAlex' parse fp additionalInfo content
+    -- the root carries the file's name : the script's own location ( kb_called_from ) needs it
+    where withFilename root = root { Ast.filename = fp }
 }
