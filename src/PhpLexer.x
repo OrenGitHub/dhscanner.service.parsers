@@ -114,6 +114,8 @@ import Common
 @KW_EXPR_NEW        = "Expr_New"
 @KW_EXPR_EXIT       = "Expr_Exit"
 @KW_EXPR_IMPORT     = "Expr_Include"
+@KW_UNBOUND_VAR     = "BladePhp_UnboundVar"
+@KW_NATIVE_GLOBALS  = "NativePhp_Globals"
 @KW_EXPR_TERNARY    = "Expr_Ternary"
 @KW_EXPR_THROW      = "Expr_Throw"
 @KW_EXPR_LAMBDA     = "Expr_Closure"
@@ -366,6 +368,8 @@ tokens :-
 @KW_EXPR_NEW        { lex' AlexRawToken_EXPR_NEW        }
 @KW_EXPR_EXIT       { lex' AlexRawToken_EXPR_EXIT       }
 @KW_EXPR_IMPORT     { lex' AlexRawToken_EXPR_IMPORT     }
+@KW_UNBOUND_VAR     { lex' AlexRawToken_UNBOUND_VAR     }
+@KW_NATIVE_GLOBALS  { lex' AlexRawToken_NATIVE_GLOBALS  }
 @KW_EXPR_TERNARY    { lex' AlexRawToken_EXPR_TERNARY    }
 @KW_EXPR_THROW      { lex' AlexRawToken_EXPR_THROW      }
 @KW_EXPR_LAMBDA     { lex' AlexRawToken_EXPR_LAMBDA     }
@@ -634,6 +638,8 @@ data AlexRawToken
      | AlexRawToken_EXPR_NEW        -- ^ Reserved Keyword
      | AlexRawToken_EXPR_EXIT       -- ^ Reserved Keyword
      | AlexRawToken_EXPR_IMPORT     -- ^ Reserved Keyword
+     | AlexRawToken_UNBOUND_VAR     -- ^ Reserved Keyword ( fronts : an unbound blade variable )
+     | AlexRawToken_NATIVE_GLOBALS  -- ^ Reserved Keyword ( fronts : a superglobal entry, constant key )
      | AlexRawToken_EXPR_TERNARY    -- ^ Reserved Keyword
      | AlexRawToken_EXPR_THROW      -- ^ Reserved Keyword
      | AlexRawToken_EXPR_LAMBDA     -- ^ Reserved Keyword

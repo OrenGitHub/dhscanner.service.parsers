@@ -136,6 +136,8 @@ import Data.Map ( empty, fromList, toList, Map )
 'Expr_New'              { AlexTokenTag AlexRawToken_EXPR_NEW        _ }
 'Expr_Exit'             { AlexTokenTag AlexRawToken_EXPR_EXIT       _ }
 'Expr_Include'          { AlexTokenTag AlexRawToken_EXPR_IMPORT     _ }
+'BladePhp_UnboundVar'  { AlexTokenTag AlexRawToken_UNBOUND_VAR     _ }
+'NativePhp_Globals'    { AlexTokenTag AlexRawToken_NATIVE_GLOBALS  _ }
 'Expr_Ternary'          { AlexTokenTag AlexRawToken_EXPR_TERNARY    _ }
 'Expr_Throw'            { AlexTokenTag AlexRawToken_EXPR_THROW      _ }
 'Expr_Variable'         { AlexTokenTag AlexRawToken_EXPR_VAR        _ }
@@ -294,7 +296,7 @@ program: stmts
     Ast.Root
     {
         Ast.filename = "",
-        Ast.stmts = $1
+        Ast.stmts = instrumentedNativeFunctions ++ $1
     }
 }
 
@@ -1624,7 +1626,40 @@ exp_import:
     'type' ':' import_type
 ')'
 {
-    $6
+    normalizeImports $2 $6
+}
+
+-- instrumented as dhscanner Ast.ExpCall : a variable a blade file reads but never binds
+-- ( fronts ), `<dhscanner-instrumentation>[unbound-var-blade-php-file]( 'k' )`
+expUnboundVar:
+'BladePhp_UnboundVar' loc
+'('
+    'name' ':' exp_str
+')'
+{
+    JavaParserActions.instrumentationCall "unbound-var-blade-php-file" $2 [ $6 ]
+}
+
+-- instrumented as dhscanner Ast.ExpCall : a superglobal entry with a constant key ( fronts ),
+-- read `$GLOBALS['k']` -> `<dhscanner-instrumentation>[native-php-globals]( 'GLOBALS', 'k' )`,
+-- write `$GLOBALS['k'] = v` -> `<dhscanner-instrumentation>[native-php-globals]( 'GLOBALS', 'k', v )`
+expNativeGlobals:
+'NativePhp_Globals' loc
+'('
+    'name' ':' exp_str
+    'key' ':' exp_str
+')'
+{
+    JavaParserActions.instrumentationCall "native-php-globals" $2 [ $6, $9 ]
+} |
+'NativePhp_Globals' loc
+'('
+    'name' ':' exp_str
+    'key' ':' exp_str
+    'value' ':' exp
+')'
+{
+    JavaParserActions.instrumentationCall "native-php-globals" $2 [ $6, $9, $12 ]
 }
 
 -- ************
@@ -1895,6 +1930,8 @@ exp_empty   { $1 } |
 exp_null_safe_prop_fetch { $1 } |
 exp_array   { $1 } |
 exp_import  { $1 } |
+expUnboundVar { $1 } |
+expNativeGlobals { $1 } |
 err_suppress  { $1 } |
 exp_lambda  { $1 } |
 exp_arrow   { $1 } |
@@ -1944,16 +1981,7 @@ var_list:
 {
     Ast.VarField $ Ast.VarFieldContent
     {
-        Ast.varFieldLhs = Ast.ExpCall $ Ast.ExpCallContent
-        { 
-            Ast.callee = Ast.ExpVar $ Ast.ExpVarContent $ Ast.VarSimple $ Ast.VarSimpleContent $ Token.VarName $ Token.Named
-            {
-                Token.content = "arrayify",
-                Token.location = $2
-            },
-            Ast.args = $6,
-            Ast.expCallLocation = $2
-        },
+        Ast.varFieldLhs = JavaParserActions.instrumentationCall "arrayify" $2 $6,
         Ast.varFieldName = Token.FieldName $ Token.Named
         {
             Token.content = "arrayify",
@@ -2396,7 +2424,7 @@ arr_fst _ = Nothing
 arr_helper :: Ast.Exp -> Ast.Exp -> Maybe Ast.Exp
 arr_helper e1 e2 = case (arr_fst e1) of { Just (obj,loc) -> arr_helper' loc obj e2; _ -> Nothing }
 
--- | `'k' => v` keeps its constant key as a keyword arg of `arrayify`
+-- | `'k' => v` keeps its constant key as a keyword arg of `<dhscanner-instrumentation>[arrayify]`
 -- ( kb_keyword_arg_for_call ), as the C# `dictify` members ; any other item
 -- is its value alone
 arrayItem :: Location -> Maybe Ast.Exp -> Ast.Exp -> Ast.Exp
@@ -2412,17 +2440,18 @@ normalize_expr_array_method [e1,e2] = arr_helper e1 e2
 normalize_expr_array_method _ = Nothing
 
 normalize_expr_array_normal :: String -> Location -> [Ast.Exp] -> Ast.Exp
-normalize_expr_array_normal name loc args = Ast.ExpCall $ Ast.ExpCallContent {
-    Ast.callee = callify (Token.Named name loc),
-    Ast.args = args,
-    Ast.expCallLocation = loc
-}
+normalize_expr_array_normal name loc args = JavaParserActions.instrumentationCall name loc args
 
 normalize_expr_array :: String -> Location -> [Ast.Exp] -> Ast.Exp
 normalize_expr_array name loc args = case (normalize_expr_array_method args) of {
     Nothing -> normalize_expr_array_normal name loc args;
     Just method -> method
 }
+
+-- | include / require of a non constant file = <dhscanner-instrumentation>[dynamic-import](file) ; a constant file stays as is
+normalizeImports :: Location -> Ast.Exp -> Ast.Exp
+normalizeImports _ file@(Ast.ExpStr _) = file
+normalizeImports loc file = JavaParserActions.instrumentationCall "dynamic-import" loc [ file ]
 
 varme :: Token.Named -> Ast.Var
 varme = Ast.VarSimple . Ast.VarSimpleContent . Token.VarName
@@ -2432,6 +2461,33 @@ callify = Ast.ExpVar . Ast.ExpVarContent . Ast.VarSimple . Ast.VarSimpleContent 
 
 dummyLoc :: Location
 dummyLoc = Location "" 0 0 0 0
+
+-- *********************************
+-- *                               *
+-- * instrumented native functions *
+-- *                               *
+-- *********************************
+-- Laravel's helpers ( view, .. ) are global functions ( Illuminate/Foundation/helpers.php,
+-- loaded by composer's autoload files ), so user code calls them with no `use`.
+-- As the ts parser does for fetch / URL ( TsParserActions.instrumentedNativeTypes ),
+-- every file gets synthetic imports, as if it began with
+--
+--     use function laravel\view;
+--
+-- so a bare `view( 'a.b', [ .. ] )` resolves to the stable fqn `laravel.view`.
+-- The synthetic nodes are located at dummyLoc ( line / col 0 = not from source ).
+instrumentLaravelFunction :: String -> Ast.Stmt
+instrumentLaravelFunction name = Ast.StmtImport $ Ast.StmtImportContent {
+    Ast.stmtImportSource = Ast.ImportThirdParty (Ast.ImportThirdPartyContent "laravel"),
+    Ast.stmtImportSpecific = Just (Ast.ImportSpecific name),
+    Ast.stmtImportAlias = Nothing,
+    Ast.stmtImportLocation = dummyLoc
+}
+
+instrumentedNativeFunctions :: [ Ast.Stmt ]
+instrumentedNativeFunctions = [
+    instrumentLaravelFunction "view"
+  ]
 
 -- *************
 -- *           *
