@@ -1641,8 +1641,8 @@ expUnboundVar:
 }
 
 -- instrumented as dhscanner Ast.ExpCall : a superglobal entry with a constant key ( fronts ),
--- read `$GLOBALS['k']` -> `<dhscanner-instrumentation>[native-php-globals]( 'GLOBALS', 'k' )`,
--- write `$GLOBALS['k'] = v` -> `<dhscanner-instrumentation>[native-php-globals]( 'GLOBALS', 'k', v )`
+-- read `$GLOBALS['k']` -> `<dhscanner-instrumentation>[native-php-globals-read]( 'GLOBALS', 'k' )`,
+-- write `$GLOBALS['k'] = v` -> `<dhscanner-instrumentation>[native-php-globals-write]( 'GLOBALS', 'k', v )`
 expNativeGlobals:
 'NativePhp_Globals' loc
 '('
@@ -1650,7 +1650,7 @@ expNativeGlobals:
     'key' ':' exp_str
 ')'
 {
-    JavaParserActions.instrumentationCall "native-php-globals" $2 [ $6, $9 ]
+    JavaParserActions.instrumentationCall "native-php-globals-read" $2 [ $6, $9 ]
 } |
 'NativePhp_Globals' loc
 '('
@@ -1659,7 +1659,7 @@ expNativeGlobals:
     'value' ':' exp
 ')'
 {
-    JavaParserActions.instrumentationCall "native-php-globals" $2 [ $6, $9, $12 ]
+    JavaParserActions.instrumentationCall "native-php-globals-write" $2 [ $6, $9, $12 ]
 }
 
 -- ************
