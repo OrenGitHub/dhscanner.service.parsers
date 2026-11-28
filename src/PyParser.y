@@ -1528,7 +1528,7 @@ stmt_for:
 {
     Ast.StmtWhile $ Ast.StmtWhileContent
     {
-        Ast.stmtWhileCond = $9,
+        Ast.stmtWhileCond = Actions.iterateOver $19 $9 $5,
         Ast.stmtWhileBody = $13,
         Ast.stmtWhileLocation = $19
     }
@@ -1904,7 +1904,7 @@ stmtImport:
     loc
 ')'
 {
-    Actions.stmtImport $9 $6
+    Actions.stmtImport $9 (Data.List.map nameAndAlias $6)
 }
 
 import_from_module: 'module' '=' tokenID ',' { $3 }
@@ -1951,7 +1951,7 @@ alias:
     loc
 ')'
 {
-    ($5, $7)
+    ($5, $7, $8)
 }
 
 -- **********
@@ -1993,9 +1993,40 @@ expmyname = Ast.ExpVar . Ast.ExpVarContent . Ast.VarSimple . Ast.VarSimpleConten
 unquote :: String -> String
 unquote s = let n = length s in take (n-2) (drop 1 s)
 
-importify :: Location -> (Maybe String) -> Bool -> Common.AdditionalRepoInfo -> [(String, Maybe String)] -> [ Ast.Stmt ]
-importify loc Nothing localImportLevel _ = Data.List.map (importify' loc localImportLevel)
-importify loc (Just src) localImportLevel repoInfo = Data.List.map (importify'' loc src localImportLevel repoInfo)
+nameAndAlias :: (String, Maybe String, Location) -> (String, Maybe String)
+nameAndAlias (name, alias, _) = (name, alias)
+
+importify :: Location -> (Maybe String) -> Bool -> Common.AdditionalRepoInfo -> [(String, Maybe String, Location)] -> [ Ast.Stmt ]
+importify loc Nothing localImportLevel _ names = Data.List.map (importify' loc localImportLevel . nameAndAlias) names
+importify loc (Just src) localImportLevel repoInfo names = let
+    imports = Data.List.map (importify'' loc src localImportLevel repoInfo . nameAndAlias) names
+    sourceOf name = resolveSpecific repoInfo name (resolve (Location.filename loc) src localImportLevel repoInfo)
+    in imports ++ dunderInitReexport loc sourceOf names
+
+-- | `__init__.py` re-exports names it imports from a 1st party file
+-- ( `from .detail import A, B` in `views/__init__.py` ) : one instrumented
+-- call per such import statement, at its location, so predicates follow
+-- `from .views import A` in a sibling to the file defining `A`
+--
+--     <dhscanner-instrumentation>[1st-party-import-from-dunder-init]( 'views/detail.py', 'A', 'B' )
+--
+-- arg 0 is the source file ( a zero width location at the statement start,
+-- no source text has it ), args 1.. the names, each at its own alias node.
+-- The `__init__.py` itself is the file of the call. Aliased names
+-- ( `import A as B` ) are not listed yet.
+dunderInitReexport :: Location -> (String -> Ast.ImportSource) -> [(String, Maybe String, Location)] -> [ Ast.Stmt ]
+dunderInitReexport loc sourceOf names = let
+    reexported = [ (name, nameLoc, f) | (name, Nothing, nameLoc) <- names, Ast.ImportLocal (Ast.ImportLocalFile f) <- [ sourceOf name ] ]
+    in case reexported of
+        ((_, _, f) : _) | isDunderInit (Location.filename loc) -> let
+            names' = [ strExp nameLoc name | (name, nameLoc, f') <- reexported, f' == f ]
+            sourceLoc = loc { Location.lineEnd = Location.lineStart loc, Location.colEnd = Location.colStart loc }
+            callee = Actions.instrumentationCall "1st-party-import-from-dunder-init" loc (strExp sourceLoc f : names')
+            in [ Ast.StmtExp callee ]
+        _ -> []
+
+strExp :: Location -> String -> Ast.Exp
+strExp l value = Ast.ExpStr $ Ast.ExpStrContent $ Token.ConstStr { Token.constStrValue = value, Token.constStrLocation = l }
 
 importify' :: Location -> Bool -> (String, Maybe String) -> Ast.Stmt
 importify' loc localImportLevel (specific, Nothing) = Ast.StmtImport $ Ast.StmtImportContent {
@@ -2013,13 +2044,13 @@ importify' loc localImportLevel (specific, Just alias) = Ast.StmtImport $ Ast.St
 
 importify'' :: Location -> String -> Bool -> Common.AdditionalRepoInfo -> (String, Maybe String) -> Ast.Stmt
 importify'' loc src localImportLevel repoInfo (specific, Nothing) = Ast.StmtImport $ Ast.StmtImportContent {
-    Ast.stmtImportSource = resolve (Location.filename loc) src localImportLevel repoInfo,
+    Ast.stmtImportSource = resolveSpecific repoInfo specific (resolve (Location.filename loc) src localImportLevel repoInfo),
     Ast.stmtImportSpecific = Just (Ast.ImportSpecific specific),
     Ast.stmtImportAlias = Nothing,
     Ast.stmtImportLocation = loc
 }
 importify'' loc src localImportLevel repoInfo (specific, Just alias) = Ast.StmtImport $ Ast.StmtImportContent {
-    Ast.stmtImportSource = resolve (Location.filename loc) src localImportLevel repoInfo,
+    Ast.stmtImportSource = resolveSpecific repoInfo specific (resolve (Location.filename loc) src localImportLevel repoInfo),
     Ast.stmtImportSpecific = Just (Ast.ImportSpecific specific),
     Ast.stmtImportAlias = Just (Ast.ImportAlias alias),
     Ast.stmtImportLocation = loc

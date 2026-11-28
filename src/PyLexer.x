@@ -31,7 +31,7 @@ import qualified Ast
 -- general imports
 import Prelude hiding (lex)
 import Control.Monad ( liftM )
-import System.FilePath ( takeDirectory, (</>), (<.>) )
+import System.FilePath ( takeDirectory, takeFileName, (</>), (<.>) )
 
 }
 
@@ -1089,6 +1089,20 @@ resolveAbsolute src repoInfo = let
     path = map dotToSlash src
     files = Common.filenames repoInfo
     in resolveFirstParty'' (elem (addPySuffix path) files) (elem (path </> "__init__.py") files) (addPySuffix path) path src
+
+-- | `from <pkg> import X`, with `<pkg>` a package ( `<pkg>/__init__.py` ) :
+-- python looks `X` up in `<pkg>/__init__.py`, so `X` is imported from that
+-- file ( which may itself import it from a sibling ). Unless `<pkg>/X.py`
+-- ( or `<pkg>/X/__init__.py` ) exists : then `X` is a submodule, kept as is.
+resolveSpecific :: Common.AdditionalRepoInfo -> String -> Ast.ImportSource -> Ast.ImportSource
+resolveSpecific repoInfo specific src@(Ast.ImportLocal (Ast.ImportLocalDir d)) = let
+    files = Common.filenames repoInfo
+    submodule = elem (addPySuffix (d </> specific)) files || elem (d </> specific </> "__init__.py") files
+    in if submodule then src else Ast.ImportLocal (Ast.ImportLocalFile (d </> "__init__.py"))
+resolveSpecific _ _ src = src
+
+isDunderInit :: FilePath -> Bool
+isDunderInit path = takeFileName path == "__init__.py"
 
 dotToSlash :: Char -> Char
 dotToSlash '.' = '/'

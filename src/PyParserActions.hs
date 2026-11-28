@@ -40,6 +40,17 @@ instrumentationCall tag loc callArgs = Ast.ExpCall $ Ast.ExpCallContent {
     Ast.expCallLocation = loc
 }
 
+-- | for Y in X : the while condition is Y = <dhscanner-instrumentation>[iterate-over](X) ,
+-- as php foreach ( X as Y ) ; a non variable Y ( `for k, v in ..` destructuring )
+-- keeps the plain condition X
+iterateOver :: Location -> Ast.Exp -> Ast.Exp -> Ast.Exp
+iterateOver loc x (Ast.ExpVar (Ast.ExpVarContent y)) = Ast.ExpAssign $ Ast.ExpAssignContent {
+    Ast.expAssignLhs = y,
+    Ast.expAssignRhs = instrumentationCall "iterate-over" loc [ x ],
+    Ast.expAssignLocation = loc
+}
+iterateOver _ x _ = x
+
 -- ***************
 -- *             *
 -- * stmt import *
